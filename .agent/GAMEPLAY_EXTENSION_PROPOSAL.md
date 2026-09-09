@@ -40,11 +40,17 @@ Facility inputs and outputs use bounded ledger stock accessed through a real dep
 - Processed goods: building materials, masonry/bricks, processed food, tools/components; intended to create industry chains and trade.
 - Rare goods: Elytra, Dragon Egg, Wind Burst III, special equipment/materials, event rewards, historical relics; exploration/events/history rather than unlimited ordinary Facility production.
 
+Ordinary vanilla crafting remains available at every Settlement stage. Progression gates Facility tiers and automated throughput, not players' access to normal recipes.
+
+Market category and production method are separate: a basic commodity can still require processing (for example, glass consumes sand/fuel). Metal-producing Facilities require supplied ores or other eligible mined inputs; capacity and time alone do not create new metal. This is a recipe-input rule, not a selected item-provenance tracker or ban on vanilla metal farms.
+
+Server Trade initially covers selected basic construction/survival commodities, including simple processed essentials where appropriate. Rare goods and most specialized products belong primarily to player markets. The exact buy/sell whitelist—including how vanilla farm outputs are treated—remains open; the Facility input rule does not itself solve that balance question.
+
 Regions modify efficiency rather than hard-lock goods. Candidate influences include climate, terrain, crops, trees, livestock, and special city/NPC conditions. Mountains favor stone/metal, plains food/livestock, northern areas forestry, coasts fishing/shipping. Example multipliers 1.5/0.8 are illustrative, not selected tuning.
 
 ### Trade
 
-Server Trade is a bounded basic-market backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Initial Player Trade uses physical market stalls with stocked goods and posted prices: buyers visit to purchase and collect, rather than receiving global instant delivery. Orders, procurement, and bulk fulfillment can be considered later; they are not implicitly included in the initial stall choice.
+Server Trade is a bounded basic-commodity backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Initial Player Trade uses physical market stalls with stocked goods and posted prices: buyers visit to purchase and collect, rather than receiving global instant delivery. Orders, procurement, and bulk fulfillment can be considered later; they are not implicitly included in the initial stall choice.
 
 Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Owner controls direct treasury withdrawals and operating budgets; Managers may make auditable operational payments within those budgets, and Members may not spend treasury money. This is bounded delegated trust, not a guarantee against self-dealing or overpriced purchases. Market stock, price behavior, issuance-budget allocation/replenishment, and detailed budget controls remain open.
 
@@ -92,8 +98,8 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 
 ### Production
 
-- Concrete input classifications and recipes within the selected hybrid production model.
-- Basic/processed commodity classifications.
+- Concrete recipes and eligible mined inputs; ordinary vanilla crafting remains unrestricted.
+- Exact basic-commodity buy/sell catalogue and specialized/rare exclusions; market category does not imply input-free production.
 - Shared production-budget units, allocation authority, and stage-specific amounts; the Settlement-wide ceiling is selected.
 
 ### Economy

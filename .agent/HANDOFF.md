@@ -30,6 +30,7 @@
 - Progression/certification discussion selected four economic stages, auto-checked basics with reviewed higher production, and parallel cultural capabilities. These are proposal-only refinements, not code or accepted-roadmap changes.
 - Facility discussion selected shared reachable housing with functional/density checks, a shared Settlement production budget, and Activity-based pause after a configurable grace period. Stocks and unused inputs are preserved; exact thresholds and operational/accounting details remain open.
 - Stock/trade discussion selected bounded Facility ledger stock at physical depots, physical player market stalls, and Owner-controlled treasury withdrawals/budgets with budgeted Manager operational spending. Recovery, stock permissions, and detailed spending controls remain open.
+- Commodity discussion selected unrestricted vanilla crafting, mined inputs for Facility metal production, and basic-commodity-only Server Trade. Exact buy/sell lists and treatment of vanilla farm outputs remain open; no provenance tracker or farm ban is implicitly approved.
 - `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
 - Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
 - Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
@@ -37,7 +38,7 @@
 
 ## Next action
 
-Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Next discuss commodity classification and vanilla crafting access, then Server Trade coverage/pricing and remaining transport/season boundaries. Facility stock, physical stalls, and treasury role authority are now selected within the proposal. Do not integrate or implement the extension before explicit approval.
+Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Next discuss bounded Server Trade prices, inventory/replenishment, and purchase eligibility, then remaining transport/season boundaries. Vanilla crafting, Facility metal inputs, and basic market coverage are selected within the proposal. Do not integrate or implement the extension before explicit approval.
 
 ## Risks or blockers
 
