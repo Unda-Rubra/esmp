@@ -7,6 +7,7 @@
 - Clock identity/checkpoints, offers, Activity/caps and pause intervals persist. Building discovery, physical decay/repair, production, Resource resets and seasonal presentation remain disabled. Factory Realm remains removed; shared player state and Building Era semantics remain unchanged.
 - Existing user development server/data were not stopped, hot-reloaded or overwritten. Built artifact is `esmp-plugin/build/libs/esmp-0.1.0-SNAPSHOT.jar`; deploy through the normal full restart path.
 - The user requested a temporary running record of completed work for end-of-batch testing. `.agent/TEST_CHECKLIST.md` now tracks implemented milestones and pending player acceptance; future agents must append completed gameplay changes and preserve user-reported results.
+- Building discovery is now in a research/evaluation step at the user's request. Source-backed leads and an unaccepted benchmark-tool proposal are recorded in `.agent/OPEN_QUESTIONS.md`; no detector or new testing tool has been implemented.
 
 ## Completed
 
@@ -17,6 +18,7 @@
 - Added `/settlement activity [name]` and Activity output in `info`; `/esmp status` reports clock ticks and advancement.
 - Updated canonical architecture, Chinese README, dated rationale, open gates and proposal pointer.
 - Created the temporary player-acceptance checklist for the completed clock/timer/Activity milestone, keeping prior user-confirmed Settlement testing separate. Added its maintenance rule to `.agent/README.md`. This follow-up changes documentation only.
+- Researched Minecraft-specific CraftAssist heuristics/house-part labels, geometric voxel room segmentation, distance-transform watershed, Mask3D, and napari/segmentation metrics. Distinguished room/part segmentation from whole-building instances and persistent identity. This research does not select the runtime algorithm.
 
 ## Changed files
 
@@ -27,10 +29,12 @@
 - `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md`, `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`, `.agent/HANDOFF.md` — implemented scope, defaults, operational limitations, verification and next work.
 - `.agent/TEST_CHECKLIST.md` — completed milestones, commit references, concrete pending player checks and safe test preparation.
 - `.agent/README.md` — persistent requirement to maintain the temporary acceptance record.
+- `.agent/OPEN_QUESTIONS.md` — dated primary-source research leads, limitations and a proposed read-only detector comparison tool; not accepted architecture.
 
 ## Verification
 - Runtime evidence below belongs to the preceding implementation milestone, not a new rerun for this checklist-only follow-up.
 - Checklist follow-up: inline document checks passed for three completed milestones, 14 unchecked player-acceptance items, local links/anchors, and maintenance references in the memory index/handoff. No gameplay checks rerun.
+- Research follow-up: performed web searches, read the CraftAssist paper and heuristic source, Mask3D documentation, napari/scikit-image tooling docs, and MDPI method/discussion via browser after HTTP 403. Search providers partially blocked requests. Browser research space closed successfully. No model/detector was executed; no Minecraft accuracy/latency results or new completed gameplay checks are claimed.
 
 - `./gradlew build --no-daemon --console=plain` with the existing JDK 25 toolchain passed after final source changes. Seven added regression tests cover clock forward/rewind/freeze/restart/source protection and sample-frequency invariance; Activity lazy founding-time decay, exact grace boundary, restart/caps/freeze, role/revision validation, recovery intervals; legacy expiry migration once without identity/lifetime reset.
 - Isolated managed Paper fixture `esmp-activity-smoke` on loopback port 25582 (RCON 25583), using pinned build 121, passed actual `/settlement create` and `activity` output, `advance_time=false` with a forward command jump, exactly-once 24000-tick forward jump, rewind without time subtraction, and progression at 40 TPS.
@@ -42,7 +46,7 @@
 
 ## Next action
 
-Next recommended implementation is automatic Building discovery with stable identity across split/merge and claim changes; its recognition rules still need a bounded design before coding. Continue recording completed gameplay work and pending user checks in `.agent/TEST_CHECKLIST.md`. Do not enable decay/repair/production before their separate recovery/accounting gates.
+Next propose the bounded snapshot/annotation/replay benchmark for Building detection and a small real-build corpus, then compare geometric and learned candidates before selecting the discovery algorithm. Resolve what constitutes a whole Building versus rooms/connected infrastructure through reference cases. Keep `.agent/TEST_CHECKLIST.md` limited to genuinely implemented gameplay and pending user acceptance; research adds no completed detector/tool feature.
 
 ## Risks or blockers
 
