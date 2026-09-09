@@ -44,15 +44,17 @@ Ordinary vanilla crafting remains available at every Settlement stage. Progressi
 
 Market category and production method are separate: a basic commodity can still require processing (for example, glass consumes sand/fuel). Metal-producing Facilities require supplied ores or other eligible mined inputs; capacity and time alone do not create new metal. This is a recipe-input rule, not a selected item-provenance tracker or ban on vanilla metal farms.
 
-Server Trade initially covers selected basic construction/survival commodities, including simple processed essentials where appropriate. Rare goods and most specialized products belong primarily to player markets. The exact buy/sell whitelist—including how vanilla farm outputs are treated—remains open; the Facility input rule does not itself solve that balance question.
+Server Trade initially covers selected basic construction/survival commodities, including simple processed essentials where appropriate. Rare goods and most specialized products belong primarily to player markets. NPC buying and selling have separate eligibility lists: selling an essential to players does not imply purchasing it from them. The exact lists, including treatment of vanilla farm outputs, remain open.
 
 Regions modify efficiency rather than hard-lock goods. Candidate influences include climate, terrain, crops, trees, livestock, and special city/NPC conditions. Mountains favor stone/metal, plains food/livestock, northern areas forestry, coasts fishing/shipping. Example multipliers 1.5/0.8 are illustrative, not selected tuning.
 
 ### Trade
 
-Server Trade is a bounded basic-commodity backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Initial Player Trade uses physical market stalls with stocked goods and posted prices: buyers visit to purchase and collect, rather than receiving global instant delivery. Orders, procurement, and bulk fulfillment can be considered later; they are not implicitly included in the initial stall choice.
+Server Trade is a bounded basic-commodity backstop, not an unlimited quest-money shop. It uses global Cheap/Normal/Expensive price bands, adjusted at coarse configurable intervals from stock and demand, with fixed price bounds. Stock is finite; purchases consume it, and eligible player sales plus controlled system replenishment restore it. Temporary shortages are possible, so this is not a promise of unlimited immediate availability.
 
-Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Owner controls direct treasury withdrawals and operating budgets; Managers may make auditable operational payments within those budgets, and Members may not spend treasury money. This is bounded delegated trust, not a guarantee against self-dealing or overpriced purchases. Market stock, price behavior, issuance-budget allocation/replenishment, and detailed budget controls remain open.
+Initial Player Trade uses physical market stalls with stocked goods and posted prices: buyers visit to purchase and collect, rather than receiving global instant delivery. Orders, procurement, and bulk fulfillment can be considered later; they are not implicitly included in the initial stall choice.
+
+Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Owner controls treasury withdrawals and operating budgets; Managers may make audited operational payments within approved budgets, and Members cannot spend treasury money. This is bounded delegated trust, not a guarantee against self-dealing. Exact price curves/buy-sell spreads, quote and bulk-transaction handling, stock/replenishment amounts, issuance-budget allocation, and detailed spending controls remain open.
 
 ### Transport and teleport
 
@@ -105,7 +107,7 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 ### Economy
 
 - Regional specialization's relationship to climate and seasons.
-- Bounded Server Trade dynamic-price complexity.
+- Exact global price-band/quote behavior, buy-sell spreads, stock quantities and replenishment; global bounded bands, finite stock, and separate NPC purchase/sale lists are selected.
 - Stall stocking, purchase/collection, and permission rules within the selected physical-market model.
 - Allocation/replenishment of issuance budgets and detailed operating-budget controls; money sources/sinks and Owner-budgeted Manager spending are selected.
 
