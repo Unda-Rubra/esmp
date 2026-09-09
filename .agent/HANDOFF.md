@@ -6,6 +6,7 @@
 - The user selected all forward jumps: normal MAIN time, sleeping and forward time commands advance reckoning. Backward jumps re-anchor without reversing progress. `advance_time=false` freezes time-driven progression and Activity credit; shutdown/downtime adds no time.
 - Clock identity/checkpoints, offers, Activity/caps and pause intervals persist. Building discovery, physical decay/repair, production, Resource resets and seasonal presentation remain disabled. Factory Realm remains removed; shared player state and Building Era semantics remain unchanged.
 - Existing user development server/data were not stopped, hot-reloaded or overwritten. Built artifact is `esmp-plugin/build/libs/esmp-0.1.0-SNAPSHOT.jar`; deploy through the normal full restart path.
+- The user requested a temporary running record of completed work for end-of-batch testing. `.agent/TEST_CHECKLIST.md` now tracks implemented milestones and pending player acceptance; future agents must append completed gameplay changes and preserve user-reported results.
 
 ## Completed
 
@@ -15,6 +16,7 @@
 - Added bounded Paper observation coalescing for actual block place/break, inventory opening and intentional safe-control use. No idle/movement/pressure-plate/automation/frozen-clock credit.
 - Added `/settlement activity [name]` and Activity output in `info`; `/esmp status` reports clock ticks and advancement.
 - Updated canonical architecture, Chinese README, dated rationale, open gates and proposal pointer.
+- Created the temporary player-acceptance checklist for the completed clock/timer/Activity milestone, keeping prior user-confirmed Settlement testing separate. Added its maintenance rule to `.agent/README.md`. This follow-up changes documentation only.
 
 ## Changed files
 
@@ -23,8 +25,12 @@
 - `esmp-civilization/.../activity/*` and `ActivityServiceTest.java` — policy, observations, status, durable accounting and lifecycle/revalidation tests.
 - `esmp-plugin/.../GameTimeRuntime.java`, `EsmpPlugin.java`, `settlement/ActivityListener.java`, `SettlementRuntime.java`, `SettlementCommands.java`, `ClaimProtection.java`, `ClaimVisualization.java`, and `resources/config.yml` — Paper lifecycle/source/events, bounded collection, commands and config migration.
 - `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md`, `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`, `.agent/HANDOFF.md` — implemented scope, defaults, operational limitations, verification and next work.
+- `.agent/TEST_CHECKLIST.md` — completed milestones, commit references, concrete pending player checks and safe test preparation.
+- `.agent/README.md` — persistent requirement to maintain the temporary acceptance record.
 
 ## Verification
+- Runtime evidence below belongs to the preceding implementation milestone, not a new rerun for this checklist-only follow-up.
+- Checklist follow-up: inline document checks passed for three completed milestones, 14 unchecked player-acceptance items, local links/anchors, and maintenance references in the memory index/handoff. No gameplay checks rerun.
 
 - `./gradlew build --no-daemon --console=plain` with the existing JDK 25 toolchain passed after final source changes. Seven added regression tests cover clock forward/rewind/freeze/restart/source protection and sample-frequency invariance; Activity lazy founding-time decay, exact grace boundary, restart/caps/freeze, role/revision validation, recovery intervals; legacy expiry migration once without identity/lifetime reset.
 - Isolated managed Paper fixture `esmp-activity-smoke` on loopback port 25582 (RCON 25583), using pinned build 121, passed actual `/settlement create` and `activity` output, `advance_time=false` with a forward command jump, exactly-once 24000-tick forward jump, rewind without time subtraction, and progression at 40 TPS.
@@ -36,7 +42,7 @@
 
 ## Next action
 
-Define automatic Building discovery and stable identity across split/merge and claim changes, then implement that bounded slice. Do not re-enable decay/repair/production before their separate recovery/accounting gates.
+Next recommended implementation is automatic Building discovery with stable identity across split/merge and claim changes; its recognition rules still need a bounded design before coding. Continue recording completed gameplay work and pending user checks in `.agent/TEST_CHECKLIST.md`. Do not enable decay/repair/production before their separate recovery/accounting gates.
 
 ## Risks or blockers
 
