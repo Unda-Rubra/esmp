@@ -28,6 +28,7 @@
 - Gameplay extension work is discussion-only: preserved the user's draft summary and selected hybrid production, ledger accounts, and soft freight incentives in `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. No code or accepted architecture/roadmap was changed, and no gameplay checks were rerun to reconfirm the user's Settlement test report.
 - Follow-up proposal check: bounded offline accrual, budgeted purchases/rewards, and split freight payments are recorded consistently. Production timing is resolved within the proposal; treasury authority and issuance-budget mechanics remain open. No code or accepted-roadmap changes.
 - Progression/certification discussion selected four economic stages, auto-checked basics with reviewed higher production, and parallel cultural capabilities. These are proposal-only refinements, not code or accepted-roadmap changes.
+- Facility discussion selected shared reachable housing with functional/density checks, a shared Settlement production budget, and Activity-based pause after a configurable grace period. Stocks and unused inputs are preserved; exact thresholds and operational/accounting details remain open.
 - `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
 - Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
 - Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
@@ -35,7 +36,7 @@
 
 ## Next action
 
-Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. The proposal now selects four economic stages, automatic basic Facility eligibility with certification for higher tiers, and parallel cultural capabilities that do not raise production capacity. Next discuss Facility hard checks, shared capacity allocation, and how inactivity affects offline production. Treasury authority, budgets, and review workflow remain open. Do not integrate or implement the extension before explicit approval.
+Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Next discuss Facility stock/input/output ownership, treasury spending authority, and the initial Player Trade model. Shared capacity and grace-then-pause eligibility are now selected; review workflow, budgets, and numeric tuning remain open. Do not integrate or implement the extension before explicit approval.
 
 ## Risks or blockers
 
