@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 2
+config-version: 3
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -12,7 +12,23 @@ worlds:
 settlements:
   chunk-cap-enabled: true
   max-chunks: 64
-  invitation-seconds: 86400
-  transfer-seconds: 1800
-  promotion-seconds: 86400
-  abandon-seconds: 60
+  invitation-ticks: 1728000
+  transfer-ticks: 36000
+  promotion-ticks: 1728000
+  abandon-ticks: 1200
+
+# All durations use shared reckoning ticks; 24000 ticks = one game day.
+# Changing an installed Activity policy requires an explicit score migration.
+activity:
+  max-score: 100.0
+  half-life-days: 7.0
+  inactive-threshold: 20.0
+  recovery-threshold: 30.0
+  initial-score: 30.0
+  build-credit: 1.0
+  interaction-credit: 0.25
+  visitor-credit: 0.02
+  player-daily-cap: 5.0
+  settlement-daily-cap: 20.0
+  grace-ticks: 72000
+  action-cooldown-ticks: 200

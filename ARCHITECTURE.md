@@ -10,17 +10,17 @@
 
 The runnable plugin consists of four Gradle modules and one deployable Paper JAR under `xdu.undarubra.esmp`.
 
-- `esmp-core` owns world identity and a bounded serial SQLite worker, including database-only transaction callbacks for owning domains. Core schema version 1 remains independent from Civilization schema version 1.
-- `esmp-civilization` now implements Settlement ownership, contiguous claims, roles, expiring offers, transfer, leave/removal, confirmed abandonment, rename, immutable views, and durable history/outbox records.
+- `esmp-core` owns world identity, bounded SQLite execution, and the neutral persisted source-delta `GameClock`. Core world schema remains version 1; Civilization schema is version 2.
+- `esmp-civilization` implements Settlement ownership/claims/roles, game-tick offers, history/outbox, and persistent lazy Activity scoring, capped contributions, hysteresis, and production-pause eligibility.
 - `esmp-plugin` supplies `/settlement` commands, main-thread cache publication, action-specific protection, private temporary borders, and post-commit `SettlementCommittedEvent` notifications. `/esmp status` reports actual readiness and Settlement count.
 - Configured Main World instances are claimable; Resource worlds remain unclaimable. Removed definitions remain historical only. Existing claims load before gameplay is admitted; persistence failure stops the server rather than leaving claims unprotected.
-- Building discovery, Activity scoring, decay/repair, automatic release, and Resource resets are not enabled. Progression, Facilities, currency/markets, freight/teleport, culture, and seasons are accepted design scope (§16A), not implemented features. The implemented Settlement event outbox is not a claim that future DB-to-world recovery jobs already exist.
+- Building discovery, decay/repair, automatic release, Resource resets, Facilities/economy/transport/culture and seasonal presentation remain disabled. Shared game time and Activity are implemented; their eligibility output does not itself mutate buildings or produce goods.
 
 The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
 
 Main World Facilities are accepted as bounded Settlement production, not a restoration of the Factory Realm, Plot aggregate, or removed industrial module. The development loop expands to Explore → Settle → Build → Produce → Trade → Develop → Prosper → Decline → Ruin → Reclaim.
 
-Legacy configuration migration backs up the unversioned/version-1 config to `config-v1.yml`, removes its obsolete `worlds.FACTORY` mapping, and writes version 2. It never deletes physical world folders or persisted historical identities.
+Legacy configuration migration retains the version-1 Factory retirement/backup and then upgrades to config version 3, backing up to `config-before-game-clock.yml` and converting former offer `*-seconds` values to `*-ticks` at 20 ticks per former second. Civilization migration converts existing absolute deadlines once from their remaining cutover lifetime; expired offers remain expired. It preserves IDs, claims, memberships and history. No physical worlds are deleted.
 
 ---
 
@@ -492,13 +492,13 @@ On successful ownership transfer, the former Owner becomes a Member, not a Manag
 
 Ownership transfer requires explicit acceptance by the nominated recipient. Initiating a transfer creates a pending offer and changes no ownership or permissions. Acceptance must revalidate that the initiating player is still the Owner and the offer is still valid before committing the atomic transfer. Only the nominated recipient can accept; an unaccepted offer never transfers ownership.
 
-Ownership-transfer offers expire automatically after a configurable duration, defaulting to **30 minutes**. Persist `expires_at` at creation and reject acceptance at or after expiry, regardless of whether cleanup has run.
+Ownership-transfer offers expire after a configurable **36000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it regardless of cleanup.
 
 The nominated recipient must already be a Manager or Member of this Settlement when the offer is created and when it is accepted. Visitors are ineligible; they must join first. Acceptance must revalidate current membership and reject the transfer if the recipient is no longer a Manager or Member.
 
 Settlement invitations require explicit acceptance by the invited player before they become a Member. A pending invitation grants no membership or additional permissions; the recipient retains their existing effective role until acceptance commits. Only the invited player may accept. Acceptance must validate that the invitation is still valid and the inviter still has authority to invite Members. It must not overwrite an existing Owner, Manager, or Member role.
 
-Membership invitations expire automatically after a configurable duration, defaulting to **24 hours**. Persist an `expires_at` timestamp when creating each invitation and reject acceptance when the current time is at or after that timestamp. Expiry must be enforced by the acceptance check, even if background cleanup has not run.
+Membership invitations expire after a configurable **1728000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it regardless of cleanup.
 
 Cancellation follows current role authority: the Owner or any Manager may cancel any pending membership invitation for their Settlement, regardless of who issued it. Only the current Owner may cancel a pending ownership-transfer offer. The nominated recipient may decline their own invitation or transfer offer. Cancellation and decline grant no access and change no existing ownership or membership. Acceptance, cancellation, and decline must atomically transition the pending offer so only one outcome can commit; cancelled, declined, expired, or already accepted offers cannot be accepted.
 
@@ -510,7 +510,7 @@ Authorized removals take effect when the membership change commits, without appr
 
 Only the Owner may offer Manager promotion to an existing Member. Promotion requires explicit acceptance by that Member; while pending, they retain Member permissions. Acceptance must revalidate the offer, the initiating player's current ownership, and the recipient's current Member role before atomically granting Manager permissions.
 
-Manager promotion offers expire automatically after a configurable duration, defaulting to **24 hours**. Persist `expires_at` at creation and reject acceptance at or after expiry, independently of cleanup. Only the current Owner may cancel a pending promotion offer; only the nominated Member may decline it. Acceptance, cancellation, and decline compete for one atomic pending-state transition. Expired, cancelled, declined, or already accepted promotion offers cannot grant Manager permissions.
+Manager promotion offers expire after a configurable **1728000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it independently of cleanup. Only the current Owner may cancel; only the nominated Member may decline. Acceptance, cancellation and decline compete for one atomic pending-state transition. Resolved/expired offers cannot grant Manager permissions.
 
 The Owner may demote a Manager to Member without that Manager's approval. The change takes effect on commit. Demotion does not remove membership, and Managers cannot demote other Managers.
 
@@ -589,7 +589,7 @@ Claim topology must preserve these invariants:
 
 Abandonment requires a separate, explicit confirmation by the Owner. The confirmation must identify the Settlement and clearly warn that its claim protection will be removed. Initiating abandonment or displaying the warning changes no ownership or protection; dismissing it likewise changes nothing. Before applying a confirmed abandonment, revalidate the confirming player's current ownership and the target Settlement. Confirmation does not bypass other applicable abandonment rules.
 
-Abandonment confirmations expire after a configurable duration, defaulting to **60 seconds**. At confirmation, reject requests at or after the recorded expiry. Bind the confirmation to the Settlement's ownership revision and claimed-chunk revision as shown in the warning. Any ownership or claimed-chunk change invalidates it, even if a later change restores the previous owner or chunk set. An expired or invalidated confirmation requires a fresh warning and confirmation; it must not remove protection. Validate expiry and both revisions atomically with the abandonment state change.
+Abandonment confirmations expire after a configurable **1200 game ticks** by default. At confirmation, reject at or after the persisted reckoning deadline. Bind the warning to ownership and claimed-chunk revisions; any intervening change invalidates it even if later restored. Expired/invalidated requests require a fresh warning and cannot remove protection. Validate expiry and both revisions atomically with abandonment.
 
 Claiming Settlement chunks is free in the initial design: no currency or material payment is required. Expansion is constrained by contiguity and `max_chunks_per_settlement`, not by a claim price. The configurable chunk cap is enabled by default, with `max_chunks_per_settlement = 64`, but may be changed or disabled by server policy. This is a per-Settlement limit, not a per-player total. A Settlement at the cap may contain 64 chunks; claiming a 65th chunk must fail while the default cap is enabled.
 
@@ -637,15 +637,9 @@ Otherwise a player could log in briefly every few weeks and permanently prevent 
 
 ## 8.2 Activity score
 
-The preferred conceptual model is a score that combines:
+Activity credits successful authorized building and meaningful interactions in the actual Settlement. The initial adapters cover block place/break, permitted physical inventory opening, and deliberate right-click use of safe public controls. Login, walking/pressure-plate passage, idle presence and automation grant no credit. Real Repair contributions can be added when Repair exists.
 
-- member presence in or near the settlement;
-- construction;
-- maintenance;
-- meaningful interaction with the settlement;
-- potentially other settlement-relevant actions.
-
-Owner, Manager, and Member participation is the primary activity source. Meaningful Visitor interactions may contribute a very small amount relative to team participation. Merely passing through, entering, or crossing the Settlement contributes no Visitor activity. Exact eligible interactions, weights, and anti-farming limits remain tuning work; Visitor credit does not grant additional permissions.
+Owner, Manager and Member actions are primary. Visitors receive only very small safe-public-interaction credit, never extra permissions. The SQL service revalidates owned identity, world/chunk and ownership/chunk revisions, plus current membership before credit; released/stale observations are discarded.
 
 The score naturally decays over elapsed shared game time (§16A.6), not wall time. Store a value and its game-clock anchor, then evaluate decay lazily when read or credited; inactivity must not require scheduled writes to every Settlement. With `advance_time=false`, no time-driven Activity loss occurs. Server downtime contributes no elapsed game time.
 
@@ -664,7 +658,13 @@ Activity Score
       └──────────────────────────────► time
 ```
 
-The exact contribution weights and decay formula remain unresolved.
+Implemented formula: `score(t) = score(anchor) * 0.5 ^ ((t-anchor)/(halfLifeDays*24000))`, bounded by the configured maximum. Defaults: maximum 100, initial score 30, half-life seven game days, inactive below 20, recover at 30. BUILD credits 1; team INTERACTION 0.25; Visitor INTERACTION 0.02. Persisted per-player/category cooldown is 200 game ticks, player daily cap 5, Settlement daily cap 20; Visitor daily cap is one twentieth of the player cap. Repeated actions remain bounded, not perfectly classified as useful versus farming.
+
+New Settlements anchor at founding game time; legacy Settlements start at migration time. A first visit does not reset their age. Transfers preserve activity, released identities reject new credit, and reclaiming a new identity starts fresh. Pure status reads project state without writing decayed scores. Inactivity begins at the calculated threshold-crossing tick, not the next inspection.
+
+The Paper collector coalesces by Settlement/player/category, keeps at most 4096 observations, and submits at most 256 per batch through the existing bounded SQLite worker. Uncommitted/coalesced observations are best-effort, not an audit log of every click. Grace defaults to 72000 game ticks; closed pause intervals persist on recovery so future production can exclude them. No production is implemented.
+
+Activity policy is configurable before initialization and persisted as a contract. Changing an installed policy currently fails startup rather than retroactively reinterpreting scores; live policy migration is not implemented. `/settlement activity [name]` and `info` show actual score, state, recent credited category, inactivity tick, daily credit and recovery need.
 
 ## 8.3 Automation constraint
 
@@ -678,7 +678,7 @@ Facility output, offline accrual, and automated trade/transport processing grant
 
 ## 8.4 Recovery
 
-When meaningful participation restores sufficient activity, the Settlement returns to an active activity state and further decay stops. Merely logging in or generating a single event is not an automatic recovery trigger; the scoring thresholds remain deferred.
+When meaningful participation reaches the configured recovery threshold (default 30), the Settlement returns to ACTIVE eligibility. Login or a single event does not automatically recover it. Below the inactivity threshold (default 20), it becomes INACTIVE; the gap supplies hysteresis. Future decay must consume this eligibility before mutation.
 
 Existing physical damage persists until repaired. Activity recovery alone neither restores blocks nor advances a Building's Era. Queued decay work must revalidate current activity eligibility immediately before world mutation and must not apply after recovery makes it ineligible.
 
@@ -1071,7 +1071,7 @@ The first version should avoid a large custom RPG-style menu hierarchy.
 ---
 # 16A. Economy, Transport, and Seasons
 
-Accepted on 2026-09-09 after review of the gameplay extension. These systems support useful settlements, visible infrastructure, and history rather than compressed villager captivity or large redstone farms as the economic core. They are separate feature slices, not one implementation milestone. All remain unimplemented until their §26 gates are met.
+Accepted on 2026-09-09 after review of the gameplay extension. These systems support useful settlements, visible infrastructure, and history rather than compressed villager captivity or large redstone farms as the economic core. They are separate feature slices, not one milestone. The shared reckoning clock and Activity eligibility are implemented; production, markets, transport, cultural progression and seasonal presentation still require their §26 gates.
 
 ## 16A.1 Progression, culture, and certification
 
@@ -1133,9 +1133,15 @@ One Minecraft day equals one calendar day; a year contains 365 days or 366 in a 
 
 All ESMP gameplay timing uses one shared reckoning clock measured in game ticks/days, including Activity loss, decay/repair progression, production, grace periods, freight, cooldowns, offer expiry, market intervals, and Resource schedules. It is not tied to the real-life clock. When `advance_time=false`, the shared clock and time-driven mechanisms stop advancing. Server downtime adds no game time and creates no catch-up. Changing tick rate alters real-world pacing only: the same elapsed game days must produce the same time-based Activity/decay result.
 
-Gameplay code consumes a common clock rather than independently counting scheduler callbacks or reading per-world time. Persist its position and dependent anchors coherently across restart; timestamps used merely for operational diagnostics must not drive gameplay. Existing gameplay timer implementations/configuration require an audit and explicit migration before the clock cutover; this architecture change does not claim they already comply.
+Gameplay consumes one clock supplied by the configured, loaded MAIN world's `getFullTime()`. First installation begins at reckoning tick 0; 24000 ticks are one game day. All positive source deltas count, including sleep and explicit forward time commands; negative changes re-anchor without subtracting reckoning time or reversing completed work. `advance_time=false` re-anchors without crediting deltas; Activity contributions are also disabled while frozen. Claim protection and explicit commands remain available.
 
-The canonical world-day source, sleep and `/time set`/`/time add` handling, backward-time/reset reconciliation, leap-year rules, and season boundaries remain implementation decisions. Tick-rate changes are distinct from explicit world-time jumps: do not silently settle jump/rewind policy by choosing an API. Clock/source recovery precedes Activity implementation; full seasonal visuals do not.
+The clock persists source UUID, raw source position and reckoning ticks. Boot resumes persisted reckoning time and re-anchors to the loaded source without inferring downtime from either wall time or a mismatched world save. A changed MAIN source UUID fails startup instead of silently resetting chronology. Resource worlds do not drive this source.
+
+Game-timed domain writes checkpoint the clock in their transaction; idle clock checkpoints occur every 200 game ticks and normal shutdown flushes. Abrupt failure may lose uncheckpointed clock-only progress/coalesced observations, but committed score/offer anchors are not ahead of the durable clock. This is not a coordinated world-save/DB restore protocol; restore paired data, never mix unrelated MAIN and database snapshots.
+
+Offer expiry, border duration and protection-message throttling now use game ticks. Existing pending offers retain their remaining lifetime via a one-time legacy conversion; new expiry has no wall-clock fallback. New history includes explicit game ticks; original wall timestamps remain diagnostics/legacy provenance, not gameplay inputs.
+
+Leap-year and season-boundary presentation remains deferred. The implemented clock supplies ticks/days, not a completed seasonal rendering or full calendar UI.
 
 Spring favors growth/building, summer production, autumn harvest/storage/trade, and winter reduced agriculture plus crafts/trade. Exact effects remain tuning work. Seasons modify production/demand rather than owning another economy; decay eligibility remains independent. They provide rhythm, not compulsory daily tasks, punitive survival, or intricate stock management.
 
@@ -1210,7 +1216,7 @@ Coordinate writes through bounded scheduling suited to SQLite's single-writer mo
 
 Use versioned schema migrations. The initial implementation uses SQLite JDBC 3.53.4.0 with small transactional JDBC migrations tracked by `PRAGMA user_version`, rather than adding a migration framework for the initial schema. Repository boundaries support maintainability, not transparent database portability; a future backend change requires explicit migrations and verification.
 
-Civilization maintains its own `civilization_schema` version 1 in the same database, with `settlements`, `settlement_members`, `settlement_chunks`, `settlement_offers`, and `settlement_events`. Gameplay changes and historical/outbox facts share a transaction. Released Settlement records and events remain; current claim and membership rows are removed.
+Civilization maintains `civilization_schema` version 2, including original Settlement tables plus founding/history game ticks and converted offer deadlines. Activity owns its policy, score, actor-limit and pause-interval tables; the shared clock has its own `game_clock` record. Domain changes and their history/outbox facts share a transaction. Released identities/history remain; current claims and membership are removed.
 
 ## 17.3 World identity requirement
 
@@ -1615,7 +1621,7 @@ The following decisions are considered settled enough to serve as architectural 
 48. Currency sources are budgeted; player trades transfer funds and disclosed service fees destroy them. Owner budgets Manager spending. Server Trade has global bounded bands, finite replenished stock, and separate buy/sell lists; initial player markets are physical stalls.
 49. Freight reserves ledger cargo/throughput over reviewed physical routes; disruption stops new departures, not existing shipments. Village or certified-landmark status qualifies for basic teleport. Shared-storage bypasses remain accepted soft incentives.
 50. Natural regional profiles modify efficiency separately from seasons. Calendar days equal Minecraft days, with 365/366-day years starting at 0 A.D.; clock reconciliation remains gated. Native bounded seasonal effects come first; full seasonal palette support is deferred.
-51. All gameplay timers use the shared game-tick/day clock, not real-life elapsed time. `advance_time=false` freezes time-driven progression; server downtime yields no catch-up. Tick-rate changes affect real-world pacing, not behavior per game day. Source/jump/restart semantics and existing timer migration precede Activity.
+51. Shared game timing and Activity are implemented. MAIN supplies all forward deltas including sleep/commands; backwards changes re-anchor. `advance_time=false` freezes timed progression; no downtime catch-up. Existing offer/border/throttle timers use game ticks. Seasonal calendar presentation and coordinated restore remain gated.
 
 ---
 
@@ -1629,11 +1635,11 @@ The major domain boundaries are settled enough to plan implementation. The remai
 | Playable Settlements (implemented) | Transactional owning tables, contiguous claims, fixed-role workflows, committed cache publication, history/outbox, Paper protection adapters, and private visualization; verify the target server and other-plugin integrations before production use. |
 | Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
 | Before enabling Resource resets | Finish evacuation/retired-location handling and coordinated cutover/backup/restore checks. |
-| Before enabling Activity-dependent production | Configure meaningful participation/caps, elapsed-time eligibility, grace/pause/recovery boundaries, and no catch-up across paused periods; automation grants no Activity. |
+| Before enabling Activity-dependent production | Consume implemented inactivity/grace and persisted pause intervals; define in-progress job/input/output accounting so paused intervals never yield catch-up production. |
 | Before enabling progression / Facilities / culture | Resolve upgrade/cultural criteria, Building/Facility linkage, workforce validation, certificate scope/rechecks, shared-capacity units/allocation authority, and ownership-change behavior. |
 | Before enabling currency / stock / markets | Define audited ledger operations, issuance/operating budgets, item deposit/withdrawal recovery, access rules, quotes/spreads/catalogues, finite replenishment, and crash-safe stock/payment settlement. |
 | Before enabling freight / public teleport | Resolve bulk/throughput rates, physical-corridor invalidation/permissions, recipient and endpoint changes, bounded held cargo, reservations/payment recovery, safe destinations, and carried-cargo fees. |
-| Before enabling shared clock / Activity | Resolve canonical source, sleep/command jumps/rewinds, persistence/restart/Resource-reset reconciliation, and migration of existing gameplay timers. Verify `advance_time=false`, no downtime catch-up, and equal results per game day at different tick rates. Leap/season boundaries precede calendar effects; prove safe reversible loaded-area mutations before native block changes. |
+| Shared clock / Activity (implemented) | MAIN source, all-forward-jump counting, rewind re-anchoring, freeze/no-downtime behavior, legacy timer migration, scoring/caps/status and recovery intervals are implemented. Seasonal calendar presentation and coordinated world/database restoration remain separate gates. |
 
 Weights, probabilities, generation appearance, UI polish, and optional features may remain deferred until their implementation slice. This does not permit enabling unsafe or incomplete behavior: satisfy each gate before exposing its feature, rather than blocking all work on every unresolved detail.
 
@@ -1645,7 +1651,7 @@ The following areas are explicitly **not finalized yet**:
 - administrator exemptions from the default-enabled, configurable 64-chunk cap;
 - exact version-specific catalogue of blocks and events classified as safe Visitor interaction;
 - alliance relationships between settlements;
-- exact Activity Score formula and decay curve;
+- balance tuning of the implemented Activity policy and an explicit installed-policy migration mechanism; the initial formula/caps/hysteresis are settled in §8;
 - exact settlement condition thresholds;
 - automatic release thresholds, Settlement-level ruin aggregation, and partial-reclaim behavior while preserving contiguity; voluntary abandonment does not require inactivity or ruin;
 
@@ -1717,7 +1723,7 @@ Accepted scope is staged by dependencies; implementation status is explicit:
 |---|---|
 | 1. Runtime / world identity — implemented | Four modules, one JAR, world registry, bounded SQLite execution, migrations, and actual startup/restart verification. |
 | 2. Playable Settlements — implemented | Claims/protection, fixed roles, offers/ownership, private borders, and committed history/outbox. Preserve user-confirmed in-game coverage; chat polish remains deferred. |
-| 3. Shared game clock, then Activity — next | Implement persisted reckoning ticks/days with `advance_time` freeze and no downtime accrual; resolve jump/source recovery and migrate existing gameplay timers. Then implement Settlement-local scoring, capped contributions, eligibility/pause boundaries and status. Full seasonal presentation is not a prerequisite. |
+| 3. Shared game clock and Activity — implemented | Persisted source-delta reckoning, forward sleep/command jumps, freeze/rewind/restart handling; game-time offers/borders/throttling; lazy capped score, hysteresis, pause intervals, authorized observations and player status. |
 | 4. Building identity / Facility qualification | Building discovery/baselines/split-merge linkage, workforce/functional checks, reviewed certification, shared-capacity allocation, progression and cultural qualification. Persist historical facts from first state changes; resolve gates before awarding capabilities. |
 | 5. Ledger / physical stock / production | Audited wallets/treasuries/budgets and recoverable physical depots; then bounded production using Activity and qualification, with inputs/output capacity and pause accounting. Basic production does not require seasonal visuals. |
 | 6. Markets and specialization | Commodity/input lists, finite Server Trade, physical stalls, price quotes and item/payment recovery. Stable regional modifiers first; seasonal modifiers require resolved calendar policy. |
@@ -1736,11 +1742,11 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-The user selected the shared game clock for all gameplay timing, superseding the proposed real-elapsed-time Activity model. First resolve source, sleep/command jumps, and restart reconciliation, implement the clock, and audit/migrate existing gameplay timers. Then implement bounded Activity contributions and game-time eligibility, including its production-pause consumer. User-confirmed Settlement testing stands; chat ergonomics remain deferred.
+Shared game time and Activity are implemented and verified through build/regressions and live Paper scenarios. Next define automatic Building discovery and stable identity across split/merge and claim changes, before implementing discovery. Do not enable decay/repair or production merely because Activity eligibility now exists.
 
 ## First functional slice
 
-Settlement persistence, membership/ownership workflows, claim protection, basic visualization, and committed history are implemented. Activity is the next slice; Building discovery/qualification and the logical service boundaries in §16A.7 follow through §27. Durable world-mutation recovery and material accounting still precede decay/repair and seasonal block enablement; physical stock/payment recovery precedes economic item exchange.
+Settlements, shared game clock, migrated gameplay timers and Activity now run. Building discovery/qualification is the next slice. Durable world-mutation recovery and material accounting still precede decay/repair and seasonal block enablement; physical stock/payment recovery precedes economic item exchange. Full seasonal palettes and chat ergonomics remain deferred.
 
 ## Later feature gates
 

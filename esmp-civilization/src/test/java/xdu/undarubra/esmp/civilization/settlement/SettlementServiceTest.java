@@ -7,11 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import xdu.undarubra.esmp.core.time.GameClock;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
@@ -30,7 +26,8 @@ class SettlementServiceTest {
     @TempDir Path directory;
     private WorldStore database;
     private SettlementService service;
-    private final MutableClock clock = new MutableClock();
+    private GameClock clock;
+    private final UUID clockSource = UUID.randomUUID();
     private UUID world;
     private UUID resourceWorld;
     private final UUID owner = UUID.randomUUID();
@@ -47,8 +44,9 @@ class SettlementServiceTest {
                 new WorldBinding("RESOURCE_OVERWORLD", UUID.randomUUID(), "resource"))).join();
         world = snapshot.instances().stream().filter(i -> i.definitionId().equals("MAIN")).findFirst().orElseThrow().instanceId();
         resourceWorld = snapshot.instances().stream().filter(i -> i.definitionId().equals("RESOURCE_OVERWORLD")).findFirst().orElseThrow().instanceId();
-        service = new SettlementService(database, new SettlementPolicy(true, 3, Duration.ofHours(24),
-                Duration.ofMinutes(30), Duration.ofHours(24), Duration.ofSeconds(60)), clock);
+        clock = new GameClock(database);
+        clock.initialize(clockSource, 0, true).join();
+        service = new SettlementService(database, new SettlementPolicy(true, 3, 1_728_000, 36_000, 1_728_000, 1_200), clock);
         service.initialize().join();
     }
 
@@ -148,7 +146,7 @@ class SettlementServiceTest {
     void expiryCancellationAndDeclineCannotBeReplayed() {
         UUID id = create("Town", 0, 0);
         var expired = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
-        clock.now = expired.expiresAt();
+        clock.sample(clockSource, expired.expiresAtTick(), true);
         rejected(() -> service.accept(member, expired.id(), false).join());
         assertTrue(service.offers(member).join().isEmpty());
         var invitation = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
@@ -174,7 +172,7 @@ class SettlementServiceTest {
         service.unclaim(owner, id, new ChunkPosition(1, 0)).join();
         rejected(() -> service.accept(owner, warning.id(), true).join());
         var expired = service.offer(owner, id, owner, SettlementOffer.Type.ABANDON).join().offer();
-        clock.now = expired.expiresAt();
+        clock.sample(clockSource, expired.expiresAtTick(), true);
         rejected(() -> service.accept(owner, expired.id(), true).join());
         var valid = service.offer(owner, id, owner, SettlementOffer.Type.ABANDON).join().offer();
         rejected(() -> service.accept(owner, valid.id(), false).join());
@@ -198,6 +196,8 @@ class SettlementServiceTest {
         database.close();
         database = new WorldStore(directory.resolve("esmp.db"));
         database.initialize(List.of(new WorldDefinition("MAIN", "civilization", WorldEnvironment.NORMAL)), List.of()).join();
+        clock = new GameClock(database);
+        clock.initialize(clockSource, 0, true).join();
         service = new SettlementService(database, SettlementPolicy.defaults(), clock);
         SettlementView persisted = service.initialize().join().getFirst();
         assertEquals(id, persisted.id());
@@ -207,10 +207,38 @@ class SettlementServiceTest {
         assertTrue(service.pendingEvents().join().isEmpty());
     }
 
-    private static final class MutableClock extends Clock {
-        private volatile Instant now = Instant.parse("2026-09-09T00:00:00Z");
-        @Override public ZoneId getZone() { return ZoneOffset.UTC; }
-        @Override public Clock withZone(ZoneId zone) { return Clock.fixed(now, zone); }
-        @Override public Instant instant() { return now; }
+    @Test
+    void legacyOfferDeadlinesConvertOnceWithoutResettingIdentityOrLifetime() {
+        UUID id = create("Legacy", 0, 0);
+        var offer = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
+        dbLegacyDeadline(offer.id());
+        service.initialize().join();
+        var migrated = service.inspectOffer(offer.id()).join();
+        assertEquals(offer.id(), migrated.id());
+        assertTrue(migrated.expiresAtTick() > clock.ticks());
+        assertTrue(migrated.expiresAtTick() <= clock.ticks() + 1200);
+        assertEquals(id, current(id).id());
+        assertEquals(2, service.history(id).join().size());
+        service.initialize().join();
+        assertEquals(migrated.expiresAtTick(), service.inspectOffer(offer.id()).join().expiresAtTick());
+        clock.sample(clockSource, migrated.expiresAtTick(), true);
+        rejected(() -> service.accept(member, offer.id(), false).join());
     }
+
+    private void dbLegacyDeadline(UUID offer) {
+        database.transact(connection -> {
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("ALTER TABLE settlements DROP COLUMN founded_tick");
+                statement.executeUpdate("ALTER TABLE settlement_events DROP COLUMN game_tick");
+                statement.executeUpdate("UPDATE civilization_schema SET version=1");
+            }
+            try (var update = connection.prepareStatement("UPDATE settlement_offers SET expires_at=? WHERE offer_id=?")) {
+                update.setLong(1, System.currentTimeMillis() + 60000);
+                update.setString(2, offer.toString());
+                update.executeUpdate();
+            }
+            return null;
+        }).join();
+    }
+
 }

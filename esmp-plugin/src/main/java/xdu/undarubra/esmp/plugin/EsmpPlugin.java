@@ -10,7 +10,8 @@ import xdu.undarubra.esmp.core.world.WorldInstance;
 import xdu.undarubra.esmp.resource.ResourceWorlds;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.Duration;
+import xdu.undarubra.esmp.core.time.GameClock;
+import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.plugin.settlement.ClaimProtection;
 import xdu.undarubra.esmp.plugin.settlement.SettlementCommands;
 import xdu.undarubra.esmp.plugin.settlement.SettlementRuntime;
@@ -40,6 +41,8 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
     private State state = State.STOPPED;
     private WorldStore store;
     private SettlementRuntime settlements;
+    private GameClock gameClock;
+    private GameTimeRuntime gameTime;
     private Map<String, WorldDefinition> definitions = Map.of();
     private Map<String, WorldDefinition> configuredWorlds = Map.of();
 
@@ -62,8 +65,11 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             Objects.requireNonNull(getCommand("esmp"), "Missing esmp command").setExecutor(this);
             getServer().getPluginManager().registerEvents(this, this);
             store = new WorldStore(getDataFolder().toPath().resolve("esmp.db"));
+            gameClock = new GameClock(store);
+            gameTime = new GameTimeRuntime(this, getServer().getWorld(getConfig().getString("worlds.MAIN")),
+                    gameClock, failure -> fail("Game clock failed", failure));
             settlements = new SettlementRuntime(this, store, getConfig().getString("worlds.MAIN"),
-                    readSettlementPolicy(), failure -> fail("Settlement storage or publication failed", failure));
+                    readSettlementPolicy(), gameClock, readActivityPolicy(), failure -> fail("Settlement storage or publication failed", failure));
             var settlementCommand = new SettlementCommands(this, settlements);
             var command = Objects.requireNonNull(getCommand("settlement"), "Missing settlement command");
             command.setExecutor(settlementCommand);
@@ -71,12 +77,14 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().registerEvents(new ClaimProtection(this, settlements), this);
             getServer().getPluginManager().registerEvents(settlements.visualization(), this);
             store.initialize(List.copyOf(definitions.values()), initialBindings)
+                    .thenCompose(ignored -> gameTime.initialize())
                     .thenCompose(ignored -> settlements.initialize())
                     .whenComplete((ownedSettlements, failure) -> onServerThread(() -> {
                         if (failure != null) {
                             fail("SQLite/Settlement initialization failed", failure);
                             return;
                         }
+                        gameTime.start();
                         settlements.activate(ownedSettlements);
                         state = State.READY;
                         StoreSnapshot snapshot = store.snapshot();
@@ -105,7 +113,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 2) {
+        if (!(version instanceof Integer number) || number < 1 || number > 3) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -123,6 +131,21 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             saveConfig();
             getLogger().info("Migrated configuration to version 2; former Factory world mapping retired. World data is untouched.");
         }
+        if (number < 3) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-game-clock.yml");
+                if (!Files.exists(backup)) { Files.copy(getDataFolder().toPath().resolve("config.yml"), backup); }
+            } catch (IOException failure) { throw new IllegalStateException("Cannot back up timer configuration", failure); }
+            String[] names = {"invitation", "transfer", "promotion", "abandon"};
+            long[] fallback = {86400, 1800, 86400, 60};
+            for (int i = 0; i < names.length; i++) {
+                long ticks = Math.multiplyExact(positiveSetting("settlements." + names[i] + "-seconds", fallback[i]), 20);
+                getConfig().set("settlements." + names[i] + "-ticks", ticks);
+                getConfig().set("settlements." + names[i] + "-seconds", null);
+            }
+            getConfig().set("config-version", 3);
+            saveConfig();
+        }
     }
 
     private SettlementPolicy readSettlementPolicy() {
@@ -133,10 +156,10 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         long cap = positiveSetting("settlements.max-chunks", 64);
         if (cap > Integer.MAX_VALUE) { throw new IllegalArgumentException("Settlement chunk cap is too large"); }
         return new SettlementPolicy(capEnabled, (int) cap,
-                Duration.ofSeconds(positiveSetting("settlements.invitation-seconds", 86400)),
-                Duration.ofSeconds(positiveSetting("settlements.transfer-seconds", 1800)),
-                Duration.ofSeconds(positiveSetting("settlements.promotion-seconds", 86400)),
-                Duration.ofSeconds(positiveSetting("settlements.abandon-seconds", 60)));
+                positiveSetting("settlements.invitation-ticks", 1_728_000),
+                positiveSetting("settlements.transfer-ticks", 36_000),
+                positiveSetting("settlements.promotion-ticks", 1_728_000),
+                positiveSetting("settlements.abandon-ticks", 1_200));
     }
 
     private long positiveSetting(String path, long fallback) {
@@ -145,8 +168,23 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             throw new IllegalArgumentException(path + " must be a positive integer");
         }
         long number = ((Number) value).longValue();
-        Math.addExact(System.currentTimeMillis(), Math.multiplyExact(number, 1000));
         return number;
+    }
+
+    private ActivityPolicy readActivityPolicy() {
+        var p = ActivityPolicy.defaults();
+        return new ActivityPolicy(activityNumber("max-score", p.maxScore()), activityNumber("half-life-days", p.halfLifeDays()),
+                activityNumber("inactive-threshold", p.inactiveThreshold()), activityNumber("recovery-threshold", p.recoveryThreshold()),
+                activityNumber("initial-score", p.initialScore()), activityNumber("build-credit", p.buildCredit()),
+                activityNumber("interaction-credit", p.interactionCredit()), activityNumber("visitor-credit", p.visitorCredit()),
+                activityNumber("player-daily-cap", p.playerDailyCap()), activityNumber("settlement-daily-cap", p.settlementDailyCap()),
+                positiveSetting("activity.grace-ticks", p.graceTicks()), positiveSetting("activity.action-cooldown-ticks", p.actionCooldownTicks()));
+    }
+
+    private double activityNumber(String name, double fallback) {
+        Object value = getConfig().get("activity." + name, fallback);
+        if (!(value instanceof Number number)) { throw new IllegalArgumentException("activity." + name + " must be numeric"); }
+        return number.doubleValue();
     }
 
     private Map<String, WorldDefinition> readWorldMappings() {
@@ -245,6 +283,10 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             }
             settlements.close();
         }
+        if (gameTime != null && gameClock != null) {
+            try { gameTime.close(); }
+            catch (RuntimeException failure) { getLogger().log(Level.SEVERE, "Game clock shutdown failed", failure); }
+        }
         if (store != null) {
             try {
                 store.close();
@@ -298,7 +340,9 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         }
         sender.sendMessage(Component.text("Settlements=" + (settlements == null ? 0 : settlements.index().size())
                 + " | protection=" + (settlements != null && settlements.ready())));
-        sender.sendMessage(Component.text("Implemented: claims, fixed roles, offers, history, and borders. Decay, repair, and Resource resets remain disabled."));
+        sender.sendMessage(Component.text("Game tick=" + (gameClock == null ? 0 : gameClock.ticks())
+                + " | advancing=" + (gameClock != null && gameClock.advancing())));
+        sender.sendMessage(Component.text("Implemented: claims, game-time offers, Activity, history, borders. Decay, repair, and Resource resets remain disabled."));
         return true;
     }
 

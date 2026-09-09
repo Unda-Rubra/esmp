@@ -5,7 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Clock;
+import xdu.undarubra.esmp.core.time.GameClock;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -23,9 +23,9 @@ import xdu.undarubra.esmp.core.storage.WorldStore;
 public final class SettlementService {
     private final WorldStore database;
     private final SettlementPolicy policy;
-    private final Clock clock;
+    private final GameClock clock;
 
-    public SettlementService(WorldStore database, SettlementPolicy policy, Clock clock) {
+    public SettlementService(WorldStore database, SettlementPolicy policy, GameClock clock) {
         this.database = database;
         this.policy = policy;
         this.clock = clock;
@@ -34,6 +34,7 @@ public final class SettlementService {
     public CompletableFuture<List<SettlementView>> initialize() {
         return database.transact(connection -> {
             migrate(connection);
+            clock.checkpoint(connection);
             return loadAll(connection);
         });
     }
@@ -48,7 +49,8 @@ public final class SettlementService {
             execute(connection, """
                     INSERT INTO settlements(settlement_id,world_instance_id,name,name_key,owner_uuid,created_at,
                         ownership_revision,chunk_revision,status) VALUES(?,?,?,?,?,?,1,1,'OWNED')
-                    """, id, world, name, key(name), actor, clock.millis());
+                    """, id, world, name, key(name), actor, Instant.now().toEpochMilli());
+            execute(connection, "UPDATE settlements SET founded_tick=? WHERE settlement_id=?", clock.ticks(), id);
             insertChunk(connection, id, world, chunk);
             event(connection, id, actor, "FOUNDED", name + " at " + chunk.x() + "," + chunk.z());
             return changed(connection, id, null, "Created " + name + " and claimed this chunk.");
@@ -113,7 +115,7 @@ public final class SettlementService {
                         "The new Owner must already be a Member or Manager.");
                 case ABANDON -> require(actor.equals(recipient), "Only the Owner may confirm abandonment.");
             }
-            execute(connection, "UPDATE settlement_offers SET state='EXPIRED' WHERE settlement_id=? AND state='PENDING' AND expires_at<=?", id, clock.millis());
+            execute(connection, "UPDATE settlement_offers SET state='EXPIRED' WHERE settlement_id=? AND state='PENDING' AND expires_at<=?", id, clock.ticks());
             if (type == SettlementOffer.Type.ABANDON) {
                 execute(connection, "UPDATE settlement_offers SET state='CANCELLED' WHERE settlement_id=? AND type='ABANDON' AND state='PENDING'", id);
             }
@@ -123,11 +125,11 @@ public final class SettlementService {
                 require(!result.next(), "A pending offer already exists; inspect /settlement offers.");
             }
             SettlementOffer offer = new SettlementOffer(UUID.randomUUID(), id, type, actor, recipient,
-                    clock.instant().plus(policy.lifetime(type)), settlement.ownershipRevision(), settlement.chunkRevision());
+                    Math.addExact(clock.ticks(), policy.lifetimeTicks(type)), settlement.ownershipRevision(), settlement.chunkRevision());
             execute(connection, """
                     INSERT INTO settlement_offers(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,
                         ownership_revision,chunk_revision,state) VALUES(?,?,?,?,?,?,?,?,'PENDING')
-                    """, offer.id(), id, type, actor, recipient, offer.expiresAt().toEpochMilli(),
+                    """, offer.id(), id, type, actor, recipient, offer.expiresAtTick(),
                     offer.ownershipRevision(), offer.chunkRevision());
             event(connection, id, actor, type + "_OFFERED", "recipient=" + recipient + ";offer=" + offer.id());
             return new SettlementChange(id, settlement, offer,
@@ -249,7 +251,7 @@ public final class SettlementService {
                      (o.type='INVITE' AND EXISTS(SELECT 1 FROM settlement_members m
                       WHERE m.settlement_id=s.settlement_id AND m.player_uuid=? AND m.role='MANAGER')))
                     ORDER BY o.expires_at LIMIT 50
-                    """, clock.millis(), actor, actor, actor, actor); ResultSet rows = query.executeQuery()) {
+                    """, clock.ticks(), actor, actor, actor, actor); ResultSet rows = query.executeQuery()) {
                 while (rows.next()) { result.add(offerFrom(rows)); }
             }
             return List.copyOf(result);
@@ -283,16 +285,19 @@ public final class SettlementService {
     }
 
     private void event(Connection connection, UUID id, UUID actor, String type, String detail) throws SQLException {
-        execute(connection, "INSERT INTO settlement_events VALUES(?,?,?,?,?,?,0)", UUID.randomUUID(), id, actor, type, detail, clock.millis());
+        execute(connection, "INSERT INTO settlement_events VALUES(?,?,?,?,?,?,0,?)", UUID.randomUUID(), id, actor, type, detail, Instant.now().toEpochMilli(), clock.ticks());
+        clock.checkpoint(connection);
     }
 
     private static List<SettlementEvent> events(Connection connection, String sql, Object... parameters) throws SQLException {
         var events = new ArrayList<SettlementEvent>();
         try (PreparedStatement query = prepare(connection, sql, parameters); ResultSet result = query.executeQuery()) {
             while (result.next()) {
+                Number gameTick = (Number) result.getObject("game_tick");
                 events.add(new SettlementEvent(UUID.fromString(result.getString("event_id")),
                         UUID.fromString(result.getString("settlement_id")), UUID.fromString(result.getString("actor_uuid")),
-                        result.getString("type"), result.getString("detail"), Instant.ofEpochMilli(result.getLong("occurred_at"))));
+                        result.getString("type"), result.getString("detail"), Instant.ofEpochMilli(result.getLong("occurred_at")),
+                        gameTick == null ? null : gameTick.longValue()));
             }
         }
         return List.copyOf(events);
@@ -303,7 +308,7 @@ public final class SettlementService {
                 ResultSet result = query.executeQuery()) {
             require(result.next(), "Offer not found or already resolved.");
             SettlementOffer offer = offerFrom(result);
-            require(clock.instant().isBefore(offer.expiresAt()), "Offer expired; request a new one.");
+            require(clock.ticks() < offer.expiresAtTick(), "Offer expired; request a new one.");
             return offer;
         }
     }
@@ -311,7 +316,7 @@ public final class SettlementService {
     private static SettlementOffer offerFrom(ResultSet row) throws SQLException {
         return new SettlementOffer(UUID.fromString(row.getString("offer_id")), UUID.fromString(row.getString("settlement_id")),
                 SettlementOffer.Type.valueOf(row.getString("type")), UUID.fromString(row.getString("issuer_uuid")),
-                UUID.fromString(row.getString("recipient_uuid")), Instant.ofEpochMilli(row.getLong("expires_at")),
+                UUID.fromString(row.getString("recipient_uuid")), row.getLong("expires_at"),
                 row.getLong("ownership_revision"), row.getLong("chunk_revision"));
     }
 
@@ -453,7 +458,32 @@ public final class SettlementService {
                 row.getLong("ownership_revision"), row.getLong("chunk_revision"), members, chunks);
     }
 
-    private static void migrate(Connection connection) throws SQLException {
+    private void migrate(Connection connection) throws SQLException {
+        try (var statement = connection.createStatement();
+                var tables = statement.executeQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civilization_schema'")) {
+            if (tables.next()) {
+                try (var query = connection.createStatement(); var version = query.executeQuery("SELECT version FROM civilization_schema WHERE id=1")) {
+                    if (version.next() && version.getInt(1) == 2) { return; }
+                }
+            }
+        }
+        migrateLegacy(connection);
+        execute(connection, "ALTER TABLE settlements ADD COLUMN founded_tick INTEGER NOT NULL DEFAULT 0");
+        execute(connection, "UPDATE settlements SET founded_tick=?", clock.ticks());
+        execute(connection, "ALTER TABLE settlement_events ADD COLUMN game_tick INTEGER");
+        // One-time conversion of legacy absolute deadlines, never a runtime wall-clock fallback.
+        long cutoverMillis = System.currentTimeMillis();
+        try (var query = connection.createStatement(); var offers = query.executeQuery("SELECT offer_id,expires_at FROM settlement_offers")) {
+            while (offers.next()) {
+                long remaining = Math.max(0, Math.subtractExact(offers.getLong(2), cutoverMillis));
+                long ticks = Math.addExact(clock.ticks(), Math.addExact(remaining / 50, remaining % 50 == 0 ? 0 : 1));
+                execute(connection, "UPDATE settlement_offers SET expires_at=? WHERE offer_id=?", ticks, offers.getString(1));
+            }
+        }
+        execute(connection, "UPDATE civilization_schema SET version=2 WHERE id=1");
+    }
+
+    private static void migrateLegacy(Connection connection) throws SQLException {
         execute(connection, "CREATE TABLE IF NOT EXISTS civilization_schema (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL)");
         int version = 0;
         try (Statement query = connection.createStatement(); ResultSet rows = query.executeQuery("SELECT version FROM civilization_schema WHERE id=1")) {

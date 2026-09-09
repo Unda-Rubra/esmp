@@ -1,6 +1,8 @@
 package xdu.undarubra.esmp.plugin.settlement;
 
-import java.time.Clock;
+import xdu.undarubra.esmp.core.time.GameClock;
+import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
+import xdu.undarubra.esmp.civilization.activity.ActivityService;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +37,9 @@ public final class SettlementRuntime implements AutoCloseable {
     private final String mainWorldName;
     private final Consumer<Throwable> fatal;
     private final SettlementService service;
+    private final GameClock clock;
+    private final ActivityService activity;
+    private final ActivityListener activityListener;
     private final SettlementIndex index = new SettlementIndex();
     private final Set<UUID> bypass = new HashSet<>();
     private final Set<UUID> querying = new HashSet<>();
@@ -48,20 +53,26 @@ public final class SettlementRuntime implements AutoCloseable {
     private BukkitTask outboxTask;
 
     public SettlementRuntime(JavaPlugin plugin, WorldStore database, String mainWorldName,
-            SettlementPolicy policy, Consumer<Throwable> fatal) {
+            SettlementPolicy policy, GameClock clock, ActivityPolicy activityPolicy, Consumer<Throwable> fatal) {
         this.plugin = plugin;
         this.database = database;
         this.mainWorldName = mainWorldName;
         this.fatal = fatal;
-        service = new SettlementService(database, policy, Clock.systemUTC());
+        this.clock = clock;
+        service = new SettlementService(database, policy, clock);
+        activity = new ActivityService(database, clock, activityPolicy);
+        activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
 
-    public CompletableFuture<java.util.List<SettlementView>> initialize() { return service.initialize(); }
+    public CompletableFuture<java.util.List<SettlementView>> initialize() {
+        return service.initialize().thenCompose(views -> activity.initialize().thenApply(ignored -> views));
+    }
 
     public void activate(java.util.List<SettlementView> settlements) {
         index.load(settlements);
         ready = true;
+        activityListener.start();
         visualization.start();
         outboxTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::dispatchOutbox, 1L, 20L);
     }
@@ -69,6 +80,8 @@ public final class SettlementRuntime implements AutoCloseable {
     public SettlementService service() { return service; }
     public SettlementIndex index() { return index; }
     public ClaimVisualization visualization() { return visualization; }
+    public GameClock clock() { return clock; }
+    public ActivityService activity() { return activity; }
     public boolean ready() { return ready && !closed; }
     public void lockdown() { ready = false; }
     public boolean isMain(World world) {
@@ -173,7 +186,7 @@ public final class SettlementRuntime implements AutoCloseable {
                             .clickEvent(ClickEvent.runCommand("/settlement " + verb + " " + offer.id()));
                     if (recipient != null) {
                         recipient.sendMessage(Component.text(offer.type() + " for " + change.current().name()
-                                + "; expires " + offer.expiresAt() + ". ").append(action));
+                                + "; expires at game tick " + offer.expiresAtTick() + ". ").append(action));
                     }
                     if (currentPlayer != null && (recipient == null || !recipient.getUniqueId().equals(actor))) {
                         currentPlayer.sendMessage(Component.text("Offer ID: " + offer.id()));
@@ -255,6 +268,7 @@ public final class SettlementRuntime implements AutoCloseable {
 
     @Override
     public void close() {
+        activityListener.close();
         closed = true;
         ready = false;
         if (outboxTask != null) { outboxTask.cancel(); }

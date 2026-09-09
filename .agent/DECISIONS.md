@@ -305,6 +305,22 @@ The user rejected real-life-clock-based Activity and selected the game's reckoni
 - Tick-rate changes affect real-world pacing, not the Activity/decay result for the same elapsed game days.
 - Activity, decay/repair progression, production/grace periods, freight, cooldowns, offer expiry, market intervals and Resource schedules consume the same clock. Offline accounting means absent players/unloaded chunks while game time advances, not a stopped server.
 - Implement coherent clock persistence and migrate existing gameplay timers before Activity; do not mistake this design update for an implemented runtime cutover.
-- Canonical source, sleep and explicit time-command jumps/rewinds, restart/Resource-reset reconciliation and calendar boundaries still need implementation contracts. Choosing game time does not silently choose raw mutable world-time subtraction.
+- The subsequent implementation decision below settles MAIN source, forward sleep/command jumps, rewind re-anchoring and normal restart. Calendar boundaries and coordinated world/database restoration remain separate gates.
 
 Reason: gameplay belongs to the world's chronology. A frozen world must not age according to elapsed real-life time, and changing server pacing must not change balance measured in game days. Full seasonal presentation remains deferred and is not needed to implement the shared clock.
+
+## 2026-09-09 — Shared clock and Activity implemented
+
+The user selected **count all forward jumps**: sleep and forward time commands age the world; backwards commands re-anchor without reversing completed work. MAIN's loaded world clock is authoritative, isolated from Resource resets. `GameClock` persists monotonic reckoning ticks and source identity; normal boot resumes the checkpoint and re-anchors without downtime catch-up. Source UUID replacement fails safely.
+
+Game-timed writes checkpoint in their transaction; otherwise clock persistence is every 200 game ticks and at shutdown. Abrupt failure can lose uncommitted clock-only progress/queued observations. This is not a coordinated world/database save protocol. Real timestamps are retained only for diagnostic/legacy history and one-time migration of absolute legacy offer deadlines.
+
+Config version 3 replaces offer seconds with game ticks; Civilization schema 2 converts remaining deadlines once and records founding/history game ticks without deleting identities or history. Borders last 200 game ticks; protection-message throttling uses 20 game ticks.
+
+Activity uses lazy exponential decay: maximum 100, initial 30, seven-game-day half-life, inactive below 20, recovery at 30; production eligibility grace is 72000 ticks. Authorized BUILD credit is 1, team INTERACTION .25, Visitor INTERACTION .02; cooldown 200 ticks per actor/category, player daily cap 5, Settlement cap 20, Visitor cap one twentieth of player cap. These are explicit initial tuning values, not a claim of perfect anti-bot detection.
+
+No login, movement, pressure-plate passage, idle, automation or frozen-clock credit. Persisted role/chunk/revision validation rejects stale observations. Founding/migration anchors prevent first-visit refreshes; transfer preserves score, release blocks contributions, reclaim gets a new identity. Closed pause intervals persist for future production exclusion. Status reads do not write decayed scores.
+
+Policy is configurable before initialization; changing persisted policy requires explicit migration rather than silently changing historical score meaning. That migration interface is deferred. Paper collects bounded/coalesced observations and status appears in `/settlement activity [name]` and `info`. No Building/decay/production systems are enabled by Activity.
+
+Reason: provide visible, restart-safe eligibility without per-Settlement timers, wall-clock progression, or prematurely implementing consumers. Verification used Gradle build, seven added behavioral regressions (including legacy expiry migration), and an isolated live Paper fixture for game-time freeze/jumps/rewind, changed tick rate, real block credit, inactivity/grace, exact frozen restart and actual bed sleep.

@@ -9,8 +9,9 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 - 单独确认放弃聚落；持久化历史、可恢复的事件发件箱和重启后保持的权限。
 - 方块、容器、实体交互保护，以及流体、活塞、漏斗、爆炸等间接修改边界。
 - 玩家私有的临时粒子边界；移动时只在进入另一聚落或离开聚落时显示 ActionBar，不在同一聚落的每个区块重复提示。
+- 共享游戏时钟与聚落活跃度：持久化评分、每日贡献上限、衰减/恢复阈值，以及 `/settlement activity [name]` 查询。
 
-**建筑自动识别、活跃度、侵蚀、修复、自动释放和资源重置尚未启用。** 当前可手动放弃并按正常规则重新认领；不会生成假的建筑历史或修复效果。
+**建筑自动识别、侵蚀、修复、自动释放和资源重置尚未启用。** 活跃度只提供资格状态，不会自动侵蚀建筑或产出物品；仍可手动放弃并重新认领。
 
 ## 已接受的后续玩法（尚未实现）
 
@@ -22,7 +23,17 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 
 所有玩法计时统一使用游戏刻/游戏日时钟，不按现实时间推进；`advance_time=false` 时停止时间驱动的变化，停服期间不补算。调整 tick 速率只改变现实中的快慢，不改变每个游戏日的活跃度/侵蚀规则。“离线生产”仅指玩家离线或区块未加载、但游戏时钟仍在推进的情况。
 
-下一步先实现持久化游戏时钟并迁移现有玩法计时，再实现活跃度；随后推进建筑/设施资格、账本、生产、市场和运输。睡眠与时间指令跳转、时钟恢复、具体数值和物品/资金恢复仍须在对应功能启用前确定。当前仅更新设计，现有邀请等计时尚未迁移，完整季节表现不阻塞时钟与活跃度开发。
+共享时钟取配置的主世界时间；睡眠及所有向前时间跳转均计入，向后跳转不倒扣。首次安装从计时刻 0 开始；重启从数据库检查点继续，不补算停服时间。主世界 UUID 改变会拒绝启动，避免误用另一世界的时间。现有邀请、边界显示和保护提示节流已迁移到游戏刻。
+
+下一步是建筑自动识别及拆分/合并后的稳定身份。季节边界与完整日历显示、世界与数据库的协调恢复仍有独立实现门槛；不要将新的活跃度状态误认为已启用生产或侵蚀。
+
+### 活跃度默认规则
+
+- 初始 30 分、上限 100，半衰期为 7 个游戏日；低于 20 分进入 INACTIVE，达到 30 分恢复 ACTIVE。
+- 建造/拆除 +1；团队容器打开或公共控件交互 +0.25；Visitor 合法公共控件交互 +0.02。登录、走动、挂机、踩压力板及自动机器不加分。
+- 同一玩家/类别间隔至少 200 游戏刻；每玩家每日上限 5、聚落每日上限 20，Visitor 上限为玩家上限的 1/20。冻结时间时不积累贡献。
+- 不活跃后 72000 游戏刻进入生产暂停资格；目前没有实际生产。转让不重置分数，新建聚落以成立时刻为起点，旧聚落以迁移时刻为起点。
+- `info` 或 `activity` 显示当前评分、状态、当日贡献、最近类别、不活跃起点和恢复所需分数。配置见 `activity` 段；已持久化策略不能直接改值重启，须显式迁移，否则插件安全拒绝启动。
 
 完整边界见 [架构 §16A](ARCHITECTURE.md#16a-economy-transport-and-seasons)，依赖顺序见 [开发路线 §27](ARCHITECTURE.md#27-recommended-development-order)。
 
@@ -48,7 +59,7 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 ./gradlew :esmp-core:test :esmp-civilization:test
 ```
 
-测试覆盖持久化身份、事务回滚、连通性、认领上限、角色权限、邀请失效、所有权转移、放弃确认修订、历史和事件确认。
+测试覆盖原有聚落事务与权限，并新增游戏时钟冻结/前跳/回拨/重启、旧邀请期限迁移、活跃度衰减与宽限边界、每日上限、陈旧权限拒绝及恢复区间。
 
 ## 现在进入游戏验证
 
@@ -83,7 +94,7 @@ ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh
 4. B 打开箱子时，A 执行 `/settlement kick Oakfall <B>`。箱子界面应关闭，B 立即恢复 Visitor 权限。相邻但独立的聚落不继承 B 的成员身份。
 5. A 执行 `/settlement abandon Oakfall`，确认警告后执行 `/settlement confirm <offer-id>`。变更认领或超过确认期限后，旧确认必须失效；最后一个区块不能用普通 unclaim 删除。
 
-粒子只发送给查看者，持续 10 秒：白色表示当前区块，绿色表示有团队建造权限，红色表示 Visitor。只绘制附近已加载区块，每次最多 256 个粒子，不加载远处区块，也不放置标记方块。
+粒子只发送给查看者，持续 200 游戏刻（20 TPS 下通常 10 秒）：白色为当前区块，绿色为团队，红色为 Visitor。时间冻结时期限不推进。只绘制附近已加载区块，每次最多 256 个粒子，不加载远处区块，也不放置标记方块。
 
 ## 命令
 
@@ -93,6 +104,7 @@ ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh
 |---|---|
 | 认领与查看 | `/settlement create <name>`、`claim <name>`、`unclaim`、`view [name]` |
 | 团队与信息 | `/settlement info [name]`、`list`、`members [name]`、`rename <name> <new-name>` |
+| 活跃度 | `/settlement activity [name]`；`info` 也显示活跃度 |
 | 邀请与角色 | `/settlement invite\|promote\|demote\|kick\|transfer <name> <player或UUID>` |
 | 待办与退出 | `/settlement offers`、`accept\|decline\|cancel <offer-id>`、`leave <name>` |
 | 放弃与历史 | `/settlement abandon <name>`、`confirm <offer-id>`、`history <name或旧聚落UUID>` |
@@ -114,7 +126,7 @@ ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh
 首次启动生成 `plugins/ESMP/config.yml`，世界映射仍只绑定已加载的正确维度：
 
 ```yaml
-config-version: 2
+config-version: 3
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -123,22 +135,24 @@ worlds:
 settlements:
   chunk-cap-enabled: true
   max-chunks: 64
-  invitation-seconds: 86400
-  transfer-seconds: 1800
-  promotion-seconds: 86400
-  abandon-seconds: 60
+  invitation-ticks: 1728000
+  transfer-ticks: 36000
+  promotion-ticks: 1728000
+  abandon-ticks: 1200
 ```
 
-旧配置缺少 `settlements` 段时使用同样的默认值。关闭上限用 `chunk-cap-enabled: false`，不要将数量设为 0。已经生成的邀请记录保存自己的到期时间，不会因之后修改默认值而延长。
+旧配置升级会先备份 `config-before-game-clock.yml`，再按每旧秒 20 游戏刻换算期限。数据库中的旧邀请按迁移时剩余期限换算一次，不重置邀请 ID 或延长期限。关闭区块上限使用 `chunk-cap-enabled: false`。
 
-数据库为 `plugins/ESMP/esmp.db`。Core 世界身份版本仍为 1，Civilization 独立维护 `civilization_schema` 版本 1，以及 `settlements`、`settlement_members`、`settlement_chunks`、`settlement_offers` 和 `settlement_events`。
+数据库为 `plugins/ESMP/esmp.db`。Core 世界身份版本仍为 1，Civilization 版本为 2；新增 `game_clock`、`activity_policy`、`settlement_activity`、`activity_actors`、`activity_pauses`，以及成立/历史游戏刻字段。旧历史时间保留，新事件同时记录游戏刻。
+
+正常停服会刷新时钟与待提交贡献；平时每 200 游戏刻保存时钟，涉及游戏时间的领域写入也在同一事务中保存检查点。崩溃可能丢失未提交的纯计时进度/合并贡献；必须配套备份世界和数据库，不能混用无关快照。
 
 命令通过异步 SQLite 事务执行；提交并在服务器线程更新索引之后才公布成功。在变更期间，目标认领和待新增区块暂时拒绝受保护操作，避免旧缓存放行。历史与事件发件箱在同一事务中记录；`SettlementCommittedEvent` 只在提交后同步发布，监听方按事件 ID 去重并自行处理其消费失败，原始历史不会因投递确认而删除。
 
 ## 模块与协作
 
-- `esmp-core`：无 Paper 依赖的世界身份与有界 SQLite 执行器。
-- `esmp-civilization`：Settlement 领域模型、应用事务、拓扑、角色、邀请和历史。
+- `esmp-core`：无 Paper 依赖的世界身份、有界 SQLite 执行器与中立时钟原语。
+- `esmp-civilization`：Settlement 领域模型、应用事务、拓扑、角色、游戏刻邀请、历史和活跃度。
 - `esmp-resource`：资源世界定义，重置玩法仍未启用。
 - `esmp-plugin`：Paper 生命周期、命令、保护事件适配、边界展示与单 JAR 打包。
 

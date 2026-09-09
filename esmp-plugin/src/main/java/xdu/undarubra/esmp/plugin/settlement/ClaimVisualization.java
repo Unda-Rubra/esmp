@@ -48,14 +48,14 @@ public final class ClaimVisualization implements Listener, AutoCloseable {
         if (settlement != null && !world.equals(settlement.worldInstanceId())) {
             throw new SettlementException("That Settlement is in a different physical world instance.");
         }
-        requests.put(player.getUniqueId(), new Request(settlement == null ? null : settlement.id(), System.nanoTime() + 10_000_000_000L));
+        requests.put(player.getUniqueId(), new Request(settlement == null ? null : settlement.id(), Math.addExact(runtime.clock().ticks(), 200)));
         describe(player, player.getLocation());
     }
 
     public void forget(UUID player) { requests.remove(player); }
 
     private void render() {
-        long now = System.nanoTime();
+        long now = runtime.clock().ticks();
         Iterator<Map.Entry<UUID, Request>> iterator = requests.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();

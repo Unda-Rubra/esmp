@@ -1,0 +1,93 @@
+package xdu.undarubra.esmp.plugin.settlement;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
+import xdu.undarubra.esmp.civilization.activity.ActivityContribution;
+import xdu.undarubra.esmp.civilization.activity.ActivityContribution.Category;
+
+/** Bounded coalescing of meaningful successful actions; no movement/idle/automation credit. */
+public final class ActivityListener implements Listener, AutoCloseable {
+    private record Key(UUID settlement, UUID actor, Category category) { }
+    private final JavaPlugin plugin;
+    private final SettlementRuntime runtime;
+    private final Consumer<Throwable> fatal;
+    private final LinkedHashMap<Key, ActivityContribution> pending = new LinkedHashMap<>();
+    private CompletableFuture<Void> flight = CompletableFuture.completedFuture(null);
+    private BukkitTask task;
+    private boolean closed;
+
+    public ActivityListener(JavaPlugin plugin, SettlementRuntime runtime, Consumer<Throwable> fatal) {
+        this.plugin = plugin; this.runtime = runtime; this.fatal = fatal;
+    }
+    public void start() {
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (!closed && flight.isDone()) { flush(); }
+        }, 1, 20);
+    }
+    private void observe(Player player, Location location, Category category) {
+        if (closed || !runtime.ready() || !runtime.clock().advancing() || !runtime.available(location)) { return; }
+        var settlement = runtime.at(location);
+        if (settlement == null || (category == Category.BUILD && !settlement.role(player.getUniqueId()).canBuild())) { return; }
+        Key key = new Key(settlement.id(), player.getUniqueId(), category);
+        if (pending.size() >= 4096 && !pending.containsKey(key)) { return; }
+        pending.putIfAbsent(key, new ActivityContribution(settlement.id(), settlement.worldInstanceId(), player.getUniqueId(),
+                location.getBlockX() >> 4, location.getBlockZ() >> 4, settlement.ownershipRevision(), settlement.chunkRevision(), category));
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        if (event.canBuild()) { observe(event.getPlayer(), event.getBlockPlaced().getLocation(), Category.BUILD); }
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) { observe(event.getPlayer(), event.getBlock().getLocation(), Category.BUILD); }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onInventory(InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) { return; }
+        for (Location location : ClaimProtection.inventoryLocations(event.getInventory())) {
+            if (runtime.allows(player.getUniqueId(), location)) { observe(player, location, Category.INTERACTION); }
+        }
+    }
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPublicUse(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK
+                || event.useInteractedBlock() == Event.Result.DENY || event.getClickedBlock() == null) { return; }
+        if (ClaimProtection.publicControl(event.getClickedBlock().getType())) {
+            observe(event.getPlayer(), event.getClickedBlock().getLocation(), Category.INTERACTION);
+        }
+    }
+    private void flush() {
+        if (pending.isEmpty()) { return; }
+        var batch = new ArrayList<ActivityContribution>(Math.min(256, pending.size()));
+        var iterator = pending.values().iterator();
+        while (iterator.hasNext() && batch.size() < 256) { batch.add(iterator.next()); iterator.remove(); }
+        flight = runtime.activity().contribute(batch);
+        flight.whenComplete((ignored, failure) -> {
+            if (failure != null && !closed && plugin.isEnabled()) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> fatal.accept(failure));
+            }
+        });
+    }
+    @Override public void close() {
+        closed = true;
+        if (task != null) { task.cancel(); }
+        flight.join();
+        while (!pending.isEmpty()) { flush(); flight.join(); }
+    }
+}

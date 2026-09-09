@@ -61,9 +61,9 @@ public final class ClaimProtection implements Listener {
 
     private void denied(Player player) {
         if (player == null) { return; }
-        long now = System.nanoTime();
+        long now = runtime.clock().ticks();
         Long previous = lastMessage.get(player.getUniqueId());
-        if (previous == null || now - previous >= 1_000_000_000L) {
+        if (previous == null || now - previous >= 20) {
             lastMessage.put(player.getUniqueId(), now);
             player.sendActionBar(Component.text("This action is protected by a Settlement."));
         }

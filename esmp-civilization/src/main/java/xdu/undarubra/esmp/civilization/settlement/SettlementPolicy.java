@@ -1,27 +1,21 @@
 package xdu.undarubra.esmp.civilization.settlement;
 
-import java.time.Duration;
-
-public record SettlementPolicy(boolean chunkCapEnabled, int maxChunks, Duration invitationLifetime,
-        Duration transferLifetime, Duration promotionLifetime, Duration abandonLifetime) {
+public record SettlementPolicy(boolean chunkCapEnabled, int maxChunks, long invitationTicks,
+        long transferTicks, long promotionTicks, long abandonTicks) {
     public SettlementPolicy {
-        if (maxChunks < 1 || invitationLifetime.isNegative() || invitationLifetime.isZero()
-                || transferLifetime.isNegative() || transferLifetime.isZero()
-                || promotionLifetime.isNegative() || promotionLifetime.isZero()
-                || abandonLifetime.isNegative() || abandonLifetime.isZero()) {
+        if (maxChunks < 1 || invitationTicks <= 0 || transferTicks <= 0 || promotionTicks <= 0 || abandonTicks <= 0) {
             throw new IllegalArgumentException("Settlement limits and offer durations must be positive");
         }
     }
     public static SettlementPolicy defaults() {
-        return new SettlementPolicy(true, 64, Duration.ofHours(24), Duration.ofMinutes(30),
-                Duration.ofHours(24), Duration.ofSeconds(60));
+        return new SettlementPolicy(true, 64, 1_728_000, 36_000, 1_728_000, 1_200);
     }
-    public Duration lifetime(SettlementOffer.Type type) {
+    public long lifetimeTicks(SettlementOffer.Type type) {
         return switch (type) {
-            case INVITE -> invitationLifetime;
-            case TRANSFER -> transferLifetime;
-            case PROMOTE -> promotionLifetime;
-            case ABANDON -> abandonLifetime;
+            case INVITE -> invitationTicks;
+            case TRANSFER -> transferTicks;
+            case PROMOTE -> promotionTicks;
+            case ABANDON -> abandonTicks;
         };
     }
 }

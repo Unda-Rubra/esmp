@@ -22,7 +22,7 @@ import xdu.undarubra.esmp.civilization.settlement.SettlementView;
 public final class SettlementCommands implements CommandExecutor, TabCompleter {
     private static final List<String> COMMANDS = List.of("create", "claim", "unclaim", "info", "list", "members", "view",
             "invite", "offers", "accept", "decline", "cancel", "promote", "demote", "transfer", "kick", "leave", "rename",
-            "abandon", "confirm", "history", "bypass", "help");
+            "abandon", "confirm", "history", "activity", "bypass", "help");
     private final JavaPlugin plugin;
     private final SettlementRuntime runtime;
 
@@ -80,6 +80,11 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     player.sendMessage(Component.text("Owner: " + playerName(settlement.owner())));
                     settlement.members().entrySet().stream().sorted(Comparator.comparing(e -> e.getKey().toString())).limit(50)
                             .forEach(e -> player.sendMessage(Component.text(e.getValue() + ": " + playerName(e.getKey()))));
+                    if (args[0].equalsIgnoreCase("info")) { showActivity(player, settlement); }
+                }
+                case "activity" -> {
+                    optionalName(args, "activity");
+                    showActivity(player, args.length == 2 ? named(args[1]) : here(player));
                 }
                 case "list" -> {
                     exact(args, 1, "list");
@@ -91,7 +96,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "view" -> {
                     optionalName(args, "view");
                     runtime.visualization().show(player, args.length == 2 ? named(args[1]) : null);
-                    player.sendMessage(Component.text("Nearby borders for 10 seconds: white=current chunk, green=team, red=Visitor."));
+                    player.sendMessage(Component.text("Nearby borders for 200 game ticks: white=current chunk, green=team, red=Visitor."));
                 }
                 case "invite", "promote", "transfer" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
@@ -143,7 +148,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             String name = settlement == null ? offer.settlementId().toString() : settlement.name();
                             String verb = offer.type() == SettlementOffer.Type.ABANDON ? "confirm" : "accept";
                             player.sendMessage(Component.text(offer.type() + " | " + name + " | " + offer.id()
-                                    + " | expires " + offer.expiresAt())
+                                    + " | expires at game tick " + offer.expiresAtTick())
                                     .clickEvent(ClickEvent.suggestCommand("/settlement " + verb + " " + offer.id())));
                         }
                     });
@@ -179,8 +184,9 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     UUID id = settlement == null ? parseUuid(args[1]) : settlement.id();
                     runtime.query(player, () -> runtime.service().history(id), events -> {
                         player.sendMessage(Component.text("Latest historical events: " + events.size()));
-                        events.forEach(event -> player.sendMessage(Component.text(event.occurredAt() + " | "
-                                + event.type() + " | " + event.detail())));
+                        events.forEach(event -> player.sendMessage(Component.text(
+                                (event.gameTick() == null ? "Legacy timestamp " + event.occurredAt() : "Game tick " + event.gameTick())
+                                + " | " + event.type() + " | " + event.detail())));
                     });
                 }
                 case "bypass" -> {
@@ -196,6 +202,17 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
             player.sendMessage(Component.text(rejected.getMessage()));
         }
         return true;
+    }
+
+    private void showActivity(Player player, SettlementView settlement) {
+        runtime.query(player, () -> runtime.activity().status(settlement.id()), status -> {
+            player.sendMessage(Component.text(String.format(Locale.ROOT, "%s Activity: %.2f | %s | credited today %.2f | game tick %d",
+                    settlement.name(), status.score(), status.state(), status.creditedToday(), status.measuredAtTick())));
+            player.sendMessage(Component.text(String.format(Locale.ROOT, "Recovery needed: %.2f | inactive since: %s | production eligibility paused: %s",
+                    status.recoveryNeeded(), status.inactiveSinceTick(), status.productionPaused())));
+            player.sendMessage(Component.text("Last credited: " + status.lastCategory() + " at tick " + status.lastContributionTick()
+                    + ". Decay/production are not enabled."));
+        });
     }
 
     private static void manage(Player player, SettlementView settlement) {
@@ -271,7 +288,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
     private static void help(Player player) {
         for (String line : List.of(
                 "/settlement create <name> | claim <name> | unclaim | view [name]",
-                "/settlement info [name] | list | members [name] | history <name|uuid>",
+                "/settlement info [name] | activity [name] | list | members [name] | history <name|uuid>",
                 "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",
                 "/settlement offers | accept|decline|cancel <offer-id> | leave <name>",
                 "/settlement rename <name> <new-name> | abandon <name> | confirm <offer-id>")) {
@@ -285,7 +302,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             return COMMANDS.stream().filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         }
-        if (args.length == 2 && List.of("claim", "info", "members", "view", "invite", "promote", "demote", "transfer", "kick", "leave", "rename", "abandon", "history").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (args.length == 2 && List.of("claim", "info", "activity", "members", "view", "invite", "promote", "demote", "transfer", "kick", "leave", "rename", "abandon", "history").contains(args[0].toLowerCase(Locale.ROOT))) {
             return runtime.index().all().stream().map(SettlementView::name)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT))).sorted().limit(50).toList();
         }
