@@ -7,3 +7,12 @@ worlds:
   RESOURCE_OVERWORLD: resource
   RESOURCE_NETHER: resource_nether
   RESOURCE_END: resource_the_end
+
+# Zero is not a cap value; explicitly disable the cap if desired.
+settlements:
+  chunk-cap-enabled: true
+  max-chunks: 64
+  invitation-seconds: 86400
+  transfer-seconds: 1800
+  promotion-seconds: 86400
+  abandon-seconds: 60

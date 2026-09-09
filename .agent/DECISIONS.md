@@ -256,3 +256,14 @@ The team removed the dedicated Factory Realm and industrial gameplay to reduce i
 Remove the module, active world definition, configuration mapping, status entry, and development milestone. Back up and migrate old configs once. Preserve physical worlds and historical registry identities while excluding unsupported definitions from active snapshots and new registration. Core handles definition retirement generically rather than importing Factory business semantics.
 
 No blanket redstone restriction in the remaining worlds is introduced by this scope cut. Such gameplay policy would require its own decision.
+
+## 2026-09-09 — Playable Settlement implementation
+
+- Civilization owns schema version 1, Settlement transactions, contiguous claim topology, fixed roles, expiring offers, history, and outbox. Core provides database-only work on its bounded SQLite worker.
+- The Paper runtime reserves affected territory while changes commit, publishes the committed index on the server thread, then reports success and closes unauthorized inventory views. Fast cached admission checks reject obvious unauthorized mutations before territory is reserved; SQL remains authoritative.
+- Implemented controls include create/claim/unclaim, inspect/list/view, invite/promote/transfer and offer resolution, kick/leave/demote, rename, confirmed abandon, historical inspection, and explicit admin protection bypass.
+- Protection uses action-specific Paper events, not game-mode switching or blanket right-click cancellation. Same-Settlement mechanisms remain usable; cross-claim block/inventory effects are constrained. Ongoing brushing revalidates permission without loading remote chunks.
+- Private particle borders are limited to nearby loaded chunks, 10 seconds, and 256 particles per viewer per update. Basic PvP, loose-item pickup, and natural entity movement are not new Settlement policies.
+- Failure to initialize or maintain reliable persistence/protection stops the server. Hot reload is unsupported. Building/Activity/decay/repair and Resource reset gates remain separate.
+
+Reason: deliver the complete manual Settlement gameplay loop for real-game testing while preserving committed permission boundaries and avoiding placeholder automated systems.

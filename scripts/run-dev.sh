@@ -49,6 +49,7 @@ level-name=world
 level-type=minecraft:flat
 generator-settings={"biome":"minecraft:plains","layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}]}
 generate-structures=false
+spawn-protection=0
 pause-when-empty-seconds=-1
 enable-query=false
 enable-rcon=false

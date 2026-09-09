@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The runnable foundation builds and starts on Paper 26.2. It provides world-definition contributions, SQLite physical-world registration, configuration/lifecycle, and `/esmp status`. Claims, decay, repair, and Resource resets are not implemented; never claim they are protected or operational.
+The plugin implements playable Settlements on Paper 26.2: persistent claims/roles/offers, confirmed abandonment, history/outbox, action-specific protection, and private borders. Building discovery, Activity, decay/repair, automatic release, and Resource resets remain disabled.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
@@ -53,6 +53,8 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Visitors may enter and use the fixed safe-public-interaction category but cannot build, use protected inventories, interact with protected entities, or directly use machine interfaces.
 - Implement Visitor access with action classification, never an actual game-mode switch or blanket right-click cancellation.
 - Authorization defaults to deny for non-members unless an explicit permission allows the action.
+- Settlement writes go through the Paper runtime coordinator, which reserves affected territory until committed SQL is published to the main-thread index. Do not add mutation callers that bypass this publication gate.
+- Fatal persistence failures and hot unloading stop the server rather than dropping protection. Use full restarts; no reload command or plugin-manager hot reload.
 - Activity is settlement-local and does not require scheduled writes to every inactive settlement.
 - Meaningful Visitor interaction earns very small activity credit relative to the team; passersby earn none. Activity credit grants no extra permissions.
 - Sufficient activity recovery stops further decay without repairing damage or advancing Era; queued mutations must revalidate activity eligibility.
@@ -96,7 +98,7 @@ Use `./gradlew build` for compilation, packaging, and tests, and `./gradlew :esm
 
 Before ending non-trivial work, update `.agent/HANDOFF.md` with:
 
-Keep the handoff a current snapshot, not an append-only transcript. Replace superseded next actions and old verification logs; retain durable rationale in `.agent/DECISIONS.md`. Follow the implementation gates in the architecture's final sections. Do not reopen settled gameplay or require all deferred tuning before basic implementation.
+Keep the handoff a current snapshot, not an append-only transcript. Retain durable rationale in `.agent/DECISIONS.md` and distinguish actual server/client evidence from unit tests or unverified UI behavior.
 
 ```text
 # Current Handoff

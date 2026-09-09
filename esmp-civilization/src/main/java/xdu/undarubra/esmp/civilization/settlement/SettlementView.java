@@ -14,6 +14,7 @@ public record SettlementView(UUID id, UUID worldInstanceId, String name, UUID ow
         chunks = Set.copyOf(chunks);
     }
     public Role role(UUID player) {
+        if (player == null) { return Role.VISITOR; }
         return owner.equals(player) ? Role.OWNER : members.getOrDefault(player, Role.VISITOR);
     }
 }

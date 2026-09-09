@@ -8,13 +8,13 @@
 
 ## Current implementation
 
-The runnable foundation now consists of four Gradle modules and one deployable Paper plugin. Source packages use `xdu.undarubra.esmp`.
+The runnable plugin consists of four Gradle modules and one deployable Paper JAR under `xdu.undarubra.esmp`.
 
-- `esmp-plugin` is the composition root: strict world-name/environment configuration, lifecycle, main-thread world captures, and permission-gated `/esmp status`.
-- `esmp-core` owns Paper-independent world records and a bounded serial SQLite worker. Schema version 1 contains only `world_definitions` and `world_instances`; transactional `PRAGMA user_version` migrations reject newer unsupported schemas.
-- Civilization and Resource modules contribute four active world definitions. They do not enable claims, membership gameplay, decay, repair, or resets yet.
-- Only already-loaded configured worlds are registered. Stable Bukkit UUIDs retain ESMP instance identity across restarts; new physical UUIDs receive distinct identities. Removed definitions and their instance history remain stored but are excluded from active snapshots and registration.
-- The future jobs/outbox architecture below remains a feature gate, not an implemented queue. The database work queue is in-memory and bounded to 256 admitted operations; graceful shutdown drains accepted work.
+- `esmp-core` owns world identity and a bounded serial SQLite worker, including database-only transaction callbacks for owning domains. Core schema version 1 remains independent from Civilization schema version 1.
+- `esmp-civilization` now implements Settlement ownership, contiguous claims, roles, expiring offers, transfer, leave/removal, confirmed abandonment, rename, immutable views, and durable history/outbox records.
+- `esmp-plugin` supplies `/settlement` commands, main-thread cache publication, action-specific protection, private temporary borders, and post-commit `SettlementCommittedEvent` notifications. `/esmp status` reports actual readiness and Settlement count.
+- Configured Main World instances are claimable; Resource worlds remain unclaimable. Removed definitions remain historical only. Existing claims load before gameplay is admitted; persistence failure stops the server rather than leaving claims unprotected.
+- Building discovery, Activity scoring, decay/repair, automatic release, and Resource resets are not enabled. The implemented Settlement event outbox is not a claim that future DB-to-block mutation jobs already exist.
 
 The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
 
@@ -540,6 +540,18 @@ Protection must account for direct and indirect world changes, including:
 The exact action catalogue may grow, but new mutation paths must not bypass authorization accidentally. Decay and Repair use explicit system actors and must revalidate settlement ownership and building state immediately before changing the world.
 
 Authorization is action-specific. Visitors are denied every protected action outside the safe-public-interaction allowlist; Owner, Manager, and Member permissions follow the fixed capability matrix. Public movement and safe interaction must not become a blanket right-click denial.
+
+### Implemented protection and publication boundary
+
+The Paper adapter checks permissions from a server-thread spatial index, never synchronous SQL in an event handler. An accepted mutation temporarily locks its affected Settlement and any reserved new chunk; after SQL commits, the server thread publishes the replacement view before announcing success. Obvious unauthorized commands are rejected before reserving territory. Revocation also closes no-longer-authorized container views.
+
+The current event adapters cover direct placement/breaking and multi-block placement, block/item interactions (including buckets and ongoing archaeology brushing), signs/harvest, containers and inventory transfers, protected entities/vehicles/hanging objects, projectile/potion/fire effects, explosions, fluid and piston boundaries, dispensing, growth, and portal construction. Safe public controls remain permitted; personal inventory is not a protected world container.
+
+Cross-region automatic block/item transfers are denied even between adjacent Settlements with one owner, while operations wholly within one Settlement remain usable. Unknown/unattributed destructive effects do not gain player permissions; public controls may still activate machines inside their own Settlement as previously specified.
+
+This is spatial protection, not player invulnerability or permanent ownership of every moving entity: PvP, loose-item pickup, and natural entity movement keep their existing rules. Trusted console commands and other plugins that bypass events need their own authorization/integration. These boundaries must remain explicit in operator documentation.
+
+Protection is guarded during startup. Fatal persistence/publication errors and hot unloading trigger a server stop rather than exposing an unprotected Main World. Use full restarts, not plugin reloads.
 
 ## 7.6 Claim operations and lookup
 
@@ -1094,6 +1106,8 @@ Coordinate writes through bounded scheduling suited to SQLite's single-writer mo
 
 Use versioned schema migrations. The initial implementation uses SQLite JDBC 3.53.4.0 with small transactional JDBC migrations tracked by `PRAGMA user_version`, rather than adding a migration framework for the initial schema. Repository boundaries support maintainability, not transparent database portability; a future backend change requires explicit migrations and verification.
 
+Civilization maintains its own `civilization_schema` version 1 in the same database, with `settlements`, `settlement_members`, `settlement_chunks`, `settlement_offers`, and `settlement_events`. Gameplay changes and historical/outbox facts share a transaction. Released Settlement records and events remain; current claim and membership rows are removed.
+
 ## 17.3 World identity requirement
 
 Every block- or coordinate-sensitive ESMP entity must be scoped by `world_instance_id`. Configuration and realm policy may reference the stable `world_definition_id`.
@@ -1491,7 +1505,7 @@ The major domain boundaries are settled enough to plan implementation. The remai
 | Gate | Required decisions or evidence |
 |---|---|
 | Runnable foundation (implemented) | Pinned wrapper and dependencies, Java 25 compilation, single-JAR packaging, SQLite world registry, status command, and actual Paper boot/restart verification. |
-| Before enabling durable claims | Define owning-domain tables, claim transaction/cache boundaries, committed ownership history, and version-specific protection action mappings. |
+| Playable Settlements (implemented) | Transactional owning tables, contiguous claims, fixed-role workflows, committed cache publication, history/outbox, Paper protection adapters, and private visualization; verify the target server and other-plugin integrations before production use. |
 | Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
 | Before enabling Resource resets | Finish evacuation/retired-location handling and coordinated cutover/backup/restore checks. |
 
@@ -1629,11 +1643,11 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-Implement the first Settlement persistence/protection slice on the verified foundation. Define claim and member transaction/cache boundaries and Paper 26.2 action coverage before enabling claims. Keep the existing `/esmp status` truthful about which gameplay features are available; do not expose incomplete protection.
+Run the documented native Minecraft 26.2 verification loop with two accounts: create/expand a Settlement, check Visitor versus Member actions, inspect private borders, and restart to confirm persistence. Keep the tested plugin artifact and full-restart workflow; do not enable unfinished automated mutation systems.
 
 ## First functional slice
 
-World definition/instance registration, SQLite startup/migrations, and the Paper composition root are implemented. Next add Settlement ownership/membership/claim protection with basic visualization and committed ownership history. Future domain writes should use owning application APIs and appropriate persistence boundaries, not bypass the core worker with synchronous SQL on Paper's world thread.
+Settlement persistence, membership/ownership workflows, claim protection, basic visualization, and committed history are implemented on the verified world/SQLite foundation. The next feature work is Building discovery and Activity, after resolving their remaining gates. Durable block mutation/recovery and material accounting still precede decay/repair enablement.
 
 ## Later feature gates
 

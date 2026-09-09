@@ -2,14 +2,21 @@ name: ESMP
 version: '${version}'
 main: xdu.undarubra.esmp.plugin.EsmpPlugin
 api-version: '26.2'
-description: Persistent-world SMP foundation with independent gameplay domains.
+description: Persistent-world SMP with protected Settlements and durable membership.
 load: POSTWORLD
 commands:
   esmp:
-    description: Inspect ESMP foundation state
+    description: Inspect ESMP operational state
     usage: /esmp status
     permission: esmp.admin
+  settlement:
+    description: Claim and manage a protected Settlement
+    usage: /settlement help
+    permission: esmp.settlement
 permissions:
   esmp.admin:
-    description: View ESMP operational status
+    description: View ESMP status and explicitly toggle protection bypass
     default: op
+  esmp.settlement:
+    description: Use Settlement gameplay commands
+    default: true

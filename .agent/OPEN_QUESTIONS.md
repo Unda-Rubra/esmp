@@ -2,17 +2,13 @@
 
 This is a gate-oriented index of `ARCHITECTURE.md` §§26–28, not a second architecture. Settled policies must not be reopened merely because their implementation is unfinished.
 
-## Runnable foundation completed
+## Playable Settlement slice completed
 
-Java/JDK 25, Gradle Kotlin DSL, one modular JAR, the `xdu.undarubra.esmp` namespace, and SQLite are implemented and pinned in the build. World definitions, persistent physical-world identity, configuration validation, lifecycle, and status command have real build and Paper startup verification.
+The Java 25/Paper 26.2 plugin implements world identity, Settlement persistence, contiguous claiming, fixed-role and offer workflows, confirmed abandonment, immutable cache publication, historical/outbox records, protection adapters, and private borders.
 
-The next functional slice is Settlement persistence and protection, not another foundation scaffold. Domain gameplay and the future durable job/outbox systems are not implemented.
+The next step is native 26.2 in-game verification using README's two-account checklist. Protocol-client automation supplements but does not replace that native UI check. Other plugins that directly edit worlds require their own integration review.
 
-## Before enabling durable claims
-
-- Owning-domain tables and migrations, claim/member application APIs, and transaction/cache publication boundaries; initial SQLite infrastructure is already implemented.
-- Target-version Settlement protection mappings, including safe public interactions and indirect world changes.
-- Ownership and historical-event persistence from the first committed changes.
+Current implementation boundaries: normal PvP, ground-item pickup, and natural entity movement are not redefined; no Activity/Building/decay/repair/reset simulation is advertised.
 
 ## Before enabling automated Building mutation
 

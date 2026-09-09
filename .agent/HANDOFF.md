@@ -2,46 +2,45 @@
 
 ## State
 
-- Git repository on `main`; commit coherent verified milestones regularly. No remote/push requested.
-- Runnable Java 25 foundation: `xdu.undarubra.esmp`, four Gradle modules (`esmp-core`, `esmp-civilization`, `esmp-resource`, `esmp-plugin`), one deployable JAR.
-- Current gameplay scope is permanent Civilization/Main plus renewable Resource worlds. Factory/industrial realm design and implementation are removed, not retained as a dormant module. No new redstone ban is imposed on the remaining worlds.
-- Pins remain Gradle 9.7.1, Paper 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0, JUnit Jupiter 5.12.2; JDK verification used Temurin 25.0.4.1+1.
-- SQLite schema remains version 1. Snapshots/register operations use only definitions supplied by current modules; removed-definition history remains stored without active support.
-- Gameplay claims/protection, Building discovery, decay/repair, durable outbox/jobs, and Resource resets remain unimplemented. `/esmp status` reports foundation scope explicitly.
+- Java 25 / Paper 26.2 build 121 plugin under `xdu.undarubra.esmp`; four Gradle modules and one deployable JAR. Git milestone `e628b60` introduced the tested Settlement domain; commit coherent milestones regularly, without pushing unless requested.
+- Playable Settlements now provide creation/contiguous claiming, fixed roles, expiring offers, ownership transfer, leave/removal/demotion, rename, confirmed abandonment, history, event publication, action-specific protection, and private borders.
+- Core world schema remains version 1. Civilization independently uses `civilization_schema` version 1 with owning tables, offers, and historical/outbox records in the same SQLite database.
+- Building discovery, Activity scoring, decay/repair, automatic release, and Resource reset gameplay remain disabled. Factory remains out of scope.
+- Native development server is `.run/dev`, loopback `127.0.0.1:25579`, online authentication enabled. Test servers are stopped. Native Minecraft 26.2 player/UI verification is the user's next step.
 
 ## Completed
 
-- In-progress Settlement milestone: added domain-owned transactional persistence, contiguous claims, roles/offers/ownership workflows, immutable views, and durable history/outbox over the core SQL worker. Paper commands/protection integration is not complete yet.
-- Removed the Factory module, build dependency, world definition, default configuration, and status entry.
-- Added one-time configuration migration: unversioned/version-1 files are backed up to `config-v1.yml`, obsolete `worlds.FACTORY` is removed, and version 2 is saved. Version-2 unknown roles are still rejected.
-- Made registry definition retirement generic and non-destructive. Removed definitions cannot register, their old Bukkit UUIDs cannot be reassigned silently, and historical identities survive.
-- Removed Factory architecture, schemas, permission policy, runtime design, and development milestone; renumbered remaining architecture to 28 sections and 44 current decisions. Recorded the team's workload/balance/performance rationale.
-- Updated README, agent rules, open questions, and decisions. No physical world folder or historical database row was deleted.
+- Added database-only transactional work on the existing bounded SQLite worker; Civilization owns its SQL and invariants.
+- Enforced edge connectivity, cap, exclusivity, last-chunk safety, consent, live authority revalidation, atomic transfer, and revision-bound abandonment; retained released history and idempotent outbox acknowledgement.
+- Added main-thread index publication with pending-territory reservations and early rejection of unauthorized command admissions. Open containers close on permission revocation.
+- Added Paper protection for direct item/block/entity/container actions and indirect fluid/piston/hopper/explosion/growth effects, with private 10-second border rendering capped at 256 particles per update.
+- Added fatal-persistence stop behavior and disallowed hot reload instead of exposing unprotected claims. Updated README's launch, commands, configuration, and two-account manual checklist.
 
 ## Changed files
 
-- `settings.gradle.kts`, `esmp-plugin/build.gradle.kts`, deleted `esmp-factory/`: four-module build.
-- `esmp-plugin/src`: current definitions/status, version-2 configuration and legacy migration.
-- `esmp-core/src`: active-definition snapshot/registration boundary; regression for retired identities and strengthened transactional rollback check.
-- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent` memory: current scope, migration behavior, roadmap, and rationale.
+- `esmp-core`: `SqlWork` and domain transaction entry point on the existing worker.
+- `esmp-civilization`: Settlement models, service/schema/history/outbox, spatial index, and behavioral tests.
+- `esmp-plugin`: lifecycle integration, commands, protection, visualization, committed-event notification, manifest and settings.
+- `scripts/run-dev.sh`: zero vanilla spawn protection for newly created local test servers, so it does not mask Settlement role testing.
+- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent` memory: implemented scope, publication/permission boundaries, verification and follow-up.
 
 ## Verification
 
-- `./gradlew :esmp-civilization:test --write-locks --no-daemon --console=plain`: passed; 7 domain regression tests, zero failures/errors. This does not yet claim in-game protection coverage.
-- `./gradlew clean build --write-locks --no-daemon --console=plain`: passed after the runtime cutover; five storage tests passed with zero failures/errors.
-- Final `./gradlew clean build --no-daemon --console=plain`: passed with locks enforced.
-- Actual Paper upgrade using the existing unversioned config and five stored definitions: migrated once, READY with schema 1 / four active definitions / one active-definition instance. MAIN retained UUID `75fa0879-8da5-427f-96cf-6af9c900372a`.
-- Exact-byte comparison verified `config-v1.yml` preserves the original config. SQL comparisons verified every preexisting definition and instance row remained unchanged.
-- Reintroduced FACTORY under config version 2: Paper rejected the unknown definition and disabled ESMP. Removed the test entry and restarted successfully without repeating migration; backup and historical DB rows remained unchanged.
-- Artifact/document checks passed: no Factory classes/module/config in the deployable JAR; 28 numbered sections and 44 decisions; valid local links and balanced fences. Historical-removal notes and one-time migration code are the intentional remaining references.
-- All smoke servers stopped with exit 0. Removed the obsolete module's empty directories and stale build artifacts; `.run/dev/` retains the valid version-2 development environment.
+- Final `./gradlew clean build --no-daemon --console=plain` with JDK 25 passed. XML results: 14 tests, 0 failures/errors/skips (5 Core storage, 7 Settlement transaction/workflow, 2 spatial-index regressions).
+- Real Paper 26.2 server with three protocol-connected test accounts passed 28 scenarios: private border packets, denied Visitor/implicit-OP modification, explicit bypass, public doors, bucket/brush restrictions and Owner brushing, containers, invitations/revocation, topology and Manager authority, fluids/pistons/hoppers, explosions, Resource-world rejection, transfer, abandonment and reclaim.
+- A real server restart preserved owned IDs, owners, members, claimed chunks and acknowledged outbox rows. Subsequent live-client checks passed restored roles, denied Visitor placement, Member placement and actual inventory withdrawal, denied Visitor entity damage and allowed Owner damage.
+- Client automation used Mineflayer 4.39.0 on protocol 1.21.11 through temporary ViaVersion/ViaBackwards 5.11.0, because the library lacks full 26.2 data. Its stale dust decoder was corrected in the isolated harness using the actual server INT-color/FLOAT-scale codec. Test assertions used authoritative server conditions/NBT rather than client prediction. This is not a native 26.2 visual-rendering test.
+- Native Paper without translators started successfully through `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh`: `Settlements=0 | protection=true`; the original developer MAIN instance UUID remained `75fa0879-8da5-427f-96cf-6af9c900372a`. Clean console `stop` exited 0.
+- Artifact inspection found the playable classes/permissions and no ViaVersion or JUnit classes bundled. Throwaway client scripts and temporary translator JARs were removed after testing; normal `.run/dev` was never changed to offline mode.
 
 ## Next action
 
-Finish the in-progress Paper Settlement command/protection/visualization adapter, then verify with real game clients before advertising playable claims.
+Run README's native Minecraft 26.2 checklist with two real accounts on `127.0.0.1:25579`. Start with `/settlement create Oakfall`, `/settlement view`, and a teammate invitation; verify actual client rendering and access before production deployment.
 
 ## Risks or blockers
 
-- Config backups and removed-role DB history are retained deliberately; they do not imply runtime support. No automatic physical world deletion is provided.
-- Paper/JOML and SQLite may emit upstream JDK warnings; the initial foundation already documents them. Claims are still not implemented: this JAR must not be advertised as protecting player construction.
-- Local JDK/tooling and server data are ignored. Set JAVA_HOME to JDK 25; the tested development launcher remains `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh` after EULA acceptance.
+- No desktop/native 26.2 client rendering was inspected; protocol packet checks and native server boot do not substitute for that manual check.
+- Protection is spatial, not a new PvP, loose-item ownership, or natural entity-movement system. Trusted console/world-editing plugins require their own controls. Other-plugin interoperability needs deployment-specific review.
+- Outbox acknowledgement confirms publication; third-party listeners must deduplicate and handle their own failures/replay from retained history. Automated block-mutation recovery/accounting remains a later gate.
+- Mojang public-key/version requests intermittently timed out in the environment. Keep normal developer/production online authentication enabled; only the isolated test fixture used offline accounts.
+- Local JDK/tooling and scratch server data remain ignored. No production world data was deleted or used as a destructive fixture.

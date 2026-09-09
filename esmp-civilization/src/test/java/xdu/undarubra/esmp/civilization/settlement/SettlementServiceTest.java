@@ -92,6 +92,7 @@ class SettlementServiceTest {
     @Test
     void adjacentSettlementsRemainSeparateAndResourceWorldCannotBeClaimed() {
         UUID first = create("North", 0, 0);
+        assertEquals(Role.VISITOR, current(first).role(null));
         UUID second = create("South", 0, 1);
         assertNotEquals(first, second);
         rejected(() -> service.create(other, world, new ChunkPosition(0, 0), "Collision").join());
