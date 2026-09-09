@@ -2,51 +2,40 @@
 
 ## State
 
-- Playable Java 25 / Paper 26.2 Settlements remain implemented under `xdu.undarubra.esmp`; four modules, one JAR, SQLite Core/Civilization schemas both version 1.
-- Local development defaults and existing `.run/dev/server.properties` now use `online-mode=false` and `enforce-secure-profile=false`, still bound to `127.0.0.1:25579`.
-- The user had already changed the launcher's online-mode default; that edit was preserved and completed rather than overwritten.
-- Automatic movement ActionBars now compare Settlement identities. Same-Settlement chunk crossings and wilderness-to-wilderness movement are silent; entry/exit messages occur once. Explicit command feedback remains.
-- The user's unmanaged server was running on port 25579 during this work and was deliberately not stopped or hot-reloaded. Full stop/restart is required to load the changed properties and newly built JAR.
+- Java 25 / Paper 26.2 Settlements remain implemented in four Gradle modules, one JAR, with Core and Civilization SQLite schemas at version 1. This work changes documentation only.
+- The user approved integrating the gameplay extension into `ARCHITECTURE.md` and revising the roadmap. §16A is canonical; the discussion pause is lifted. No extension runtime is implemented or enabled by this approval.
+- Factory Realm remains removed. Shared player state/Ender Chests, Building Era restoration semantics, and current-state reclaim baselines remain unchanged. Full seasonal palettes and chat ergonomics remain deferred.
+- Settlement in-game testing is user-confirmed. Prior build/live ActionBar evidence belongs to the preceding implementation milestone; it was not rerun here.
 
 ## Completed
 
-- Updated existing and new local-server authentication settings for multiple named offline test clients.
-- Replaced chunk-based movement announcements with previous/next Settlement ID comparison.
-- Applied the same comparison to teleports and respawns; removed the duplicate PlayerChangedWorldEvent announcement path.
-- Updated architecture, README, and decision rationale, including offline UUID/impersonation risks.
+- Integrated progression/culture, functional Facility certification, shared capacity, bounded offline production and Activity pause, physical depot stock, goods/regional specialization, ledger currency/budgets, finite Server Trade and physical stalls, freight/teleport, and the Minecraft-day calendar/native seasonal effects.
+- Assigned logical Civilization/Economy/Transport/Calendar ownership without creating Gradle modules, schemas, or new Core gameplay responsibilities.
+- Extended persistence, recovery, scheduling, data ownership, vocabulary, current decisions, and feature-enablement gates. Retained unresolved numerical, qualification, accounting, and clock choices explicitly.
+- Replaced the old linear roadmap with dependency-aware slices. Activity is next; Building qualification precedes production, stock/payment recovery precedes markets/transport, and decay/repair, seasonal presentation, and Resource operations have independent gates.
+- Retired the discussion specification into a canonical navigation pointer; prior discussion remains in Git history, not a competing live architecture.
 
 ## Changed files
 
-- `scripts/run-dev.sh` — offline, unsigned-profile local defaults, preserving the loopback bind.
-- `esmp-plugin/.../ClaimVisualization.java` — transition-only movement feedback.
-- `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md` — behavior and restart/security guidance.
-- `.agent/HANDOFF.md` — current state and verification.
-- Ignored `.run/dev/server.properties` — updated the existing local server as well as the template.
+- `ARCHITECTURE.md` — accepted §16A gameplay contract, cross-cutting boundaries, decisions, gates, roadmap, and next action.
+- `README.md` — Simplified Chinese accepted-but-unimplemented summary and next development sequence.
+- `.agent/DECISIONS.md` — dated integration approval, rationale, invariant preservation, and dependency decisions.
+- `.agent/OPEN_QUESTIONS.md` — unresolved feature gates only, distinguishing selected boundaries from remaining details.
+- `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md` — superseded proposal replaced by links to canonical architecture/gates.
+- `.agent/HANDOFF.md` — this integration state and exact verification evidence.
 
 ## Verification
 
-- Gameplay extension work is discussion-only: preserved the user's draft summary and selected hybrid production, ledger accounts, and soft freight incentives in `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. No code or accepted architecture/roadmap was changed, and no gameplay checks were rerun to reconfirm the user's Settlement test report.
-- Follow-up proposal check: bounded offline accrual, budgeted purchases/rewards, and split freight payments are recorded consistently. Production timing is resolved within the proposal; treasury authority and issuance-budget mechanics remain open. No code or accepted-roadmap changes.
-- Progression/certification discussion selected four economic stages, auto-checked basics with reviewed higher production, and parallel cultural capabilities. These are proposal-only refinements, not code or accepted-roadmap changes.
-- Facility discussion selected shared reachable housing with functional/density checks, a shared Settlement production budget, and Activity-based pause after a configurable grace period. Stocks and unused inputs are preserved; exact thresholds and operational/accounting details remain open.
-- Stock/trade discussion selected bounded Facility ledger stock at physical depots, physical player market stalls, and Owner-controlled treasury withdrawals/budgets with budgeted Manager operational spending. Recovery, stock permissions, and detailed spending controls remain open.
-- Commodity discussion selected unrestricted vanilla crafting, mined inputs for Facility metal production, and basic-commodity-only Server Trade. Exact buy/sell lists and treatment of vanilla farm outputs remain open; no provenance tracker or farm ban is implicitly approved.
-- Server Trade discussion selected global bounded price bands, finite stock with controlled replenishment, and separate NPC buying/selling eligibility lists. Temporary shortages are accepted; exact lists, spreads, quantities, and quote behavior remain open.
-- Freight discussion selected timed ledger shipments, initial physical-connection review plus targeted revalidation, and disruption blocking new departures without deleting in-transit goods. Unavailable destinations hold cargo for the original recipient; recovery/storage and payment details remain open.
-- Seasons discussion selected Minecraft-day counting: one game day equals one calendar day, 365/366 days per year, starting at 0 A.D. Natural biome/terrain specialization and bounded native effects are selected; full seasonal palette is a deferred future feature. Exact leap/season boundaries and time-rewind handling remain open.
-- Transport/certification discussion selected Village-or-certified-landmark teleport access, stack-equivalent bulk throughput with mode/distance route quotes, and revalidation that suspends affected capability while preserving eligible basic production and stored goods.
-- `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
-- Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
-- Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
-- Verified both script and existing properties contain offline mode, disabled secure-profile enforcement, and loopback binding. Temporary test script and translator JARs were removed after the fixture stopped with exit 0.
+- Executed an inline Python document check: 42 accepted-contract assertions passed against `ARCHITECTURE.md` across stages/culture, certification, production, markets/money, transport, seasons, and architectural boundaries.
+- The same check passed balanced fenced-block and local Markdown file/heading-anchor resolution for `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md`, and `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`.
+- Checked the active question/proposal files no longer require the already-granted integration approval. README additions remain Simplified Chinese. No build, test suite, server restart, or gameplay scenario was run for this documentation-only change.
 
 ## Next action
 
-The gameplay extension's major directions are ready for a consolidated review in `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Request explicit approval to integrate them into `ARCHITECTURE.md` and its roadmap; preserve numerical tuning, precise eligibility, clock reconciliation, and stock/payment/world-mutation recovery as feature gates. Activity and extension implementation remain paused until integration is approved.
+Resolve the bounded Settlement Activity contribution/elapsed-time contract, including meaningful participation/caps and production-pause eligibility, then implement that slice. Keep mutable calendar time separate from Activity/financial elapsed-time accounting unless explicitly reconciled; no need to reopen the accepted extension directions.
 
 ## Risks or blockers
 
-- Offline mode permits name impersonation and is only for the loopback development server. Do not expose it publicly or carry it into production authentication policy.
-- Online/offline player UUIDs differ. Existing inventories, OP entries, and Settlement ownership are not reassigned automatically by matching names; migration requires an explicit mapping and backup. Existing data was not deleted.
-- Settlement testing is now user-confirmed; do not rerun checks merely to confirm their report. Their exact test coverage was not enumerated. Keep the manual checklist for future regressions.
-- The extension is discussion-only. Existing Ender Chest sharing, Building Era semantics, and current-world reclaim baselines remain accepted constraints unless explicitly revised. Chat ergonomics remain deferred.
+- Numeric thresholds, precise qualification/reactivation, workforce sharing, physical stock/payment recovery, recipient/ownership changes, and calendar reconciliation remain feature gates—not approved defaults.
+- Full seasonal palette techniques and compatibility remain deferred; native block effects also need safe loaded-area mutation/recovery before enablement.
+- Local development defaults remain offline/unsigned-profile and loopback-only. Do not expose this impersonation-permitting configuration publicly; online/offline UUID migration requires explicit mapping and backup. No server state was changed here.

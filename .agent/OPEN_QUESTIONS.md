@@ -10,6 +10,36 @@ The user has tested Settlements in game. Preserve the native checklist for regre
 
 Current implementation boundaries: normal PvP, ground-item pickup, and natural entity movement are not redefined; no Activity/Building/decay/repair/reset simulation is advertised.
 
+The gameplay extension is approved architectural scope under §16A, but no Facility/economy/transport/culture/calendar runtime is implemented. The discussion pause is lifted; Activity is the next slice.
+
+## Next: Activity and time foundations
+
+- Meaningful participation categories, weights/caps, elapsed-time decay and eligibility transitions; no credit for passersby or automated production.
+- Production-pause consumer contract: grace boundary, recovery, no catch-up across paused time, and treatment of in-progress jobs. Do not automatically remove earned economic/cultural capability.
+- Calendar source, leap/season boundaries, downtime, sleep/time rewinds, and Resource-reset reconciliation; one Minecraft day per calendar day and 365/366-day years from 0 A.D. are settled. Activity/production/freight clocks must not silently inherit mutable world time.
+
+## Before enabling Facilities and cultural capabilities
+
+- Concrete four-stage upgrade criteria, cultural qualification and higher-stage unlocks; Village-or-certified-landmark basic teleport access is settled.
+- Facility/Building linkage, workforce checks and Repair sharing, certificate scope/records/rechecks/reactivation, and ownership/claim-change handling.
+- Shared production-capacity units, allocation authority and stage amounts; a Settlement-wide ceiling is settled.
+- Recipes, eligible mined inputs, stale-state validity, inputs/output reservations and bounded offline accounting. Functional shared housing and affected-capability suspension are settled.
+
+## Before enabling Economy and Transport
+
+- Stable ledger operations/audit, issuance-budget allocation/replenishment and Owner-approved operating-budget controls.
+- Physical depot/stall stock permissions, deposit/withdrawal and purchase/collection recovery, crash-safe item/payment settlement, and ownership changes.
+- Exact NPC buy/sell catalogues including vanilla farm outputs, prices/spreads/quote behavior, quantities and replenishment. Global bounded bands, finite stock and separate lists are settled.
+- Natural regional profiles/modifier values and exact seasonal effects; keep underlying regional identity independent from seasonal cosmetics.
+- Route corridors/land permissions/targeted invalidation, bulk weights and throughput windows, mode/distance rates, reservations and payment recovery.
+- Bounded destination storage, held-cargo recovery and original-recipient access after endpoint/ownership changes; no new departures after disruption and preserved existing shipment schedules are settled.
+- Teleport cargo classification/portable-container treatment, fee presentation, safe destinations and payment recovery. Shared-storage bypasses are accepted.
+
+## Before enabling native seasonal mutations
+
+- Calendar reconciliation above and reversible loaded-area effects that preserve player builds, expected state, ownership, and Building baselines.
+- Bounded scheduling and world/database reconciliation; offline production is not permission to simulate physical mutations in unloaded chunks.
+
 ## Before enabling automated Building mutation
 
 - Automatic discovery algorithm, stable identity across split/merge and claim changes, and historical linkage during partial reclaim.
@@ -29,5 +59,6 @@ Current implementation boundaries: normal PvP, ground-item pickup, and natural e
 - Activity weights/caps, decay curves/probabilities/material rules, vegetation, repair speed/material values, and workload budgets; configure safe eligibility before enabling affected features.
 - Particle styles, command/Dialog presentation, localization, historical UI, rankings, and Era names.
 - Alliance relationships.
+- Full seasonal grass/foliage palette techniques and compatibility; explicitly deferred beyond the initial native-effects scope.
 
 These details do not block the initial plugin or claim slice. Resolve them when their feature is implemented; do not enable an incomplete or unsafe feature to avoid its gate.

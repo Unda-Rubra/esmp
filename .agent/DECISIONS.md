@@ -277,3 +277,22 @@ Automatic movement feedback compares the previous and next Settlement IDs. Same-
 ## 2026-09-09 — Settlement testing and deferred chat ergonomics
 
 The user reports that Settlement testing in game is complete. Chat output could be more ergonomic, but this is explicitly not a current priority. Preserve the verification checklist for future regressions; do not spend the next feature iteration on chat polish.
+
+## 2026-09-09 — Gameplay extension approved for architecture integration
+
+The user explicitly approved integrating the consolidated gameplay proposal and revising the roadmap. `ARCHITECTURE.md` §16A is now canonical; the former proposal is a navigation record, not a competing specification. This is design acceptance, not runtime implementation or approval of unresolved numeric/recovery defaults.
+
+- Economic stages are Settlement/Village/Town/City on the existing Settlement; cultural capability is parallel and does not increase production capacity or change Building Era. Vanilla crafting remains unrestricted.
+- Main World Facilities use functional automatic checks, reachable shared housing and reasonable workforce density, with administrator certification for higher tiers. Relevant changes suspend affected capability; eligible basic production continues and stocks remain. Decorative edits do not automatically require staff review.
+- One Settlement production budget bounds all Facility allocations. Hybrid production consumes inputs where required, including mined inputs for metal. Offline accrual uses bounded ledger stock at physical depots, never chunk loading or fake ticking villagers. Activity deficiency pauses production after a configurable grace period; paused time cannot become catch-up output and production grants no Activity.
+- Wallets and treasuries are ledger accounts. Budgeted server purchases/rewards mint; trades transfer; service fees burn. Owner controls withdrawals/budgets, Managers make audited budget-limited operational payments, Members cannot spend treasury funds. No wages or membership taxes.
+- Server Trade uses global bounded Cheap/Normal/Expensive bands, finite replenished stock, and separate purchase/sale eligibility lists for basic commodities. Player markets initially use physical stocked stalls. Rare/specialized supply primarily uses exploration/events/history and player markets; no farm ban or provenance tracker is selected.
+- Timed ledger freight reserves bulk cargo and throughput over reviewed physical routes. Mode/distance inform quotes; nested cargo counts. Targeted rechecks stop new departures after disruption, not existing shipments. Unavailable destinations hold goods for the original recipient, with bounded storage/recovery still gated.
+- Village or certified-cultural-landmark status qualifies for basic public teleport. Base-plus-cargo charges provide soft freight incentives while preserving shared inventory/Ender Chests and accepting storage bypasses.
+- Natural biome/terrain profiles affect efficiency, separately from seasons. One Minecraft day equals one calendar day, 365/366 days per year starting at 0 A.D. Initial effects are bounded native weather/particles and reversible loaded-area snow/vegetation; full seasonal palettes remain deferred. Clock source/reconciliation is not implicitly selected for financial or Activity accounting.
+
+Reason: make productive settlements, visible infrastructure, and historical/cultural places useful without unlimited automation, compulsory seasonal chores, or restoring the removed Factory Realm. Bounded ledger accounting enables unloaded production without weakening world-thread and recovery invariants.
+
+Logical ownership separates Civilization qualification/Activity from Economy ledger/stock, Transport lifecycle, and Calendar/Seasons modifiers. These remain one plugin lifecycle; no new Gradle modules or tables are created by this decision. Core stays gameplay-agnostic.
+
+Roadmap: Activity/time foundations → Building/Facility qualification → recoverable ledger/stock and bounded production → markets → transport. Decay/repair branches after Building/Activity and world recovery; seasons require calendar/effect safety; Resource cutover remains independently gated. Persist facts from each feature's first commit, not when later historical UI is built. Resolve concrete thresholds, eligibility, item/payment recovery, clock semantics, and workload budgets before enabling their feature.

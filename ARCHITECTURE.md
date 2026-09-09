@@ -14,9 +14,11 @@ The runnable plugin consists of four Gradle modules and one deployable Paper JAR
 - `esmp-civilization` now implements Settlement ownership, contiguous claims, roles, expiring offers, transfer, leave/removal, confirmed abandonment, rename, immutable views, and durable history/outbox records.
 - `esmp-plugin` supplies `/settlement` commands, main-thread cache publication, action-specific protection, private temporary borders, and post-commit `SettlementCommittedEvent` notifications. `/esmp status` reports actual readiness and Settlement count.
 - Configured Main World instances are claimable; Resource worlds remain unclaimable. Removed definitions remain historical only. Existing claims load before gameplay is admitted; persistence failure stops the server rather than leaving claims unprotected.
-- Building discovery, Activity scoring, decay/repair, automatic release, and Resource resets are not enabled. The implemented Settlement event outbox is not a claim that future DB-to-block mutation jobs already exist.
+- Building discovery, Activity scoring, decay/repair, automatic release, and Resource resets are not enabled. Progression, Facilities, currency/markets, freight/teleport, culture, and seasons are accepted design scope (§16A), not implemented features. The implemented Settlement event outbox is not a claim that future DB-to-world recovery jobs already exist.
 
 The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
+
+Main World Facilities are accepted as bounded Settlement production, not a restoration of the Factory Realm, Plot aggregate, or removed industrial module. The development loop expands to Explore → Settle → Build → Produce → Trade → Develop → Prosper → Decline → Ruin → Reclaim.
 
 Legacy configuration migration backs up the unversioned/version-1 config to `config-v1.yml`, removes its obsolete `worlds.FACTORY` mapping, and writes version 2. It never deletes physical world folders or persisted historical identities.
 
@@ -170,6 +172,8 @@ Evolve: SMP
 
 The bootstrap composes Core and gameplay modules and coordinates database migrations, startup, and shutdown. Module boundaries remain explicit application APIs and committed domain events; sharing one artifact does not permit cross-domain business-state access. Independent plugin deployment, classloader boundaries, and cross-plugin version compatibility are not part of the initial design.
 
+The accepted extension adds logical Economy, Transport, and Calendar/Seasons services alongside Civilization gameplay; §16A.7 assigns state ownership. These are architectural responsibilities, not newly implemented Gradle modules. Keep APIs and committed facts between them; choose package/module extraction when the corresponding feature is implemented, without adding empty modules. Core must not own currency issuance, Facility recipes, progression, route pricing, or season policy.
+
 ## 4.1 Module responsibility
 
 ### `esmp-core`
@@ -227,6 +231,8 @@ The module also owns:
 - villagers/artisans;
 - eras;
 - historical records.
+- economic-stage and cultural capabilities on existing Settlements;
+- Main World Facility qualification and certification, shared production-capacity allocation, and Activity eligibility exposed to Economy.
 
 ### `esmp-resource`
 
@@ -668,6 +674,8 @@ A fully automated machine should not generate infinite settlement activity simpl
 
 Activity therefore measures **meaningful player participation in a settlement**, not raw machine uptime.
 
+Facility output, offline accrual, and automated trade/transport processing grant no Activity. Economy consumes Settlement Activity eligibility but cannot sustain it through its own production events. After insufficient Activity exceeds a configurable grace period, production pauses even when unloaded buildings show no decay; recovery cannot turn paused time into catch-up output (§16A.2).
+
 ## 8.4 Recovery
 
 When meaningful participation restores sufficient activity, the Settlement returns to an active activity state and further decay stops. Merely logging in or generating a single event is not an automatic recovery trigger; the scoring thresholds remain deferred.
@@ -1061,6 +1069,92 @@ A repair station/cellar can use a vanilla container interface to show:
 The first version should avoid a large custom RPG-style menu hierarchy.
 
 ---
+# 16A. Economy, Transport, and Seasons
+
+Accepted on 2026-09-09 after review of the gameplay extension. These systems support useful settlements, visible infrastructure, and history rather than compressed villager captivity or large redstone farms as the economic core. They are separate feature slices, not one implementation milestone. All remain unimplemented until their §26 gates are met.
+
+## 16A.1 Progression, culture, and certification
+
+Economic stages are I **Settlement**, II **Village**, III **Town**, and IV **City**, attached to the existing Settlement identity. Housing, public space, industry, trade, transport, Activity, and history are candidate criteria, not selected numerical requirements. Ordinary vanilla crafting remains available at every stage; progression gates Facility tiers and automated throughput, not normal recipes.
+
+Cultural standing is a parallel capability track: architecture, history, and landmarks can grant public significance to nonproductive castles, ruins, and monuments. It does not independently raise production capacity or redefine Building Era. Reclaim still uses current ruins as the active baseline while retaining history; neither progression nor the calendar advances Era. Exact cultural ranks and qualification criteria remain open.
+
+A Facility combines a functional place, its Settlement, and villager workforce to provide goods or services. Examples include farms, lumber yards, quarries/stone works, smithies, bakeries, ports, and railway stations; examples are not a finalized recipe catalogue.
+
+Basic production requires automatic checks for usable work area, valid workstations, reachable housing, and reasonable worker density. Housing may be in another building within the same Settlement. Higher tiers require administrator certification for function, exploit resistance, and consistent standards—not aesthetic scoring.
+
+Relevant changes trigger revalidation and suspend affected capabilities only. Invalid higher-tier qualification does not stop basic production if basic checks still pass; failure of basic requirements also blocks basic production. Material scope changes or exploits require staff review, not every decorative edit. Preserve stored goods and unused inputs. Certificate scope, records, triggers, type-specific requirements, and reactivation rules must be resolved before enablement.
+
+## 16A.2 Bounded Facility production and physical depots
+
+Each economic stage supplies one shared Settlement production-capacity budget allocated among Facilities. Combined allocations cannot exceed it; adding villagers or Facilities does not create additional budget. Facility tiers remain bounded by economic capability and certification. Exact units, allocations, authority, and stage amounts remain open.
+
+Production is hybrid: basic renewables use capacity/workers/time; processed goods consume inputs. Market category does not determine production method: basic glass can still require sand/fuel. Metal-producing Facilities consume supplied ore or other eligible mined inputs; time and capacity cannot create metal. This does not approve an item-provenance tracker or a ban on vanilla farms.
+
+Bounded offline accrual uses saved valid Facility state without loading chunks or pretending villagers continue ticking. Available inputs, output capacity, workforce eligibility, and the shared production budget bound it. Insufficient Activity beyond a configurable grace period pauses new production until meaningful participation recovers, independently of physical ruin. Stored goods and unused inputs remain; paused time never yields catch-up production. Production grants no Activity. Automatic loss of earned progression or culture is not selected by this operating-state rule.
+
+Inputs and outputs use bounded ledger stock at a physical Facility depot. Deposits remove physical items into stock; withdrawals return physical items. The ledger is not a duplicate snapshot of items still in a chest. Use vanilla-client-compatible interfaces. Permission checks, interrupted deposit/withdrawal recovery, in-progress jobs, capacity reservations, and stale saved-state validity must be defined before enabling production.
+
+## 16A.3 Goods and regional specialization
+
+Basic construction/survival supply includes timber, stone, food, clay, glass, and basic metal. Processed building materials, masonry/bricks, food, tools, and components support industry chains. Rare goods such as Elytra, Dragon Egg, Wind Burst III, special equipment/materials, event rewards, and historical relics belong to exploration/events/history rather than unlimited ordinary Facility production. Exact catalogues remain open.
+
+Stable natural biome/terrain profiles give efficiency advantages, not hard availability locks. Seasonal modifiers apply separately; cosmetic biome changes must not redefine regional identity or create specialization exploits. Mountain/forest/plain/coast mappings and multipliers remain illustrative until configured.
+
+## 16A.4 Currency and markets
+
+Currency is ledger-based with distinct player wallets and Settlement treasuries. Budgeted server purchases and exploration/event rewards create currency. Player trades transfer currency. Teleport and market service fees destroy currency; freight separates operator revenue (transfer) from a disclosed system fee (destruction). No recurring wages or membership taxes are introduced.
+
+Owner controls treasury withdrawals and operating budgets. Managers may make audited operational payments within Owner-approved budgets; Members cannot spend treasury funds. This is bounded delegated trust, not a guarantee against self-dealing, and does not create custom Settlement roles. Budget allocation/replenishment and detailed spending controls remain open.
+
+Server Trade is a bounded basic-commodity backstop, including selected simple processed essentials—not an unlimited quest-money shop. It has global Cheap/Normal/Expensive price bands adjusted at coarse configurable intervals from stock and demand, within fixed price bounds. Stock is finite: purchases consume it, eligible sales and controlled replenishment restore it. Temporary shortages are accepted.
+
+NPC buying and selling use separate eligibility lists. Selling an essential to players does not imply buying it from them; eligibility of vanilla farm outputs remains open. Rare and most specialized goods belong primarily to player markets. Exact prices, spreads, quote/bulk behavior, quantities, replenishment, and issuance budgets remain feature gates.
+
+Initial Player Trade uses physical market stalls with stocked goods and posted prices; buyers visit to purchase and collect. Global instant delivery, orders, procurement, and bulk fulfillment are not implicitly included. Stocking, purchase/collection, permissions, and crash-safe item/payment settlement must be resolved before enabling stalls.
+
+## 16A.5 Freight and public teleport
+
+Trade Routes connect physical depots over real roads, rails, or port connections. Qualification combines automatic endpoint/basic checks with initial administrator review of the physical connection. Relevant edits and invalid endpoints trigger targeted rechecks, not periodic whole-route scans. Registered corridors, land permissions, and invalidation coverage remain design work.
+
+Freight uses timed ledger shipments, not travelling cargo entities. Dispatch reserves cargo and route throughput; arrival follows an abstract travel time. Stack-equivalent bulk units include nested cargo contents rather than counting a filled portable container as one empty item. Mode and distance inform quoted cost and travel time. Exact weights, throughput windows, rates, and payment timing remain open.
+
+Route disruption blocks new departures but does not destroy or automatically pause already-dispatched shipments; they retain their arrival schedule. An unavailable destination holds cargo for the explicitly identified original recipient, not whoever later owns its coordinates. Ownership changes, recipient recovery access, destination capacity, and payment recovery must not duplicate cargo, redirect ownership, or turn held shipments into unlimited storage.
+
+Public Settlement Teleport is distinct from ordinary movement and freight. Village economic stage qualifies for basic teleport infrastructure; an independently certified cultural landmark also qualifies without increasing production capacity. Higher economic stages can support stronger transport capabilities, with exact unlocks unresolved.
+
+Teleport costs base plus carried-cargo surcharge to favor people using teleport and bulk goods using routes. Shared inventories and Ender Chests remain unchanged; manual/global-storage bypasses are accepted under this soft incentive, not a promise of strict freight separation. Cargo classification, portable-container treatment, fee presentation, and safe destination/payment handling remain feature gates.
+
+## 16A.6 Calendar and seasons
+
+One Minecraft day equals one calendar day; a year contains 365 days or 366 in a leap year. Start at **0 A.D.**, followed by 1 A.D., 2 A.D., and onward. At normal 20-minute days, a non-leap year is five real days plus one hour forty minutes—not a fixed five-real-day year. Sleeping and time changes can affect pacing.
+
+Canonical world-day source, leap-year rules, season boundaries, downtime, backward-time handling, and Resource-reset reconciliation remain unresolved. Do not implicitly make Activity, freight duration, or offline production use a mutable seasonal clock; their elapsed-time accounting must be explicitly reconciled before dependent features are enabled.
+
+Spring favors growth/building, summer production, autumn harvest/storage/trade, and winter reduced agriculture plus crafts/trade. Exact effects remain tuning work. Seasons modify production/demand rather than owning another economy; decay eligibility remains independent. They provide rhythm, not compulsory daily tasks, punitive survival, or intricate stock management.
+
+Initial presentation uses bounded native weather/particles and limited reversible snow/vegetation in eligible loaded areas, preserving builds and restoration baselines. Mutations require the same permissions, world-instance validation, expected-state checks, and recovery discipline as other world work. Full seasonal grass/foliage palette changes remain a deferred future feature; no resource-pack/client-biome technique or compatibility promise is selected.
+
+## 16A.7 Ownership, recovery, and scope boundaries
+
+| Logical owner | Authoritative state and integration |
+|---|---|
+| Civilization | Settlement identity/roles, economic and cultural capabilities, Facility qualification/certification, shared production allocation, and Activity eligibility. |
+| Economy | Wallet/treasury ledger, issuance and operating budgets, depot/stall stock, production accounting, market prices/quotes and settlement. Consumes Civilization eligibility, never writes Activity. |
+| Transport | Route qualification/capacity, shipment lifecycle and recipient, teleport access/requests. Uses Civilization authorization and Economy stock/payment APIs. |
+| Calendar/Seasons | Calendar state and regional/seasonal modifiers; bounded presentation plans. Supplies modifiers, never duplicates Economy balances or changes Building Era. |
+| Core / Paper adapter | Neutral persistence/scheduling/world identity in Core; world observations, inventory interaction, and mutations on the proper Paper execution context. No gameplay policy in Core. |
+
+This is a logical ownership contract, not a finalized SQL schema or new Gradle-module layout. All domains remain within one plugin lifecycle. Facility/depot/route/landmark coordinates use `world_instance_id`; stable roles use `world_definition_id`. Settlement ownership or claim changes require dependent eligibility and access to be revalidated rather than inherited by coordinate alone.
+
+Economy commits pure ledger state through short owning-domain transactions and stable operation identities. Cross-domain stock/payment/capacity changes require an explicit recoverable command workflow; committed events report results and must not be relied on to retroactively enforce admission invariants. Physical item exchange cannot be atomic with SQL; §17.4 recovery and coordinated world/database restore apply. Exact reservation, refund, reconciliation, and durable audit designs are enablement gates, not implemented guarantees.
+
+Use event-driven invalidation, saved-state accounting, due-work indexes, and bounded queues. Never scan every Facility, route, or claimed block on every tick; do not schedule writes to all inactive Settlements. Unloaded physical changes are not simulated as complete. Offline economic accrual is a separate bounded ledger calculation, not an exception allowing chunk loading or off-thread Paper access.
+
+Initial scope spans progression/certification, basic production and commodity categories, Server Trade and physical stalls, regional modifiers, lightweight freight, public teleport, native seasonal effects/basic modifiers, and cultural/landmark capabilities. Exclude detailed population simulation, wages/happiness/taxes, full physical logistics, unlimited automation, complex finance, faction warfare, forced seasonal chores, and complex NPC-city AI. The Factory Realm remains removed; full seasonal palettes remain deferred.
+
+---
+
 
 # 17. Persistence and Database Architecture
 
@@ -1102,6 +1196,8 @@ ESMP Database
 
 Exact table names and schema are not finalized.
 
+Accepted future state also includes progression/cultural capabilities, Facility certificates and allocations, production checkpoints, depot/stall stock, wallet/treasury entries and budgets, market quotes, route reservations/shipments, and calendar/modifier state. §16A.7 defines logical ownership; these are not existing tables or migrations.
+
 The initial persistence engine is **SQLite**, embedded in the single Paper server deployment. Core provides connection, transaction, and migration infrastructure; each domain owns its repositories, schema, and queries. Durable application state, jobs, and the event outbox share this database so domain changes and outbox records can commit together.
 
 Coordinate writes through bounded scheduling suited to SQLite's single-writer model and keep transactions short. Database I/O must not block the Paper world execution context; world state must not be accessed from database workers. Required migrations complete before dependent gameplay operations are enabled.
@@ -1139,6 +1235,8 @@ Before application, revalidate world instance, loaded-chunk availability, owners
 On retry, distinguish an unapplied operation, an already achieved target, and a conflicting state using the durable operation record plus current state. An already achieved target is not permission to repeat material charges, history updates, or Era advancement. Those durable side effects must be idempotent by operation or job identity.
 
 World mutation success does not mean Minecraft has durably saved the affected chunks. Recovery and coordinated restore must account for world-save/DB-checkpoint divergence; ambiguous outcomes must be reconciled rather than blindly replayed over newer state. Detailed journal storage, checkpoint protocols, and material accounting are implementation work.
+
+The same cross-store boundary applies to depot/stall item exchange, charged teleport effects, and seasonal block changes. Pure ledger production does not access Paper state from database workers. Enabling any of these features requires its specific recovery protocol, including item/payment ambiguity and stale qualification; the existing Settlement outbox alone does not satisfy that gate.
 
 ---
 
@@ -1297,6 +1395,8 @@ The exact scheduler abstraction must be designed so the same domain code can lat
 
 Only naturally loaded chunks are eligible for Decay and Repair mutation. A job resumes through load-driven, budgeted scheduling; unloading before application returns affected work to pending rather than triggering a chunk load. Elapsed-time Activity evaluation continues independently, but unloaded-world mutation is not simulated as completed.
 
+Offline Facility accrual (§16A.2) is bounded ledger accounting, not physical world simulation. Use targeted invalidation and budgeted due work for Facilities, routes, and seasons. World observations and native effects remain on the proper execution context and must not force chunk loads.
+
 When a player edit invalidates planned work, preserve that edit and replan the affected operations. Do not require a manual restart of the whole Building job. Replanning uses the current baseline and permissions and cannot reuse obsolete ownership or activity eligibility.
 
 ---
@@ -1333,7 +1433,7 @@ History should not be reduced to a field on Repair.
 
 ---
 
-# 22. Proposed Core Domain Model
+# 22. Conceptual Domain Model
 
 The following is the current conceptual model, not a finalized Java class design:
 
@@ -1362,6 +1462,8 @@ ESMP
 ```
 
 `Civilization Domain` is an architectural grouping. It must not become a `Civilization` table or aggregate unless a future, separately approved gameplay requirement introduces one.
+
+The accepted extension adds Facility/progression/cultural state to Civilization and logical Economy, Transport, and Calendar/Seasons services as assigned in §16A.7. These are gameplay domains, not additions to infrastructure-only `esmp-core`; the diagram above describes the original civilization/resource loop.
 
 ---
 
@@ -1444,6 +1546,10 @@ An owned ruined settlement remains protected until a valid release operation com
 | Periodic reset | No | Yes |
 | Shared player inventory | Yes | Yes |
 | Shared Ender Chest | Yes | Yes |
+| Facility / progression / cultural sites | Settlement-local | No Settlement sites |
+| Depot / stall / Settlement transport infrastructure | Main World sites | No Settlement sites |
+| Player currency | Shared player account | Same account; no per-realm balance |
+| Calendar / seasonal policy | §16A.6 | Reset/source reconciliation must be resolved |
 
 This table is a design boundary, not yet a final implementation schema.
 
@@ -1497,6 +1603,12 @@ The following decisions are considered settled enough to serve as architectural 
 42. Application APIs enforce synchronous decisions. Durable domain events use a transactional outbox with at-least-once delivery and idempotent consumers; world mutations use recoverable jobs, not a cross-store atomicity assumption.
 43. ESMP deploys as one modular Paper plugin JAR with one bootstrap and coordinated lifecycle. Core remains gameplay-agnostic.
 44. The first UI favors commands, ActionBar, BossBar, chat, containers, books/signs, native dialogs, and temporary particles over large custom GUIs.
+45. Main World Facility production, economic stages, culture, ledger currency/markets, freight/teleport, and seasons are accepted scope under §16A, not yet implemented; the Factory Realm remains removed.
+46. Economic stages are Settlement/Village/Town/City; culture is parallel and does not raise production capacity or redefine Era. Vanilla crafting remains unrestricted.
+47. Facilities use functional automatic basics and reviewed higher certification, shared Settlement capacity, bounded offline ledger accrual, physical depots, and an Activity-based pause without catch-up output or lost stocks. Production never grants Activity.
+48. Currency sources are budgeted; player trades transfer funds and disclosed service fees destroy them. Owner budgets Manager spending. Server Trade has global bounded bands, finite replenished stock, and separate buy/sell lists; initial player markets are physical stalls.
+49. Freight reserves ledger cargo/throughput over reviewed physical routes; disruption stops new departures, not existing shipments. Village or certified-landmark status qualifies for basic teleport. Shared-storage bypasses remain accepted soft incentives.
+50. Natural regional profiles modify efficiency separately from seasons. Calendar days equal Minecraft days, with 365/366-day years starting at 0 A.D.; clock reconciliation remains gated. Native bounded seasonal effects come first; full seasonal palette support is deferred.
 
 ---
 
@@ -1510,6 +1622,11 @@ The major domain boundaries are settled enough to plan implementation. The remai
 | Playable Settlements (implemented) | Transactional owning tables, contiguous claims, fixed-role workflows, committed cache publication, history/outbox, Paper protection adapters, and private visualization; verify the target server and other-plugin integrations before production use. |
 | Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
 | Before enabling Resource resets | Finish evacuation/retired-location handling and coordinated cutover/backup/restore checks. |
+| Before enabling Activity-dependent production | Configure meaningful participation/caps, elapsed-time eligibility, grace/pause/recovery boundaries, and no catch-up across paused periods; automation grants no Activity. |
+| Before enabling progression / Facilities / culture | Resolve upgrade/cultural criteria, Building/Facility linkage, workforce validation, certificate scope/rechecks, shared-capacity units/allocation authority, and ownership-change behavior. |
+| Before enabling currency / stock / markets | Define audited ledger operations, issuance/operating budgets, item deposit/withdrawal recovery, access rules, quotes/spreads/catalogues, finite replenishment, and crash-safe stock/payment settlement. |
+| Before enabling freight / public teleport | Resolve bulk/throughput rates, physical-corridor invalidation/permissions, recipient and endpoint changes, bounded held cargo, reservations/payment recovery, safe destinations, and carried-cargo fees. |
+| Before enabling calendar-dependent effects | Resolve canonical day source, leap/season boundaries, downtime/time-rewind/Resource-reset behavior, and reconciliation with elapsed-time accounting. Prove reversible loaded-area effects preserve builds/baselines before native block changes. |
 
 Weights, probabilities, generation appearance, UI polish, and optional features may remain deferred until their implementation slice. This does not permit enabling unsafe or incomplete behavior: satisfy each gate before exposing its feature, rather than blocking all work on every unresolved detail.
 
@@ -1560,6 +1677,13 @@ The following areas are explicitly **not finalized yet**:
 - exact cycle management schema;
 - portal routing and travel-access rules.
 
+### Gameplay extension
+
+- Feature-specific unresolved criteria and accounting are listed in §16A and the gate table above; accepted high-level selections must not be reopened as undecided designs.
+- Precise seasonal/regional mappings, production recipes and mined-input eligibility, stage budgets, market catalogues/prices/replenishment, and route weights/rates remain tunable.
+- Workforce sharing with Repair, stock access, certification reactivation, and Activity-pause effects on in-progress jobs require explicit safe contracts; no automatic earned-stage/culture loss is selected.
+- Full seasonal palette techniques and compatibility are deferred beyond native effects; no client requirement is added.
+
 ### Runtime / Persistence
 
 - future dependency upgrades and owning-domain SQLite schema migrations; current tooling, JDBC driver, and foundation schema are implemented;
@@ -1580,62 +1704,22 @@ Resolve these at the relevant implementation gate. Default to established techni
 
 # 27. Recommended Development Order
 
-The architecture suggests the following implementation sequence:
+Accepted scope is staged by dependencies; implementation status is explicit:
 
-```text
-Phase 1
-  Runtime/build baseline + single-plugin bootstrap
-    ↓
-  esmp-core
-    ↓
-  WorldDefinition / WorldInstance registry
-    ↓
-  SQLite schema migrations (foundation version 1 implemented)
-    ↓
-  Database + migrations
-    ↓
-  Event / Scheduler infrastructure
+| Slice | Prerequisites and deliverable |
+|---|---|
+| 1. Runtime / world identity — implemented | Four modules, one JAR, world registry, bounded SQLite execution, migrations, and actual startup/restart verification. |
+| 2. Playable Settlements — implemented | Claims/protection, fixed roles, offers/ownership, private borders, and committed history/outbox. Preserve user-confirmed in-game coverage; chat polish remains deferred. |
+| 3. Activity and time foundations — next | Implement Settlement-local contribution/elapsed-time eligibility after resolving its gate. Define calendar reconciliation separately; no assumption that mutable world time drives Activity or money. Calendar work is not a prerequisite for basic claims or independent Activity scoring. |
+| 4. Building identity / Facility qualification | Building discovery/baselines/split-merge linkage, workforce/functional checks, reviewed certification, shared-capacity allocation, progression and cultural qualification. Persist historical facts from first state changes; resolve gates before awarding capabilities. |
+| 5. Ledger / physical stock / production | Audited wallets/treasuries/budgets and recoverable physical depots; then bounded production using Activity and qualification, with inputs/output capacity and pause accounting. Basic production does not require seasonal visuals. |
+| 6. Markets and specialization | Commodity/input lists, finite Server Trade, physical stalls, price quotes and item/payment recovery. Stable regional modifiers first; seasonal modifiers require resolved calendar policy. |
+| 7. Transport | Reviewed physical routes, bulk capacity, recipient-safe timed shipments and payment recovery; public teleport with Village-or-cultural access, cargo pricing and safe destinations. Depends on qualification and ledger/stock, not finished seasonal visuals. |
+| 8. Decay / repair / continuity | After Building/Activity plus durable world-mutation/material recovery: decay/ruin, automatic release/current-baseline reclaim, repair/artisan integration, qualifying Era advancement, history presentation/rankings. This branch may proceed after slice 4 independently of markets/transport; workforce/material integration must remain consistent. |
+| 9. Seasonal presentation | After calendar policy and safe world-mutation infrastructure: bounded native weather/particles and reversible loaded-area snow/vegetation, preserving builds and baselines. Full palettes are a deferred future feature. |
+| 10. Resource lifecycle | Shared-cycle preparation, evacuation, safe reset/routing, backup/restore. Can proceed independently of economy after world identity and operational recovery are ready; reconcile calendar source before cutover. |
 
-Phase 2
-  Settlement ownership + team roles
-    ↓
-  Ownership events + minimal historical persistence
-    ↓
-  Claim storage + protection
-    ↓
-  Claim visualization
-    ↓
-  Activity
-    ↓
-  Building tracking
-    ↓
-  Decay Queue
-
-Phase 3
-  Decay Engine
-    ↓
-  Ruin states
-    ↓
-  Release / Reclaim
-
-Phase 4
-  Repair
-    ↓
-  Villager / Artisan
-    ↓
-  Era
-    ↓
-  History presentation / rankings
-
-Phase 5
-  Resource Realm
-    ↓
-  Resource Cycle
-    ↓
-  Safe reset lifecycle
-```
-
-This order makes claim protection usable before automated world mutation. Persist ownership and historical facts from the first owning-state changes; later History work adds presentation and rankings, not retroactive reconstruction of missing events. Each feature must satisfy its gate in §26 before enablement. Detailed optimization and optional automation stay deferred.
+This is a dependency-aware roadmap, not permission to expose unfinished systems or a requirement to wait for every earlier-numbered independent branch. Ownership, financial, certification, and shipment facts are recorded from their first committed changes; later UI does not reconstruct missing history. Each feature satisfies §26 before enablement.
 
 ---
 
@@ -1645,17 +1729,18 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-The user has completed in-game Settlement testing. Keep the native checklist for regression and deployment checks; chat ergonomics are acknowledged but deferred. Proceed to the remaining Building/Activity feature gates without enabling unfinished automated mutation systems.
+The user approved integrating the gameplay extension into architecture and roadmap. The discussion pause is lifted, but no extension runtime is implemented by that approval. Next resolve the bounded Activity contribution/elapsed-time contract, including its production-pause consumer, then implement that slice. Keep calendar reconciliation separate and do not use mutable world time as an implicit financial clock. User-confirmed Settlement testing stands; chat ergonomics remain deferred.
 
 ## First functional slice
 
-Settlement persistence, membership/ownership workflows, claim protection, basic visualization, and committed history are implemented on the verified world/SQLite foundation. The next feature work is Building discovery and Activity, after resolving their remaining gates. Durable block mutation/recovery and material accounting still precede decay/repair enablement.
+Settlement persistence, membership/ownership workflows, claim protection, basic visualization, and committed history are implemented. Activity is the next slice; Building discovery/qualification and the logical service boundaries in §16A.7 follow through §27. Durable world-mutation recovery and material accounting still precede decay/repair and seasonal block enablement; physical stock/payment recovery precedes economic item exchange.
 
 ## Later feature gates
 
 - Building discovery must resolve split/merge historical linkage and safe baseline representation before mutation depends on it.
 - Decay/Repair must prove idempotent recovery, edit-conflict preservation, material accounting, and loaded-chunk scheduling before enablement.
 - Resource cutover must prove evacuation, backup/restore safety, and restart-safe routing before use.
+- Facility/certification, ledger/stock/market, transport, and calendar gates in §26 must be met before their features are enabled; architecture approval is not approval of unspecified thresholds or unsafe recovery defaults.
 
 Detailed scoring, decay probabilities, particle styles, and generator aesthetics belong to those implementation slices. They are not reasons to continue a broad yes/no architecture questionnaire.
 
@@ -1683,6 +1768,13 @@ Detailed scoring, decay probabilities, particle styles, and generator aesthetics
 | Era | Historical restoration-cycle count/state |
 | History | Persistent record of buildings, Settlements, and ownership epochs |
 | Resource Cycle | One generation/lifetime of resettable Resource world instances |
+| Economic stage | Settlement/Village/Town/City capabilities on the existing Settlement, not Building Era |
+| Cultural standing | Independent public/landmark capability track, without production-capacity increases |
+| Facility | Main World functional production/service site with Settlement qualification and villager workforce |
+| Depot stock | Bounded ledger inventory exchanged for physical items at a real Facility interface |
+| Treasury | Settlement currency account with Owner-controlled budgets and audited Manager operations |
+| Trade Route / Shipment | Qualified physical connection / recipient-bound timed ledger cargo movement |
+| Calendar | Minecraft-day-based year count from 0 A.D.; not a selected universal accounting clock |
 
 ---
 
