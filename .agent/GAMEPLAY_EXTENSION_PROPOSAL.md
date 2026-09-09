@@ -11,6 +11,8 @@ The economy serves the civilization loop: Explore → Settle → Build → Produ
 - Production: hybrid, with bounded offline accrual from saved valid Facility state and no chunk loading. Basic renewables use certified capacity/workers/time; processed goods consume inputs. Available inputs and output storage cap accrual. Production never grants Activity. Scarce/basic-metal exceptions remain to be classified.
 - Currency: ledger-based, with distinct player wallets and Settlement treasury accounts. Budgeted Server Trade purchases and budgeted exploration/event rewards create currency; player trades only transfer existing balances. Treasury authority and budget allocation/replenishment remain open.
 - Teleport/freight: soft incentives preserve shared Ender Chests and accept manual storage bypasses. Teleport/market service fees burn currency. Freight pays the route operator plus a separate disclosed system fee that is burned. No recurring wages or membership taxes are introduced. Exact cargo weights and fees remain deferred.
+- Progression: four economic stages on the existing Settlement aggregate—Settlement, Village, Town, City. Cultural standing is a parallel capability track for landmarks/public significance; it does not independently raise production capacity or redefine Building Era.
+- Certification: basic Facility production can start after automatic eligibility checks. Higher production tiers require administrator certification; material changes can require revalidation or review. Exact minimum checks and certificate review/revocation workflow remain open.
 
 These selections refine the discussion draft only. No code, accepted architecture, or implementation roadmap has been changed.
 
@@ -18,15 +20,15 @@ These selections refine the discussion draft only. No code, accepted architectur
 
 ### Settlement progression
 
-Four candidate stages: I Settlement (traditional survival start), II Village (community, public buildings, basic industries, Activity and certification), III Town (specialization, stable trade and transport), IV City (multi-industry/cultural network and server-wide importance). Production capacity and public infrastructure unlock with development; later growth increasingly rewards server significance rather than raw output. Exact requirements/unlocks are not settled.
+Four economic stages are selected: I Settlement (traditional survival start), II Village (community), III Town (specialization), IV City (a significant civilization node). These are development labels on the existing Settlement aggregate, not new ownership entities. The draft's housing, public-space, industry, trade, transport, Activity, and historical requirements remain candidates for concrete progression criteria. Exact upgrade requirements and unlocks are not settled.
 
 ### Facilities and certification
 
 Facility + Settlement + Villager produces goods or services. Examples: Farm/food, Lumber Yard/timber, Quarry or Stone Works/stone, Smithy/metal goods, Bakery/processed food, Port/maritime capacity, Railway Station/land transport.
 
-Automatic checks may cover space, work area, accommodation, workstations, mobility/reachability, density, environment, and Settlement relationship. The aim is rejecting obvious prisons/exploits, not algorithmic aesthetic scoring. Administrative review handles reasonable building purpose, exploits, and consistent server standards, with review/revoke capability. First certification may need manual review and later upgrades mainly automatic checks; workflow remains open.
+Basic Facility production starts after automatic eligibility checks. Higher production tiers require administrator certification. Candidate checks include space, work area, accommodation, workstations, mobility/reachability, density, environment, and Settlement relationship. The aim is rejecting obvious prisons/exploits, not algorithmic aesthetic scoring. Administrative review addresses reasonable function, exploits, and consistent standards; minimum checks, certificate scope, review reuse, and revocation workflow remain open.
 
-Facility productivity is constrained by Settlement capability rather than unlimited independent upgrades. The discussion selected hybrid production; concrete resource classifications, recipes, and capacity rules remain open.
+Facility productivity is constrained by the Settlement's economic capability rather than unlimited independent upgrades. Cultural standing alone does not bypass production ceilings or certification. Concrete resource classifications, recipes, capacity allocation, and the relationship between inactivity and operating eligibility remain open.
 
 Production may accrue while chunks are unloaded using saved valid Facility state, without pretending villagers continue ticking or loading chunks to make them work. Available inputs and output storage bound accrual. Validity changes, reservation/consumption of inputs, output delivery, and replay-safe accounting still need design; offline production does not contribute Activity.
 
@@ -52,7 +54,7 @@ Freight payment has two explicit parts: operator revenue (a transfer) and a disc
 
 ### Culture and history
 
-Economic development (production/trade/logistics) and cultural development (architecture/history/landmarks) should both matter. Nonproductive castles, ruins, and monuments can gain cultural/server-attraction value without manufacturing productivity. Whether these are independent advancement tracks remains open.
+Economic development and cultural standing are parallel capabilities. Economic stages govern production capacity; architecture/history/landmark achievements grant independent public significance. Nonproductive castles, ruins, and monuments can develop culturally without becoming industrial centers. Culture does not independently raise production capacity. Building Era retains its existing restoration-cycle meaning; cultural ranks, criteria, and specific public unlocks remain to be designed.
 
 ### Seasons
 
@@ -74,13 +76,15 @@ Exclude detailed population simulation, wages/happiness/taxes, full physical log
 4. Facility economics now propose bounded offline accounting without chunk loading or fake villagers. This remains distinct from physical world mutations, and production must not sustain Activity. Validity and input/output accounting need an explicit safety boundary.
 5. Seasonal client visuals must respect the vanilla-client constraint. A normal 20-minute Minecraft day implies 360 seasonal days per five-real-day year (90 per season); sleeping/time commands require an explicit clock policy if the year is meant to stay fixed.
 
+Production-validity risk for discussion: physical decay waits for naturally loaded chunks, while the proposed economy can accrue offline. Operating eligibility must therefore be defined independently of whether visible damage has already been applied; otherwise an inactive unloaded Facility could keep producing until its stock/input limits intervene. No Activity-based production cutoff has been selected yet.
+
 ## Discussion questions from the draft
 
 ### Progression and certification
 
-- Settlement level count and each stage's experience.
+- Concrete upgrade requirements and experience within the selected four economic stages.
 - Minimal hard Facility eligibility requirements.
-- Administrator review authority, workflow, and revocation boundaries.
+- Certification scope, review/reuse, and revocation workflow; automatic basic eligibility and reviewed higher production are selected.
 
 ### Production
 
@@ -103,7 +107,7 @@ Exclude detailed population simulation, wages/happiness/taxes, full physical log
 
 ### Culture, seasons, and performance
 
-- Cultural progression alongside or within economic levels.
+- Cultural qualification and unlocks within the selected parallel capability model; no automatic production-capacity increase.
 - First seasonal visual/production effects.
 - Low-overhead scheduling, data ownership, and persistence boundaries.
 
