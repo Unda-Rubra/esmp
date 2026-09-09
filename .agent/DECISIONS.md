@@ -289,10 +289,22 @@ The user explicitly approved integrating the consolidated gameplay proposal and 
 - Server Trade uses global bounded Cheap/Normal/Expensive bands, finite replenished stock, and separate purchase/sale eligibility lists for basic commodities. Player markets initially use physical stocked stalls. Rare/specialized supply primarily uses exploration/events/history and player markets; no farm ban or provenance tracker is selected.
 - Timed ledger freight reserves bulk cargo and throughput over reviewed physical routes. Mode/distance inform quotes; nested cargo counts. Targeted rechecks stop new departures after disruption, not existing shipments. Unavailable destinations hold goods for the original recipient, with bounded storage/recovery still gated.
 - Village or certified-cultural-landmark status qualifies for basic public teleport. Base-plus-cargo charges provide soft freight incentives while preserving shared inventory/Ender Chests and accepting storage bypasses.
-- Natural biome/terrain profiles affect efficiency, separately from seasons. One Minecraft day equals one calendar day, 365/366 days per year starting at 0 A.D. Initial effects are bounded native weather/particles and reversible loaded-area snow/vegetation; full seasonal palettes remain deferred. Clock source/reconciliation is not implicitly selected for financial or Activity accounting.
+- Natural biome/terrain profiles affect efficiency, separately from seasons. One Minecraft day equals one calendar day, 365/366 days per year starting at 0 A.D. Initial effects are bounded native weather/particles and reversible loaded-area snow/vegetation; full seasonal palettes remain deferred. The later shared-game-clock decision below settles the time basis for financial and Activity accounting; source/jump reconciliation remains gated.
 
 Reason: make productive settlements, visible infrastructure, and historical/cultural places useful without unlimited automation, compulsory seasonal chores, or restoring the removed Factory Realm. Bounded ledger accounting enables unloaded production without weakening world-thread and recovery invariants.
 
 Logical ownership separates Civilization qualification/Activity from Economy ledger/stock, Transport lifecycle, and Calendar/Seasons modifiers. These remain one plugin lifecycle; no new Gradle modules or tables are created by this decision. Core stays gameplay-agnostic.
 
 Roadmap: Activity/time foundations → Building/Facility qualification → recoverable ledger/stock and bounded production → markets → transport. Decay/repair branches after Building/Activity and world recovery; seasons require calendar/effect safety; Resource cutover remains independently gated. Persist facts from each feature's first commit, not when later historical UI is built. Resolve concrete thresholds, eligibility, item/payment recovery, clock semantics, and workload budgets before enabling their feature.
+
+## 2026-09-09 — Shared game clock for all gameplay timing
+
+The user rejected real-life-clock-based Activity and selected the game's reckoning clock (ticks/days) for all plugin gameplay timing. `ARCHITECTURE.md` §16A.6 supersedes the separate elapsed-time recommendation.
+
+- `advance_time=false` stops the clock and time-driven mechanisms. No server-downtime accrual or wall-clock catch-up.
+- Tick-rate changes affect real-world pacing, not the Activity/decay result for the same elapsed game days.
+- Activity, decay/repair progression, production/grace periods, freight, cooldowns, offer expiry, market intervals and Resource schedules consume the same clock. Offline accounting means absent players/unloaded chunks while game time advances, not a stopped server.
+- Implement coherent clock persistence and migrate existing gameplay timers before Activity; do not mistake this design update for an implemented runtime cutover.
+- Canonical source, sleep and explicit time-command jumps/rewinds, restart/Resource-reset reconciliation and calendar boundaries still need implementation contracts. Choosing game time does not silently choose raw mutable world-time subtraction.
+
+Reason: gameplay belongs to the world's chronology. A frozen world must not age according to elapsed real-life time, and changing server pacing must not change balance measured in game days. Full seasonal presentation remains deferred and is not needed to implement the shared clock.

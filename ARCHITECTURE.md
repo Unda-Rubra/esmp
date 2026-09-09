@@ -647,7 +647,7 @@ The preferred conceptual model is a score that combines:
 
 Owner, Manager, and Member participation is the primary activity source. Meaningful Visitor interactions may contribute a very small amount relative to team participation. Merely passing through, entering, or crossing the Settlement contributes no Visitor activity. Exact eligible interactions, weights, and anti-farming limits remain tuning work; Visitor credit does not grant additional permissions.
 
-The score naturally decays over time. Inactivity should not require a scheduled write to every settlement. Store a value and its calculation time, then evaluate elapsed-time decay when the score is read or receives a new contribution.
+The score naturally decays over elapsed shared game time (§16A.6), not wall time. Store a value and its game-clock anchor, then evaluate decay lazily when read or credited; inactivity must not require scheduled writes to every Settlement. With `advance_time=false`, no time-driven Activity loss occurs. Server downtime contributes no elapsed game time.
 
 Conceptually:
 
@@ -1093,6 +1093,8 @@ Production is hybrid: basic renewables use capacity/workers/time; processed good
 
 Bounded offline accrual uses saved valid Facility state without loading chunks or pretending villagers continue ticking. Available inputs, output capacity, workforce eligibility, and the shared production budget bound it. Insufficient Activity beyond a configurable grace period pauses new production until meaningful participation recovers, independently of physical ruin. Stored goods and unused inputs remain; paused time never yields catch-up production. Production grants no Activity. Automatic loss of earned progression or culture is not selected by this operating-state rule.
 
+Here, offline means players offline or chunks unloaded while the shared game clock advances. Server downtime and frozen game time produce no accrual. Production grace periods, input/output accounting, and Activity eligibility all use that same clock; they must not substitute wall-clock catch-up.
+
 Inputs and outputs use bounded ledger stock at a physical Facility depot. Deposits remove physical items into stock; withdrawals return physical items. The ledger is not a duplicate snapshot of items still in a chest. Use vanilla-client-compatible interfaces. Permission checks, interrupted deposit/withdrawal recovery, in-progress jobs, capacity reservations, and stale saved-state validity must be defined before enabling production.
 
 ## 16A.3 Goods and regional specialization
@@ -1129,7 +1131,11 @@ Teleport costs base plus carried-cargo surcharge to favor people using teleport 
 
 One Minecraft day equals one calendar day; a year contains 365 days or 366 in a leap year. Start at **0 A.D.**, followed by 1 A.D., 2 A.D., and onward. At normal 20-minute days, a non-leap year is five real days plus one hour forty minutes—not a fixed five-real-day year. Sleeping and time changes can affect pacing.
 
-Canonical world-day source, leap-year rules, season boundaries, downtime, backward-time handling, and Resource-reset reconciliation remain unresolved. Do not implicitly make Activity, freight duration, or offline production use a mutable seasonal clock; their elapsed-time accounting must be explicitly reconciled before dependent features are enabled.
+All ESMP gameplay timing uses one shared reckoning clock measured in game ticks/days, including Activity loss, decay/repair progression, production, grace periods, freight, cooldowns, offer expiry, market intervals, and Resource schedules. It is not tied to the real-life clock. When `advance_time=false`, the shared clock and time-driven mechanisms stop advancing. Server downtime adds no game time and creates no catch-up. Changing tick rate alters real-world pacing only: the same elapsed game days must produce the same time-based Activity/decay result.
+
+Gameplay code consumes a common clock rather than independently counting scheduler callbacks or reading per-world time. Persist its position and dependent anchors coherently across restart; timestamps used merely for operational diagnostics must not drive gameplay. Existing gameplay timer implementations/configuration require an audit and explicit migration before the clock cutover; this architecture change does not claim they already comply.
+
+The canonical world-day source, sleep and `/time set`/`/time add` handling, backward-time/reset reconciliation, leap-year rules, and season boundaries remain implementation decisions. Tick-rate changes are distinct from explicit world-time jumps: do not silently settle jump/rewind policy by choosing an API. Clock/source recovery precedes Activity implementation; full seasonal visuals do not.
 
 Spring favors growth/building, summer production, autumn harvest/storage/trade, and winter reduced agriculture plus crafts/trade. Exact effects remain tuning work. Seasons modify production/demand rather than owning another economy; decay eligibility remains independent. They provide rhythm, not compulsory daily tasks, punitive survival, or intricate stock management.
 
@@ -1142,7 +1148,7 @@ Initial presentation uses bounded native weather/particles and limited reversibl
 | Civilization | Settlement identity/roles, economic and cultural capabilities, Facility qualification/certification, shared production allocation, and Activity eligibility. |
 | Economy | Wallet/treasury ledger, issuance and operating budgets, depot/stall stock, production accounting, market prices/quotes and settlement. Consumes Civilization eligibility, never writes Activity. |
 | Transport | Route qualification/capacity, shipment lifecycle and recipient, teleport access/requests. Uses Civilization authorization and Economy stock/payment APIs. |
-| Calendar/Seasons | Calendar state and regional/seasonal modifiers; bounded presentation plans. Supplies modifiers, never duplicates Economy balances or changes Building Era. |
+| Calendar/Seasons | Shared gameplay reckoning clock and calendar state, regional/seasonal modifiers, and bounded presentation plans. Supplies time and modifiers, never duplicates Economy balances or changes Building Era. |
 | Core / Paper adapter | Neutral persistence/scheduling/world identity in Core; world observations, inventory interaction, and mutations on the proper Paper execution context. No gameplay policy in Core. |
 
 This is a logical ownership contract, not a finalized SQL schema or new Gradle-module layout. All domains remain within one plugin lifecycle. Facility/depot/route/landmark coordinates use `world_instance_id`; stable roles use `world_definition_id`. Settlement ownership or claim changes require dependent eligibility and access to be revalidated rather than inherited by coordinate alone.
@@ -1393,7 +1399,7 @@ The exact scheduler abstraction must be designed so the same domain code can lat
 
 ## 20.5 Loaded-chunk work and conflict replanning
 
-Only naturally loaded chunks are eligible for Decay and Repair mutation. A job resumes through load-driven, budgeted scheduling; unloading before application returns affected work to pending rather than triggering a chunk load. Elapsed-time Activity evaluation continues independently, but unloaded-world mutation is not simulated as completed.
+Only naturally loaded chunks are eligible for Decay and Repair mutation. A job resumes through load-driven, budgeted scheduling; unloading before application returns affected work to pending rather than triggering a chunk load. Activity evaluation uses elapsed shared game time independently of chunk loading, but unloaded-world mutation is not simulated as completed.
 
 Offline Facility accrual (§16A.2) is bounded ledger accounting, not physical world simulation. Use targeted invalidation and budgeted due work for Facilities, routes, and seasons. World observations and native effects remain on the proper execution context and must not force chunk loads.
 
@@ -1582,7 +1588,7 @@ The following decisions are considered settled enough to serve as architectural 
 21. ESMP does not create per-realm inventories or item-transfer restrictions.
 22. Settlement activity is more than last-login time and is evaluated per settlement.
 23. Activity uses a decaying score driven primarily by team participation. Meaningful Visitor interactions contribute very little; passersby contribute nothing.
-24. Elapsed-time decay should not require periodic writes to every settlement.
+24. Elapsed-game-time Activity decay uses the shared reckoning clock and must not require periodic writes to every Settlement.
 25. Automation should not provide unlimited activity credit.
 26. Decay preserves building shape and turns abandoned construction into ruins.
 27. Buildings are automatically discovered within claimed Settlements, with one Settlement per tracked Building. Authorized player building edits automatically revise restoration baselines; ESMP decay and repair do not redefine them.
@@ -1609,6 +1615,7 @@ The following decisions are considered settled enough to serve as architectural 
 48. Currency sources are budgeted; player trades transfer funds and disclosed service fees destroy them. Owner budgets Manager spending. Server Trade has global bounded bands, finite replenished stock, and separate buy/sell lists; initial player markets are physical stalls.
 49. Freight reserves ledger cargo/throughput over reviewed physical routes; disruption stops new departures, not existing shipments. Village or certified-landmark status qualifies for basic teleport. Shared-storage bypasses remain accepted soft incentives.
 50. Natural regional profiles modify efficiency separately from seasons. Calendar days equal Minecraft days, with 365/366-day years starting at 0 A.D.; clock reconciliation remains gated. Native bounded seasonal effects come first; full seasonal palette support is deferred.
+51. All gameplay timers use the shared game-tick/day clock, not real-life elapsed time. `advance_time=false` freezes time-driven progression; server downtime yields no catch-up. Tick-rate changes affect real-world pacing, not behavior per game day. Source/jump/restart semantics and existing timer migration precede Activity.
 
 ---
 
@@ -1626,7 +1633,7 @@ The major domain boundaries are settled enough to plan implementation. The remai
 | Before enabling progression / Facilities / culture | Resolve upgrade/cultural criteria, Building/Facility linkage, workforce validation, certificate scope/rechecks, shared-capacity units/allocation authority, and ownership-change behavior. |
 | Before enabling currency / stock / markets | Define audited ledger operations, issuance/operating budgets, item deposit/withdrawal recovery, access rules, quotes/spreads/catalogues, finite replenishment, and crash-safe stock/payment settlement. |
 | Before enabling freight / public teleport | Resolve bulk/throughput rates, physical-corridor invalidation/permissions, recipient and endpoint changes, bounded held cargo, reservations/payment recovery, safe destinations, and carried-cargo fees. |
-| Before enabling calendar-dependent effects | Resolve canonical day source, leap/season boundaries, downtime/time-rewind/Resource-reset behavior, and reconciliation with elapsed-time accounting. Prove reversible loaded-area effects preserve builds/baselines before native block changes. |
+| Before enabling shared clock / Activity | Resolve canonical source, sleep/command jumps/rewinds, persistence/restart/Resource-reset reconciliation, and migration of existing gameplay timers. Verify `advance_time=false`, no downtime catch-up, and equal results per game day at different tick rates. Leap/season boundaries precede calendar effects; prove safe reversible loaded-area mutations before native block changes. |
 
 Weights, probabilities, generation appearance, UI polish, and optional features may remain deferred until their implementation slice. This does not permit enabling unsafe or incomplete behavior: satisfy each gate before exposing its feature, rather than blocking all work on every unresolved detail.
 
@@ -1710,7 +1717,7 @@ Accepted scope is staged by dependencies; implementation status is explicit:
 |---|---|
 | 1. Runtime / world identity — implemented | Four modules, one JAR, world registry, bounded SQLite execution, migrations, and actual startup/restart verification. |
 | 2. Playable Settlements — implemented | Claims/protection, fixed roles, offers/ownership, private borders, and committed history/outbox. Preserve user-confirmed in-game coverage; chat polish remains deferred. |
-| 3. Activity and time foundations — next | Implement Settlement-local contribution/elapsed-time eligibility after resolving its gate. Define calendar reconciliation separately; no assumption that mutable world time drives Activity or money. Calendar work is not a prerequisite for basic claims or independent Activity scoring. |
+| 3. Shared game clock, then Activity — next | Implement persisted reckoning ticks/days with `advance_time` freeze and no downtime accrual; resolve jump/source recovery and migrate existing gameplay timers. Then implement Settlement-local scoring, capped contributions, eligibility/pause boundaries and status. Full seasonal presentation is not a prerequisite. |
 | 4. Building identity / Facility qualification | Building discovery/baselines/split-merge linkage, workforce/functional checks, reviewed certification, shared-capacity allocation, progression and cultural qualification. Persist historical facts from first state changes; resolve gates before awarding capabilities. |
 | 5. Ledger / physical stock / production | Audited wallets/treasuries/budgets and recoverable physical depots; then bounded production using Activity and qualification, with inputs/output capacity and pause accounting. Basic production does not require seasonal visuals. |
 | 6. Markets and specialization | Commodity/input lists, finite Server Trade, physical stalls, price quotes and item/payment recovery. Stable regional modifiers first; seasonal modifiers require resolved calendar policy. |
@@ -1729,7 +1736,7 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-The user approved integrating the gameplay extension into architecture and roadmap. The discussion pause is lifted, but no extension runtime is implemented by that approval. Next resolve the bounded Activity contribution/elapsed-time contract, including its production-pause consumer, then implement that slice. Keep calendar reconciliation separate and do not use mutable world time as an implicit financial clock. User-confirmed Settlement testing stands; chat ergonomics remain deferred.
+The user selected the shared game clock for all gameplay timing, superseding the proposed real-elapsed-time Activity model. First resolve source, sleep/command jumps, and restart reconciliation, implement the clock, and audit/migrate existing gameplay timers. Then implement bounded Activity contributions and game-time eligibility, including its production-pause consumer. User-confirmed Settlement testing stands; chat ergonomics remain deferred.
 
 ## First functional slice
 
@@ -1774,7 +1781,7 @@ Detailed scoring, decay probabilities, particle styles, and generator aesthetics
 | Depot stock | Bounded ledger inventory exchanged for physical items at a real Facility interface |
 | Treasury | Settlement currency account with Owner-controlled budgets and audited Manager operations |
 | Trade Route / Shipment | Qualified physical connection / recipient-bound timed ledger cargo movement |
-| Calendar | Minecraft-day-based year count from 0 A.D.; not a selected universal accounting clock |
+| Calendar / reckoning clock | Shared gameplay ticks/days; 365/366-day calendar years from 0 A.D.; freezes with `advance_time=false`, with no real-time or downtime progression |
 
 ---
 

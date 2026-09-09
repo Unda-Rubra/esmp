@@ -10,13 +10,14 @@ The user has tested Settlements in game. Preserve the native checklist for regre
 
 Current implementation boundaries: normal PvP, ground-item pickup, and natural entity movement are not redefined; no Activity/Building/decay/repair/reset simulation is advertised.
 
-The gameplay extension is approved architectural scope under §16A, but no Facility/economy/transport/culture/calendar runtime is implemented. The discussion pause is lifted; Activity is the next slice.
+The gameplay extension is approved architectural scope under §16A, but no Facility/economy/transport/culture/calendar runtime is implemented. The discussion pause is lifted; the shared game clock and existing gameplay timer migration now precede Activity.
 
-## Next: Activity and time foundations
+## Next: Shared game clock, then Activity
 
-- Meaningful participation categories, weights/caps, elapsed-time decay and eligibility transitions; no credit for passersby or automated production.
+- Meaningful participation categories, weights/caps, game-time decay and eligibility transitions; no credit for passersby or automated production.
 - Production-pause consumer contract: grace boundary, recovery, no catch-up across paused time, and treatment of in-progress jobs. Do not automatically remove earned economic/cultural capability.
-- Calendar source, leap/season boundaries, downtime, sleep/time rewinds, and Resource-reset reconciliation; one Minecraft day per calendar day and 365/366-day years from 0 A.D. are settled. Activity/production/freight clocks must not silently inherit mutable world time.
+- Canonical game-clock source, sleep/time-command jumps and rewinds, restart/Resource-reset reconciliation, and persisted anchors. Audit/migrate existing gameplay timers and configuration. Shared game time, `advance_time=false` freeze, tick-rate-independent behavior per game day, and no server-downtime catch-up are settled.
+- Leap/season boundaries remain open; one Minecraft day per calendar day and 365/366-day years from 0 A.D. are settled. Full seasonal presentation does not block the clock/Activity slice.
 
 ## Before enabling Facilities and cultural capabilities
 
