@@ -25,6 +25,7 @@
 
 ## Verification
 
+- Gameplay extension work is discussion-only: preserved the user's draft summary and selected hybrid production, ledger accounts, and soft freight incentives in `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. No code or accepted architecture/roadmap was changed, and no gameplay checks were rerun to reconfirm the user's Settlement test report.
 - `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
 - Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
 - Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
@@ -32,10 +33,11 @@
 
 ## Next action
 
-The user reports that they have tested Settlements in game. Chat ergonomics can improve but are explicitly not a priority. Recommend the Settlement Activity system as the next non-destructive feature, followed by Building discovery; implementation has not started.
+Activity implementation is paused while discussing the user's gameplay extension. Continue from `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`: hybrid production, ledger currency, and soft teleport/freight incentives are agreed within the proposal only. Next resolve offline production and currency issuance/sinks, then the remaining grouped questions. Do not add these systems to the accepted architecture/roadmap or implement them until integration is explicitly approved.
 
 ## Risks or blockers
 
 - Offline mode permits name impersonation and is only for the loopback development server. Do not expose it publicly or carry it into production authentication policy.
 - Online/offline player UUIDs differ. Existing inventories, OP entries, and Settlement ownership are not reassigned automatically by matching names; migration requires an explicit mapping and backup. Existing data was not deleted.
 - Settlement testing is now user-confirmed; do not rerun checks merely to confirm their report. Their exact test coverage was not enumerated. Keep the manual checklist for future regressions.
+- The extension is discussion-only. Existing Ender Chest sharing, Building Era semantics, and current-world reclaim baselines remain accepted constraints unless explicitly revised. Chat ergonomics remain deferred.
