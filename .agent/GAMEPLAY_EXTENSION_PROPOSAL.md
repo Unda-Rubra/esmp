@@ -8,9 +8,9 @@ The economy serves the civilization loop: Explore → Settle → Build → Produ
 
 ## Agreed within this proposal — not yet integrated into architecture
 
-- Production: hybrid. Certified capacity, workers, and time can supply basic renewable goods; processed goods consume real inputs. Basic metals and other scarce exceptions still need classification.
-- Currency: ledger-based, with distinct player wallets and Settlement treasury accounts. Currency issuance, sinks, and account authority remain open.
-- Teleport/freight: soft incentives. Keep shared Ender Chests; cargo fees cover carried goods and portable-container contents. Freight competes on bulk convenience and cost rather than making manual storage bypass impossible. Exact weights and fees remain deferred.
+- Production: hybrid, with bounded offline accrual from saved valid Facility state and no chunk loading. Basic renewables use certified capacity/workers/time; processed goods consume inputs. Available inputs and output storage cap accrual. Production never grants Activity. Scarce/basic-metal exceptions remain to be classified.
+- Currency: ledger-based, with distinct player wallets and Settlement treasury accounts. Budgeted Server Trade purchases and budgeted exploration/event rewards create currency; player trades only transfer existing balances. Treasury authority and budget allocation/replenishment remain open.
+- Teleport/freight: soft incentives preserve shared Ender Chests and accept manual storage bypasses. Teleport/market service fees burn currency. Freight pays the route operator plus a separate disclosed system fee that is burned. No recurring wages or membership taxes are introduced. Exact cargo weights and fees remain deferred.
 
 These selections refine the discussion draft only. No code, accepted architecture, or implementation roadmap has been changed.
 
@@ -28,6 +28,8 @@ Automatic checks may cover space, work area, accommodation, workstations, mobili
 
 Facility productivity is constrained by Settlement capability rather than unlimited independent upgrades. The discussion selected hybrid production; concrete resource classifications, recipes, and capacity rules remain open.
 
+Production may accrue while chunks are unloaded using saved valid Facility state, without pretending villagers continue ticking or loading chunks to make them work. Available inputs and output storage bound accrual. Validity changes, reservation/consumption of inputs, output delivery, and replay-safe accounting still need design; offline production does not contribute Activity.
+
 ### Goods and specialization
 
 - Basic resources: timber, stone, food, clay, glass, basic metal; stable affordable supply should support construction.
@@ -38,13 +40,15 @@ Regions modify efficiency rather than hard-lock goods. Candidate influences incl
 
 ### Trade
 
-Server Trade is a bounded basic-market backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Player Trade may start with stalls/orders/procurement/bulk and rare-goods exchange; complex finance is excluded. Ledger currency with player wallets and Settlement treasuries is selected within the proposal; issuance/sinks, market inventories, and treasury authority still need discussion.
+Server Trade is a bounded basic-market backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Player Trade may start with stalls/orders/procurement/bulk and rare-goods exchange; complex finance is excluded. Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Market stock, price behavior, budget allocation/replenishment, and treasury authority remain open.
 
 ### Transport and teleport
 
 Trade Routes abstract origin, destination, mode, capacity, and cost, backed by real roads/rails/ports. Do not simulate every box travelling physically.
 
 Separate ordinary personal movement, progression-unlocked Settlement Teleport, and long-term bulk freight. Proposed teleport fee = base cost + cargo cost, intended to favor people teleporting and goods using routes. Exact cargo classification, containment handling, and prices remain open.
+
+Freight payment has two explicit parts: operator revenue (a transfer) and a disclosed system fee (currency destruction). Teleport and market service fees are also sinks; ordinary player trade payments are transfers, not minting or burning. No recurring wages or membership taxes are added.
 
 ### Culture and history
 
@@ -67,7 +71,7 @@ Exclude detailed population simulation, wages/happiness/taxes, full physical log
 1. Factory Realm was removed. Facilities in the Main World are a new economic proposal, not permission to restore that realm/module or its machine systems.
 2. Ender Chests and player state are shared. A carried-inventory teleport surcharge can be bypassed by global storage; nested portable containers also need consideration. Soft incentives and strict freight separation are different promises.
 3. Era currently means qualifying Building restoration cycles, not elapsed seasons or Settlement economic level. Reclaim preserves history but resets the active baseline to current ruins; it does not restore an old intact building or increment Era.
-4. Autonomous production must not sustain Activity indefinitely. Facility economics need a declared loaded/offline-time policy without smuggling in chunk loading or fake villagers.
+4. Facility economics now propose bounded offline accounting without chunk loading or fake villagers. This remains distinct from physical world mutations, and production must not sustain Activity. Validity and input/output accounting need an explicit safety boundary.
 5. Seasonal client visuals must respect the vanilla-client constraint. A normal 20-minute Minecraft day implies 360 seasonal days per five-real-day year (90 per season); sleeping/time commands require an explicit clock policy if the year is meant to stay fixed.
 
 ## Discussion questions from the draft
@@ -89,7 +93,7 @@ Exclude detailed population simulation, wages/happiness/taxes, full physical log
 - Regional specialization's relationship to climate and seasons.
 - Bounded Server Trade dynamic-price complexity.
 - Initial Player Trade mechanism.
-- Currency issuance, sinks, and treasury authority within the selected ledger-account model.
+- Treasury authority and allocation/replenishment of issuance budgets; bounded purchases/rewards and service-fee sinks are selected.
 
 ### Transport
 
