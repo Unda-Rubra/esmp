@@ -58,7 +58,11 @@ Ledger currency has player wallets and Settlement treasuries. New currency comes
 
 ### Transport and teleport
 
-Trade Routes abstract origin, destination, mode, capacity, and cost, backed by real roads/rails/ports. Do not simulate every box travelling physically.
+Trade Routes connect physical depots using timed ledger shipments, not travelling cargo entities. Dispatch reserves cargo and route capacity; arrival follows an abstract travel time. Origin, destination, transport mode, capacity, and cost remain explicit route properties. Exact units, rates, times, and payment-settlement mechanics are deferred.
+
+Routes require real roads, rails, or port connections. Qualification combines automatic endpoint/basic checks with initial administrator review of the physical connection. Relevant infrastructure edits or invalid endpoints trigger targeted revalidation rather than periodic whole-route scans. The exact registered corridor, land permissions, and invalidation coverage remain design work.
+
+Route damage or invalidity blocks new departures but does not destroy or automatically pause already-dispatched cargo; those shipments retain their planned arrival. If the destination is unavailable, hold the cargo for the original recipient. Delivery is tied to explicit recipient identity, not whoever later controls the destination coordinates. Endpoint ownership changes, recovery access, and storage reservations must be designed so undeliverable queues do not become an unlimited-storage bypass.
 
 Separate ordinary personal movement, progression-unlocked Settlement Teleport, and long-term bulk freight. Proposed teleport fee = base cost + cargo cost, intended to favor people teleporting and goods using routes. Exact cargo classification, containment handling, and prices remain open.
 
@@ -113,7 +117,7 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 
 ### Transport
 
-- Route capacity and cost abstraction.
+- Route capacity/travel-time units, physical-connection validation, land permissions, and cargo/payment recovery. Timed ledger delivery, initial review with targeted rechecks, and blocking only new departures on route disruption are selected.
 - Carried-cargo classifications and understandable fee presentation within the selected soft-incentive transport model; shared storage bypasses are accepted.
 - Progression-based transport unlocks.
 
