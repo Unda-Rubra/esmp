@@ -9,7 +9,7 @@ The economy serves the civilization loop: Explore → Settle → Build → Produ
 ## Agreed within this proposal — not yet integrated into architecture
 
 - Production: hybrid, with bounded offline accrual from saved valid Facility state and no chunk loading. Basic renewables use capacity/workers/time; processed goods consume inputs. Inputs, output storage, and the shared Settlement production budget cap accrual. Insufficient Activity eventually pauses production after a configurable grace period; stored goods and unused inputs remain. Production never grants Activity.
-- Currency: ledger-based, with distinct player wallets and Settlement treasury accounts. Budgeted Server Trade purchases and budgeted exploration/event rewards create currency; player trades only transfer existing balances. Treasury authority and budget allocation/replenishment remain open.
+- Currency: ledger-based, with distinct player wallets and Settlement treasuries. Budgeted server purchases/rewards create money; player trades transfer it. Owner controls treasury withdrawals and operating budgets. Managers may make audited operational payments within approved budgets; Members cannot spend treasury funds. Budget allocation/replenishment remains open.
 - Teleport/freight: soft incentives preserve shared Ender Chests and accept manual storage bypasses. Teleport/market service fees burn currency. Freight pays the route operator plus a separate disclosed system fee that is burned. No recurring wages or membership taxes are introduced. Exact cargo weights and fees remain deferred.
 - Progression: four economic stages on the existing Settlement aggregate—Settlement, Village, Town, City. Cultural standing is a parallel capability track for landmarks/public significance; it does not independently raise production capacity or redefine Building Era.
 - Certification: basic production requires usable workspace, valid workstations, reachable housing, and reasonable worker density. Housing may be shared elsewhere in the same Settlement. Higher production tiers require administrator certification. Dimensions, type-specific environmental checks, and certificate review/revocation workflow remain open.
@@ -32,6 +32,8 @@ Each economic stage supplies a shared Settlement production-capacity budget allo
 
 Production may accrue while chunks are unloaded from saved valid state, without loading chunks or pretending villagers keep ticking. Inputs and output storage bound accrual. When insufficient Activity persists beyond a configurable grace period, new production pauses until meaningful activity recovers, independently of visible ruin. Stored goods and unused inputs are preserved. Paused time must not become catch-up output after recovery; the exact grace period, eligibility thresholds, and in-progress-job/accounting mechanics remain to be designed.
 
+Facility inputs and outputs use bounded ledger stock accessed through a real depot at the Facility. Depositing removes physical items into stock; withdrawing returns physical items. Offline accounting operates on that stock, not a duplicate snapshot of items still present in a chest. Deposit/withdrawal recovery and stock-access permissions remain design work; the physical interface must preserve the vanilla-client experience.
+
 ### Goods and specialization
 
 - Basic resources: timber, stone, food, clay, glass, basic metal; stable affordable supply should support construction.
@@ -42,7 +44,9 @@ Regions modify efficiency rather than hard-lock goods. Candidate influences incl
 
 ### Trade
 
-Server Trade is a bounded basic-market backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Player Trade may start with stalls/orders/procurement/bulk and rare-goods exchange; complex finance is excluded. Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Market stock, price behavior, budget allocation/replenishment, and treasury authority remain open.
+Server Trade is a bounded basic-market backstop and economic anchor, not an unlimited quest-money shop. Global supply/demand may produce Cheap/Normal/Expensive bands with price limits. Initial Player Trade uses physical market stalls with stocked goods and posted prices: buyers visit to purchase and collect, rather than receiving global instant delivery. Orders, procurement, and bulk fulfillment can be considered later; they are not implicitly included in the initial stall choice.
+
+Ledger currency has player wallets and Settlement treasuries. New currency comes from budgeted server purchases and exploration/event rewards. Owner controls direct treasury withdrawals and operating budgets; Managers may make auditable operational payments within those budgets, and Members may not spend treasury money. This is bounded delegated trust, not a guarantee against self-dealing or overpriced purchases. Market stock, price behavior, issuance-budget allocation/replenishment, and detailed budget controls remain open.
 
 ### Transport and teleport
 
@@ -96,8 +100,8 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 
 - Regional specialization's relationship to climate and seasons.
 - Bounded Server Trade dynamic-price complexity.
-- Initial Player Trade mechanism.
-- Treasury authority and allocation/replenishment of issuance budgets; bounded purchases/rewards and service-fee sinks are selected.
+- Stall stocking, purchase/collection, and permission rules within the selected physical-market model.
+- Allocation/replenishment of issuance budgets and detailed operating-budget controls; money sources/sinks and Owner-budgeted Manager spending are selected.
 
 ### Transport
 
