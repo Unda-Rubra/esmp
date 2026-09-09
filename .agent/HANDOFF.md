@@ -32,10 +32,10 @@
 
 ## Next action
 
-The user should type `stop` in their current server console, then run `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh` with JAVA_HOME pointing to JDK 25. Join native 26.2 at 127.0.0.1:25579 with distinct local names and verify quiet intra-Settlement movement.
+The user reports that they have tested Settlements in game. Chat ergonomics can improve but are explicitly not a priority. Recommend the Settlement Activity system as the next non-destructive feature, followed by Building discovery; implementation has not started.
 
 ## Risks or blockers
 
 - Offline mode permits name impersonation and is only for the loopback development server. Do not expose it publicly or carry it into production authentication policy.
 - Online/offline player UUIDs differ. Existing inventories, OP entries, and Settlement ownership are not reassigned automatically by matching names; migration requires an explicit mapping and backup. Existing data was not deleted.
-- The existing running server still uses its loaded settings/code until restarted; no active user session was interrupted.
+- Settlement testing is now user-confirmed; do not rerun checks merely to confirm their report. Their exact test coverage was not enumerated. Keep the manual checklist for future regressions.

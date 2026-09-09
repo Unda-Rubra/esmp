@@ -273,3 +273,7 @@ Reason: deliver the complete manual Settlement gameplay loop for real-game testi
 The user requested offline mode for local multiplayer testing. The development launcher and existing `.run/dev/server.properties` use `online-mode=false` and `enforce-secure-profile=false`, retaining the loopback bind. This is not a production authentication policy; online/offline UUID changes require explicit player-data/ownership migration rather than name-based reassignment.
 
 Automatic movement feedback compares the previous and next Settlement IDs. Same-Settlement chunk crossings and wilderness-to-wilderness travel are silent; entry into a different identity or exit is announced once. Remove the duplicate world-change notification path; apply the same rule to teleport/respawn. Explicit command feedback is unchanged.
+
+## 2026-09-09 — Settlement testing and deferred chat ergonomics
+
+The user reports that Settlement testing in game is complete. Chat output could be more ergonomic, but this is explicitly not a current priority. Preserve the verification checklist for future regressions; do not spend the next feature iteration on chat polish.

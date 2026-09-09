@@ -6,7 +6,7 @@ This is a gate-oriented index of `ARCHITECTURE.md` §§26–28, not a second arc
 
 The Java 25/Paper 26.2 plugin implements world identity, Settlement persistence, contiguous claiming, fixed-role and offer workflows, confirmed abandonment, immutable cache publication, historical/outbox records, protection adapters, and private borders.
 
-The next step is native 26.2 in-game verification using README's two-account checklist. Protocol-client automation supplements but does not replace that native UI check. Other plugins that directly edit worlds require their own integration review.
+The user has tested Settlements in game. Preserve the native checklist for regressions and deployment-specific integration checks, rather than treating first in-game verification as the next blocker. Chat ergonomics are deferred by explicit user preference.
 
 Current implementation boundaries: normal PvP, ground-item pickup, and natural entity movement are not redefined; no Activity/Building/decay/repair/reset simulation is advertised.
 

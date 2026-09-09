@@ -1645,7 +1645,7 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-Run the documented native Minecraft 26.2 verification loop with two accounts: create/expand a Settlement, check Visitor versus Member actions, inspect private borders, and restart to confirm persistence. Keep the tested plugin artifact and full-restart workflow; do not enable unfinished automated mutation systems.
+The user has completed in-game Settlement testing. Keep the native checklist for regression and deployment checks; chat ergonomics are acknowledged but deferred. Proceed to the remaining Building/Activity feature gates without enabling unfinished automated mutation systems.
 
 ## First functional slice
 
