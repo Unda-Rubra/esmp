@@ -264,3 +264,13 @@ Exact Gradle wrapper, Paper server/API build, JDK distribution/patch, SQLite dri
 ## 2026-09-09 — Git and canonical architecture
 
 The user requested Git scaffolding before code, regular milestone commits, and the canonical filename `ARCHITECTURE.md`. Keep local tooling, server data, logs, and databases untracked. Commit coherent verified work with the configured identity; do not push without a request.
+
+## 2026-09-09 — Runnable plugin foundation and package identity
+
+- User-selected package prefix and Gradle group: `xdu.undarubra.esmp`.
+- Five internal Gradle modules produce one Paper JAR: a Paper composition root, infrastructure-only core, and three modules owning their world definitions. No empty gameplay implementations are advertised.
+- Pin Gradle 9.7.1, Paper server 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0, and JUnit Jupiter 5.12.2. Java 25 remains the source/runtime target; verification used local Temurin 25.0.4.1+1.
+- SQLite version 1 persists world definitions and physical identities, using transactional JDBC migrations and `PRAGMA user_version`. A bounded serial worker performs database I/O; no migration framework or generic event bus is introduced before a real consumer requires it.
+- Runtime bindings only use already-loaded, explicitly configured names with compatible environments. The plugin creates no worlds and never maps default Nether/End worlds into renewable Resource roles implicitly.
+
+Reason: deliver a working, restart-safe architecture rather than placeholder gameplay. Subsequent domains can extend verified persistence and lifecycle boundaries without making Core own gameplay semantics.

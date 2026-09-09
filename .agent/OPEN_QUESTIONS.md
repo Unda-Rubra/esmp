@@ -2,16 +2,15 @@
 
 This is a gate-oriented index of `ARCHITECTURE.md` §§28–30, not a second architecture. Settled policies must not be reopened merely because their implementation is unfinished.
 
-## Before the first runnable plugin
+## Runnable foundation completed
 
-1. Verify and pin a JDK 25 distribution/patch, compatible Gradle wrapper, and concrete Paper 26.2 API/server build.
-2. Pin reproducible dependencies and establish actual build/start verification.
+Java/JDK 25, Gradle Kotlin DSL, one modular JAR, the `xdu.undarubra.esmp` namespace, and SQLite are implemented and pinned in the build. World definitions, persistent physical-world identity, configuration validation, lifecycle, and status command have real build and Paper startup verification.
 
-Java plugin source, Minecraft/Paper 26.2, JDK 25, Gradle Kotlin DSL, one modular plugin JAR, and SQLite are already selected. No project files or executable commands exist yet.
+The next functional slice is Settlement persistence and protection, not another foundation scaffold. Domain gameplay and the future durable job/outbox systems are not implemented.
 
 ## Before enabling durable claims
 
-- SQLite driver, migration tooling, initial domain schemas, and transaction/cache publication boundaries.
+- Owning-domain tables and migrations, claim/member application APIs, and transaction/cache publication boundaries; initial SQLite infrastructure is already implemented.
 - Target-version protection mappings, including Settlement public interactions versus Factory movement-only Visitors.
 - Ownership and historical-event persistence from the first committed changes.
 

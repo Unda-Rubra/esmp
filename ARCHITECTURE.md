@@ -6,6 +6,16 @@
 > Scope: This document records the architecture and gameplay design that has been settled so far.  
 > It intentionally does **not** define the detailed Decay Engine algorithms yet.
 
+## Current implementation
+
+The runnable foundation now consists of five Gradle modules and one deployable Paper plugin. Source packages use `xdu.undarubra.esmp`.
+
+- `esmp-plugin` is the composition root: strict world-name/environment configuration, lifecycle, main-thread world captures, and permission-gated `/esmp status`.
+- `esmp-core` owns Paper-independent world records and a bounded serial SQLite worker. Schema version 1 contains only `world_definitions` and `world_instances`; transactional `PRAGMA user_version` migrations reject newer unsupported schemas.
+- Civilization, Resource, and Factory modules contribute their own world definitions. They do not enable claims, membership gameplay, decay, repair, resets, or industrial gameplay yet.
+- Only already-loaded configured worlds are registered. Stable Bukkit UUIDs retain ESMP instance identity across restarts; new physical UUIDs receive distinct identities. Stored instances are historical registrations, not a completed active-cycle management system.
+- The future jobs/outbox architecture below remains a feature gate, not an implemented queue. The database work queue is in-memory and bounded to 256 admitted operations; graceful shutdown drains accepted work.
+
 ---
 
 # 1. Project Overview
@@ -85,7 +95,7 @@ The accepted initial development baseline is:
 | Development and server runtime | JDK 25 |
 | Build system and configuration | Gradle with Kotlin DSL (`build.gradle.kts`, `settings.gradle.kts`) |
 
-Kotlin DSL is used for build configuration, not plugin implementation. Compile plugin code with a Java 25 toolchain and target the Paper 26.2 API. Pin the Gradle wrapper, concrete Paper server/API build, and dependency versions when establishing the runnable project; those exact pins are not selected yet.
+Kotlin DSL is used for build configuration, not plugin implementation. Plugin code uses the Java 25 toolchain and `xdu.undarubra.esmp` package prefix. The foundation pins Gradle Wrapper 9.7.1, Paper server 26.2 build 121, Paper API `26.2.build.121-stable`, SQLite JDBC `3.53.4.0`, and JUnit Jupiter `5.12.2`. Dependency lockfiles are committed. Runtime verification used Temurin 25.0.4.1+1; other JDK 25 distributions must be validated by operators.
 
 Official compatibility evidence checked on 2026-09-09: [Paper 26.2 metadata](https://fill.papermc.io/v3/projects/paper/versions/26.2) marks the version supported with Java 25 minimum; [Paper's project setup guide](https://docs.papermc.io/paper/dev/project-setup/) demonstrates Java source with Gradle Kotlin DSL. A development target is not production validation: ESMP still requires actual server scenarios before deployment.
 
@@ -129,6 +139,9 @@ ESMP deploys as one Paper plugin JAR with one bootstrap and coordinated lifecycl
 
 ```text
 Evolve: SMP
+│
+├── esmp-plugin
+│   └── Paper Bootstrap / Configuration / Command Adapter
 │
 ├── esmp-core
 │   ├── Player Identity
@@ -1248,7 +1261,7 @@ The initial persistence engine is **SQLite**, embedded in the single Paper serve
 
 Coordinate writes through bounded scheduling suited to SQLite's single-writer model and keep transactions short. Database I/O must not block the Paper world execution context; world state must not be accessed from database workers. Required migrations complete before dependent gameplay operations are enabled.
 
-Use versioned schema migrations. The SQLite driver and migration library remain implementation choices. Repository boundaries support maintainability, not a promise of transparent database portability; a future backend change would require explicit migrations and verification.
+Use versioned schema migrations. The initial implementation uses SQLite JDBC 3.53.4.0 with small transactional JDBC migrations tracked by `PRAGMA user_version`, rather than adding a migration framework for the initial schema. Repository boundaries support maintainability, not transparent database portability; a future backend change requires explicit migrations and verification.
 
 ## 19.3 World identity requirement
 
@@ -1664,8 +1677,8 @@ The major domain boundaries are settled enough to plan implementation. The remai
 
 | Gate | Required decisions or evidence |
 |---|---|
-| Before the first runnable plugin | Pin a compatible Gradle wrapper, Paper 26.2 server/API build, and reproducible dependencies for the accepted Java/JDK 25 and Gradle Kotlin DSL baseline. |
-| Before enabling durable claims | Select SQLite driver and migration tooling; define initial ownership/chunk schema, transaction/cache boundaries, and version-specific protection action mappings. |
+| Runnable foundation (implemented) | Pinned wrapper and dependencies, Java 25 compilation, single-JAR packaging, SQLite world registry, status command, and actual Paper boot/restart verification. |
+| Before enabling durable claims | Define owning-domain tables, claim transaction/cache boundaries, committed ownership history, and version-specific protection action mappings. |
 | Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
 | Before enabling Resource resets or Factory gameplay | Finish evacuation/retired-location handling and backup/restore checks; define Factory limits/release rules and evaluate target-version redstone compatibility. |
 
@@ -1728,8 +1741,7 @@ The following areas are explicitly **not finalized yet**:
 
 ### Runtime / Persistence
 
-- exact Gradle wrapper, Paper 26.2 server/API build, JDK 25 distribution/patch, and dependency pins; platform, language, and build DSL are settled;
-- exact SQLite schema, driver, and migration library;
+- future dependency upgrades and owning-domain SQLite schema migrations; current tooling, JDBC driver, and foundation schema are implemented;
 - transactional outbox storage and retry scheduling; post-commit at-least-once delivery and idempotent consumers are settled;
 - coordinated world/database backup procedure;
 
@@ -1757,7 +1769,7 @@ Phase 1
     ↓
   WorldDefinition / WorldInstance registry
     ↓
-  SQLite driver/migration tooling selection
+  SQLite schema migrations (foundation version 1 implemented)
     ↓
   Database + migrations
     ↓
@@ -1823,11 +1835,11 @@ The architecture baseline is ready for implementation planning, not a claim that
 
 ## Immediate next action
 
-Using the accepted Java, Minecraft/Paper 26.2, JDK 25, and Gradle Kotlin DSL baseline, verify and pin compatible wrapper, API/server build, and dependency versions. Then create the single modular plugin's first runnable composition root and document its actual build/start verification. Do not invent runnable commands before project files exist.
+Implement the first Settlement persistence/protection slice on the verified foundation. Define claim and member transaction/cache boundaries and Paper 26.2 action coverage before enabling claims. Keep the existing `/esmp status` truthful about which gameplay features are available; do not expose incomplete protection.
 
 ## First functional slice
 
-Implement world definition/instance registration, SQLite migrations and transaction infrastructure, and Settlement ownership/membership/claim protection with basic visualization. Capture committed ownership history from the start. Fix the slice's persistence and authorization details before exposing it, without waiting for the final decay algorithm.
+World definition/instance registration, SQLite startup/migrations, and the Paper composition root are implemented. Next add Settlement ownership/membership/claim protection with basic visualization and committed ownership history. Future domain writes should use owning application APIs and appropriate persistence boundaries, not bypass the core worker with synchronous SQL on Paper's world thread.
 
 ## Later feature gates
 

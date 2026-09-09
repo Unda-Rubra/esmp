@@ -6,11 +6,11 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world, renewable Resource worlds, and a permanent Factory world.
 
-The repository is currently architecture/documentation only. Do not claim that the plugin builds, starts, or passes tests until real project files and commands exist.
+The runnable foundation now builds and starts on Paper 26.2. It provides world-definition contributions, SQLite physical-world registration, configuration/lifecycle, and `/esmp status`. Claims, decay, repair, Resource resets, and Factory gameplay are not implemented; never claim they are protected or operational.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
-The accepted development baseline is Minecraft Java Edition/Paper 26.2, Java plugin source, JDK 25, and Gradle Kotlin DSL. Kotlin DSL is build configuration only. Pin a compatible wrapper, concrete Paper API/server build, and dependencies when creating project files; do not reopen the chosen language/platform as unresolved.
+Use Java source under `xdu.undarubra.esmp`, JDK 25, and Gradle Kotlin DSL. Pins: Gradle Wrapper 9.7.1, Paper 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0. Core has no Paper dependency. Domain modules contribute world definitions; `esmp-plugin` is the single composition root.
 
 ## Read order
 
@@ -82,7 +82,7 @@ The architecture draft is canonical. `.agent` files summarize it; they must not 
 
 ## How to change code
 
-Once code exists:
+For code changes:
 
 1. Reuse existing module, package, persistence, and test conventions.
 2. Update every caller in one clean cutover; do not leave aliases or deprecated paths unless explicitly requested.
@@ -95,7 +95,7 @@ Once code exists:
 
 Commit completed, coherent milestones regularly using the configured Git identity. Inspect staged changes before committing, keep runtime data/local tooling out of Git, and never commit secrets or unrelated user work. Record actual verification in the handoff. Do not push or configure a remote unless the user requests it.
 
-Do not invent build, test, or server commands. Read them from the checked-in build files and update this document or `README.md` when they become stable.
+Use `./gradlew build` for compilation, packaging, and tests, and `./gradlew :esmp-core:test` for storage regressions. With `JAVA_HOME` pointing to JDK 25, `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh` starts the isolated loopback Paper server after EULA acceptance; use `esmp status` and `stop` in its console. Never infer gameplay coverage from the foundation smoke.
 
 ## Handover protocol
 

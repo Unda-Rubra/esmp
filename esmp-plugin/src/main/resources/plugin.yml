@@ -1,0 +1,15 @@
+name: ESMP
+version: '${version}'
+main: xdu.undarubra.esmp.plugin.EsmpPlugin
+api-version: '26.2'
+description: Persistent-world SMP foundation with independent gameplay domains.
+load: POSTWORLD
+commands:
+  esmp:
+    description: Inspect ESMP foundation state
+    usage: /esmp status
+    permission: esmp.admin
+permissions:
+  esmp.admin:
+    description: View ESMP operational status
+    default: op
