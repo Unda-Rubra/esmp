@@ -11,6 +11,7 @@
 
 ## Completed
 
+- In-progress Settlement milestone: added domain-owned transactional persistence, contiguous claims, roles/offers/ownership workflows, immutable views, and durable history/outbox over the core SQL worker. Paper commands/protection integration is not complete yet.
 - Removed the Factory module, build dependency, world definition, default configuration, and status entry.
 - Added one-time configuration migration: unversioned/version-1 files are backed up to `config-v1.yml`, obsolete `worlds.FACTORY` is removed, and version 2 is saved. Version-2 unknown roles are still rejected.
 - Made registry definition retirement generic and non-destructive. Removed definitions cannot register, their old Bukkit UUIDs cannot be reassigned silently, and historical identities survive.
@@ -26,6 +27,7 @@
 
 ## Verification
 
+- `./gradlew :esmp-civilization:test --write-locks --no-daemon --console=plain`: passed; 7 domain regression tests, zero failures/errors. This does not yet claim in-game protection coverage.
 - `./gradlew clean build --write-locks --no-daemon --console=plain`: passed after the runtime cutover; five storage tests passed with zero failures/errors.
 - Final `./gradlew clean build --no-daemon --console=plain`: passed with locks enforced.
 - Actual Paper upgrade using the existing unversioned config and five stored definitions: migrated once, READY with schema 1 / four active definitions / one active-definition instance. MAIN retained UUID `75fa0879-8da5-427f-96cf-6af9c900372a`.
@@ -36,7 +38,7 @@
 
 ## Next action
 
-Implement the first Settlement persistence/protection slice. Define owning tables/application APIs, transaction/cache publication, and Paper 26.2 protection mappings before enabling claims. Do not restore removed industrial scope from Git history without explicit approval.
+Finish the in-progress Paper Settlement command/protection/visualization adapter, then verify with real game clients before advertising playable claims.
 
 ## Risks or blockers
 

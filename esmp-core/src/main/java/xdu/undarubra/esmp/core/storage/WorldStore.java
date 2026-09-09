@@ -108,6 +108,19 @@ public final class WorldStore implements AutoCloseable {
         return snapshot;
     }
 
+    /** Executes an owning-domain transaction on the same bounded SQLite worker. */
+    public synchronized <T> CompletableFuture<T> transact(SqlWork<T> work) {
+        if (!initializationRequested || closing != null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Store not initialized or closing"));
+        }
+        return enqueue(() -> {
+            if (!ready) {
+                throw new IllegalStateException("Store initialization did not succeed");
+            }
+            return transaction(() -> work.run(connection));
+        });
+    }
+
     private static void validateInput(List<WorldDefinition> definitions, List<WorldBinding> bindings) {
         var ids = new HashSet<String>();
         for (WorldDefinition definition : definitions) {
