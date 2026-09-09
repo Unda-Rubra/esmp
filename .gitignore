@@ -1,0 +1,19 @@
+# Build and local tooling
+.gradle/
+**/build/
+.tooling/
+.run/
+
+# Editors and operating system
+.idea/
+*.iml
+.DS_Store
+
+# Runtime data and local configuration
+*.log
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
