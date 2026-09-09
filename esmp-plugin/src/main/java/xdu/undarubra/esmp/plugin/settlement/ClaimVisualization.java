@@ -13,9 +13,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -130,21 +130,38 @@ public final class ClaimVisualization implements Listener, AutoCloseable {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onMove(PlayerMoveEvent event) {
-        Location from = event.getFrom();
-        Location to = event.getTo();
-        if (from.getWorld() != to.getWorld() || (from.getBlockX() >> 4) != (to.getBlockX() >> 4)
-                || (from.getBlockZ() >> 4) != (to.getBlockZ() >> 4)) {
-            describe(event.getPlayer(), to);
+    private void describeTransition(Player player, Location from, Location to) {
+        if (!runtime.ready()) { return; }
+        SettlementView previous = runtime.at(from);
+        SettlementView next = runtime.at(to);
+        if (previous == null ? next == null : same(previous, next)) { return; }
+        if (next == null) {
+            player.sendActionBar(Component.text("Left " + previous.name()));
+        } else {
+            describe(player, to);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onTeleport(PlayerTeleportEvent event) { describe(event.getPlayer(), event.getTo()); }
+    public void onMove(PlayerMoveEvent event) {
+        if (event instanceof PlayerTeleportEvent) { return; }
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getWorld() != to.getWorld() || (from.getBlockX() >> 4) != (to.getBlockX() >> 4)
+                || (from.getBlockZ() >> 4) != (to.getBlockZ() >> 4)) {
+            describeTransition(event.getPlayer(), from, to);
+        }
+    }
 
-    @EventHandler
-    public void onWorldChange(PlayerChangedWorldEvent event) { describe(event.getPlayer(), event.getPlayer().getLocation()); }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        describeTransition(event.getPlayer(), event.getFrom(), event.getTo());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        describeTransition(event.getPlayer(), event.getPlayer().getLocation(), event.getRespawnLocation());
+    }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) { runtime.forget(event.getPlayer()); }

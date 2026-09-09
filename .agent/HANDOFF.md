@@ -2,45 +2,40 @@
 
 ## State
 
-- Java 25 / Paper 26.2 build 121 plugin under `xdu.undarubra.esmp`; four Gradle modules and one deployable JAR. Git milestone `e628b60` introduced the tested Settlement domain; commit coherent milestones regularly, without pushing unless requested.
-- Playable Settlements now provide creation/contiguous claiming, fixed roles, expiring offers, ownership transfer, leave/removal/demotion, rename, confirmed abandonment, history, event publication, action-specific protection, and private borders.
-- Core world schema remains version 1. Civilization independently uses `civilization_schema` version 1 with owning tables, offers, and historical/outbox records in the same SQLite database.
-- Building discovery, Activity scoring, decay/repair, automatic release, and Resource reset gameplay remain disabled. Factory remains out of scope.
-- Native development server is `.run/dev`, loopback `127.0.0.1:25579`, online authentication enabled. Test servers are stopped. Native Minecraft 26.2 player/UI verification is the user's next step.
+- Playable Java 25 / Paper 26.2 Settlements remain implemented under `xdu.undarubra.esmp`; four modules, one JAR, SQLite Core/Civilization schemas both version 1.
+- Local development defaults and existing `.run/dev/server.properties` now use `online-mode=false` and `enforce-secure-profile=false`, still bound to `127.0.0.1:25579`.
+- The user had already changed the launcher's online-mode default; that edit was preserved and completed rather than overwritten.
+- Automatic movement ActionBars now compare Settlement identities. Same-Settlement chunk crossings and wilderness-to-wilderness movement are silent; entry/exit messages occur once. Explicit command feedback remains.
+- The user's unmanaged server was running on port 25579 during this work and was deliberately not stopped or hot-reloaded. Full stop/restart is required to load the changed properties and newly built JAR.
 
 ## Completed
 
-- Added database-only transactional work on the existing bounded SQLite worker; Civilization owns its SQL and invariants.
-- Enforced edge connectivity, cap, exclusivity, last-chunk safety, consent, live authority revalidation, atomic transfer, and revision-bound abandonment; retained released history and idempotent outbox acknowledgement.
-- Added main-thread index publication with pending-territory reservations and early rejection of unauthorized command admissions. Open containers close on permission revocation.
-- Added Paper protection for direct item/block/entity/container actions and indirect fluid/piston/hopper/explosion/growth effects, with private 10-second border rendering capped at 256 particles per update.
-- Added fatal-persistence stop behavior and disallowed hot reload instead of exposing unprotected claims. Updated README's launch, commands, configuration, and two-account manual checklist.
+- Updated existing and new local-server authentication settings for multiple named offline test clients.
+- Replaced chunk-based movement announcements with previous/next Settlement ID comparison.
+- Applied the same comparison to teleports and respawns; removed the duplicate PlayerChangedWorldEvent announcement path.
+- Updated architecture, README, and decision rationale, including offline UUID/impersonation risks.
 
 ## Changed files
 
-- `esmp-core`: `SqlWork` and domain transaction entry point on the existing worker.
-- `esmp-civilization`: Settlement models, service/schema/history/outbox, spatial index, and behavioral tests.
-- `esmp-plugin`: lifecycle integration, commands, protection, visualization, committed-event notification, manifest and settings.
-- `scripts/run-dev.sh`: zero vanilla spawn protection for newly created local test servers, so it does not mask Settlement role testing.
-- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent` memory: implemented scope, publication/permission boundaries, verification and follow-up.
+- `scripts/run-dev.sh` — offline, unsigned-profile local defaults, preserving the loopback bind.
+- `esmp-plugin/.../ClaimVisualization.java` — transition-only movement feedback.
+- `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md` — behavior and restart/security guidance.
+- `.agent/HANDOFF.md` — current state and verification.
+- Ignored `.run/dev/server.properties` — updated the existing local server as well as the template.
 
 ## Verification
 
-- Final `./gradlew clean build --no-daemon --console=plain` with JDK 25 passed. XML results: 14 tests, 0 failures/errors/skips (5 Core storage, 7 Settlement transaction/workflow, 2 spatial-index regressions).
-- Real Paper 26.2 server with three protocol-connected test accounts passed 28 scenarios: private border packets, denied Visitor/implicit-OP modification, explicit bypass, public doors, bucket/brush restrictions and Owner brushing, containers, invitations/revocation, topology and Manager authority, fluids/pistons/hoppers, explosions, Resource-world rejection, transfer, abandonment and reclaim.
-- A real server restart preserved owned IDs, owners, members, claimed chunks and acknowledged outbox rows. Subsequent live-client checks passed restored roles, denied Visitor placement, Member placement and actual inventory withdrawal, denied Visitor entity damage and allowed Owner damage.
-- Client automation used Mineflayer 4.39.0 on protocol 1.21.11 through temporary ViaVersion/ViaBackwards 5.11.0, because the library lacks full 26.2 data. Its stale dust decoder was corrected in the isolated harness using the actual server INT-color/FLOAT-scale codec. Test assertions used authoritative server conditions/NBT rather than client prediction. This is not a native 26.2 visual-rendering test.
-- Native Paper without translators started successfully through `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh`: `Settlements=0 | protection=true`; the original developer MAIN instance UUID remained `75fa0879-8da5-427f-96cf-6af9c900372a`. Clean console `stop` exited 0.
-- Artifact inspection found the playable classes/permissions and no ViaVersion or JUnit classes bundled. Throwaway client scripts and temporary translator JARs were removed after testing; normal `.run/dev` was never changed to offline mode.
+- `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
+- Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
+- Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
+- Verified both script and existing properties contain offline mode, disabled secure-profile enforcement, and loopback binding. Temporary test script and translator JARs were removed after the fixture stopped with exit 0.
 
 ## Next action
 
-Run README's native Minecraft 26.2 checklist with two real accounts on `127.0.0.1:25579`. Start with `/settlement create Oakfall`, `/settlement view`, and a teammate invitation; verify actual client rendering and access before production deployment.
+The user should type `stop` in their current server console, then run `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh` with JAVA_HOME pointing to JDK 25. Join native 26.2 at 127.0.0.1:25579 with distinct local names and verify quiet intra-Settlement movement.
 
 ## Risks or blockers
 
-- No desktop/native 26.2 client rendering was inspected; protocol packet checks and native server boot do not substitute for that manual check.
-- Protection is spatial, not a new PvP, loose-item ownership, or natural entity-movement system. Trusted console/world-editing plugins require their own controls. Other-plugin interoperability needs deployment-specific review.
-- Outbox acknowledgement confirms publication; third-party listeners must deduplicate and handle their own failures/replay from retained history. Automated block-mutation recovery/accounting remains a later gate.
-- Mojang public-key/version requests intermittently timed out in the environment. Keep normal developer/production online authentication enabled; only the isolated test fixture used offline accounts.
-- Local JDK/tooling and scratch server data remain ignored. No production world data was deleted or used as a destructive fixture.
+- Offline mode permits name impersonation and is only for the loopback development server. Do not expose it publicly or carry it into production authentication policy.
+- Online/offline player UUIDs differ. Existing inventories, OP entries, and Settlement ownership are not reassigned automatically by matching names; migration requires an explicit mapping and backup. Existing data was not deleted.
+- The existing running server still uses its loaded settings/code until restarted; no active user session was interrupted.

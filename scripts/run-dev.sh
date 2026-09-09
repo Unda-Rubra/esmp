@@ -41,7 +41,8 @@ if [[ ! -f "$SERVER/server.properties" ]]; then
     cat > "$SERVER/server.properties" <<'PROPERTIES'
 server-ip=127.0.0.1
 server-port=25579
-online-mode=true
+online-mode=false
+enforce-secure-profile=false
 max-players=4
 view-distance=2
 simulation-distance=2

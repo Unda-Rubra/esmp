@@ -267,3 +267,9 @@ No blanket redstone restriction in the remaining worlds is introduced by this sc
 - Failure to initialize or maintain reliable persistence/protection stops the server. Hot reload is unsupported. Building/Activity/decay/repair and Resource reset gates remain separate.
 
 Reason: deliver the complete manual Settlement gameplay loop for real-game testing while preserving committed permission boundaries and avoiding placeholder automated systems.
+
+## 2026-09-09 — Local offline multiplayer and transition feedback
+
+The user requested offline mode for local multiplayer testing. The development launcher and existing `.run/dev/server.properties` use `online-mode=false` and `enforce-secure-profile=false`, retaining the loopback bind. This is not a production authentication policy; online/offline UUID changes require explicit player-data/ownership migration rather than name-based reassignment.
+
+Automatic movement feedback compares the previous and next Settlement IDs. Same-Settlement chunk crossings and wilderness-to-wilderness travel are silent; entry into a different identity or exit is announced once. Remove the duplicate world-change notification path; apply the same rule to teleport/respawn. Explicit command feedback is unchanged.

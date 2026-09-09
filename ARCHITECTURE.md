@@ -601,6 +601,8 @@ The initial visualization should:
 - be visible only to the requesting player;
 - avoid permanent marker blocks and full-area scans.
 
+Movement-driven ActionBar feedback follows Settlement identity, not chunk identity. Crossing chunks inside the same Settlement, moving within it, or moving between unclaimed areas is silent. Entering a different Settlement reports its information; leaving reports the exit once, including cross-world travel. Teleports and respawns follow the same comparison without a duplicate world-change callback. Explicit view/claim command feedback remains available.
+
 The exact particle style and command syntax remain provisional.
 
 ## 7.8 Spatial infrastructure and domain state
