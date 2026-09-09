@@ -33,6 +33,7 @@
 - Commodity discussion selected unrestricted vanilla crafting, mined inputs for Facility metal production, and basic-commodity-only Server Trade. Exact buy/sell lists and treatment of vanilla farm outputs remain open; no provenance tracker or farm ban is implicitly approved.
 - Server Trade discussion selected global bounded price bands, finite stock with controlled replenishment, and separate NPC buying/selling eligibility lists. Temporary shortages are accepted; exact lists, spreads, quantities, and quote behavior remain open.
 - Freight discussion selected timed ledger shipments, initial physical-connection review plus targeted revalidation, and disruption blocking new departures without deleting in-transit goods. Unavailable destinations hold cargo for the original recipient; recovery/storage and payment details remain open.
+- Seasons discussion selected Minecraft-day counting: one game day equals one calendar day, 365/366 days per year, starting at 0 A.D. Natural biome/terrain specialization and bounded native effects are selected; full seasonal palette is a deferred future feature. Exact leap/season boundaries and time-rewind handling remain open.
 - `./gradlew build --no-daemon --console=plain` with JDK 25: passed.
 - Live Paper 26.2 fixture on port 25580 passed 10 ActionBar cases: entering a different Settlement, same-Settlement cross-chunk teleport, same-chunk teleport, adjacent same-owner identity change, exit, wilderness chunk movement, actual walking over an internal chunk edge, single cross-world exit/entry, and same-Settlement respawn.
 - Observed actual `action_bar` packets using the temporary protocol-1.21.11 test client through ViaVersion/ViaBackwards 5.11.0. The bot's high-level ActionBar event omitted that packet type, so the test read the decoded packet directly. This is not a native desktop rendering check.
@@ -40,7 +41,7 @@
 
 ## Next action
 
-Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Next discuss the seasonal clock, regional specialization inputs, and initial seasonal visual scope. Freight timing/qualification/disruption boundaries are selected; recipient/storage recovery and exact capacity/payment mechanics remain open. Do not integrate or implement the extension before explicit approval.
+Activity implementation remains paused for `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md`. Calendar units and epoch are clarified as one Minecraft day per calendar day, 365/366-day years, starting 0 A.D. Next finish major transport unlock/capacity and certification workflow boundaries, then consolidate the proposal for explicit integration approval. Do not implement or change the accepted roadmap yet.
 
 ## Risks or blockers
 

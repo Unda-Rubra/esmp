@@ -46,7 +46,7 @@ Market category and production method are separate: a basic commodity can still 
 
 Server Trade initially covers selected basic construction/survival commodities, including simple processed essentials where appropriate. Rare goods and most specialized products belong primarily to player markets. NPC buying and selling have separate eligibility lists: selling an essential to players does not imply purchasing it from them. The exact lists, including treatment of vanilla farm outputs, remain open.
 
-Regions modify efficiency rather than hard-lock goods. Candidate influences include climate, terrain, crops, trees, livestock, and special city/NPC conditions. Mountains favor stone/metal, plains food/livestock, northern areas forestry, coasts fishing/shipping. Example multipliers 1.5/0.8 are illustrative, not selected tuning.
+Regional production advantages use stable natural biome and terrain profiles, with seasonal modifiers applied separately. They change efficiency, not whether a good is available. Seasonal cosmetic changes must not redefine the underlying region or create a specialization exploit. Mountains/forests/plains/coasts remain illustrative profiles; exact mappings and multipliers are deferred.
 
 ### Trade
 
@@ -74,13 +74,17 @@ Economic development and cultural standing are parallel capabilities. Economic s
 
 ### Seasons
 
-Seasons are rhythm, not chores. Tentative timing: one Minecraft day approximately one season day; a seasonal year approximately five real days. Priorities: environment strongest, production/agriculture next, economic demand next, hard survival restrictions minimal.
+Seasons are rhythm, not chores. The user selected a Minecraft-day calendar and clarified: **one Minecraft day equals one calendar day; a year has 365 days, or 366 in a leap year; the starting year is 0 A.D., followed by 1 A.D., 2 A.D., etc.** This supersedes the tentative fixed five-real-day year. Sleeping and world-time changes can affect pacing; exact leap-year rules, season boundaries, canonical world-day source, and backward-time handling remain to be specified.
+
+Initial presentation uses bounded native effects: weather, particles, and limited reversible snow/vegetation in eligible loaded areas, preserving builds and restoration baselines. Full seasonal grass/foliage palette changes are explicitly a future feature, with resource-pack/client-biome techniques and compatibility requirements deferred rather than assumed.
 
 Spring favors growth/building, summer production, autumn harvest/storage/trade, winter reduced agriculture plus crafts/trade. Seasons modify production/demand rather than owning another economy. Decay eligibility stays independent; seasonal ruin appearance communicates passing time. Avoid compulsory daily tasks, punitive survival, and intricate stock management.
 
 ## Proposed initial scope versus exclusions
 
 The draft proposes progression, certification, basic facility production/commodity categories, Server Trade, basic Player Trade, regional modifiers, lightweight freight, settlement teleport, seasonal appearance/basic production modifiers, and a basic cultural/landmark framework. This is proposed overall scope, not one approved implementation milestone.
+
+Full seasonal palette support is a deferred future feature, not part of the initial native-effects scope.
 
 Exclude detailed population simulation, wages/happiness/taxes, full physical logistics, unlimited automation, large redstone farms as the economic core, complex finance, faction warfare, forced seasonal chores, and complex NPC-city AI.
 
@@ -90,7 +94,7 @@ Exclude detailed population simulation, wages/happiness/taxes, full physical log
 2. Ender Chests and player state are shared. A carried-inventory teleport surcharge can be bypassed by global storage; nested portable containers also need consideration. Soft incentives and strict freight separation are different promises.
 3. Era currently means qualifying Building restoration cycles, not elapsed seasons or Settlement economic level. Reclaim preserves history but resets the active baseline to current ruins; it does not restore an old intact building or increment Era.
 4. Facility economics now propose bounded offline accounting without chunk loading or fake villagers. This remains distinct from physical world mutations, and production must not sustain Activity. Validity and input/output accounting need an explicit safety boundary.
-5. Seasonal client visuals must respect the vanilla-client constraint. A normal 20-minute Minecraft day implies 360 seasonal days per five-real-day year (90 per season); sleeping/time commands require an explicit clock policy if the year is meant to stay fixed.
+5. Seasonal visuals retain the vanilla-client constraint. The chosen 365/366-Minecraft-day calendar starts at 0 A.D.; at normal 20-minute days a non-leap year is five real days plus one hour forty minutes, not a fixed five days. Calendar-source, time-rewind, and Resource-reset behavior must be consistent with production/history accounting.
 
 The proposal resolves the unloaded-decay loophole with an Activity-based production pause after a grace period, rather than waiting for physical damage. How this operating state interacts with earned economic stages, certificate validity, and in-progress jobs still requires design; automatic loss of progression or culture is not selected by the pause decision.
 
@@ -110,7 +114,7 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 
 ### Economy
 
-- Regional specialization's relationship to climate and seasons.
+- Natural biome/terrain profile mappings and modifier values, with seasonal modifiers kept separate from base regional identity.
 - Exact global price-band/quote behavior, buy-sell spreads, stock quantities and replenishment; global bounded bands, finite stock, and separate NPC purchase/sale lists are selected.
 - Stall stocking, purchase/collection, and permission rules within the selected physical-market model.
 - Allocation/replenishment of issuance budgets and detailed operating-budget controls; money sources/sinks and Owner-budgeted Manager spending are selected.
@@ -124,7 +128,7 @@ The proposal resolves the unloaded-decay loophole with an Activity-based product
 ### Culture, seasons, and performance
 
 - Cultural qualification and unlocks within the selected parallel capability model; no automatic production-capacity increase.
-- First seasonal visual/production effects.
+- Leap-year rule, season boundaries, clock reconciliation, and concrete bounded native effects; full seasonal palette compatibility is a deferred future feature.
 - Low-overhead scheduling, data ownership, and persistence boundaries.
 
 No gameplay extension choices have yet been integrated into the accepted architecture.
