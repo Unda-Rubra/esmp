@@ -8,13 +8,17 @@
 
 ## Current implementation
 
-The runnable foundation now consists of five Gradle modules and one deployable Paper plugin. Source packages use `xdu.undarubra.esmp`.
+The runnable foundation now consists of four Gradle modules and one deployable Paper plugin. Source packages use `xdu.undarubra.esmp`.
 
 - `esmp-plugin` is the composition root: strict world-name/environment configuration, lifecycle, main-thread world captures, and permission-gated `/esmp status`.
 - `esmp-core` owns Paper-independent world records and a bounded serial SQLite worker. Schema version 1 contains only `world_definitions` and `world_instances`; transactional `PRAGMA user_version` migrations reject newer unsupported schemas.
-- Civilization, Resource, and Factory modules contribute their own world definitions. They do not enable claims, membership gameplay, decay, repair, resets, or industrial gameplay yet.
-- Only already-loaded configured worlds are registered. Stable Bukkit UUIDs retain ESMP instance identity across restarts; new physical UUIDs receive distinct identities. Stored instances are historical registrations, not a completed active-cycle management system.
+- Civilization and Resource modules contribute four active world definitions. They do not enable claims, membership gameplay, decay, repair, or resets yet.
+- Only already-loaded configured worlds are registered. Stable Bukkit UUIDs retain ESMP instance identity across restarts; new physical UUIDs receive distinct identities. Removed definitions and their instance history remain stored but are excluded from active snapshots and registration.
 - The future jobs/outbox architecture below remains a feature gate, not an implemented queue. The database work queue is in-memory and bounded to 256 admitted operations; graceful shutdown drains accepted work.
+
+The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
+
+Legacy configuration migration backs up the unversioned/version-1 config to `config-v1.yml`, removes its obsolete `worlds.FACTORY` mapping, and writes version 2. It never deletes physical world folders or persisted historical identities.
 
 ---
 
@@ -59,7 +63,6 @@ ESMP is intended to be a long-term SMP model rather than a conventional “SMP w
 - Repairs contribute to a building's historical Era.
 - Historical information is preserved independently from current ownership.
 - Resource supply is separated from the civilization world.
-- Industrial/redstone infrastructure is separated into a dedicated Factory World.
 - Vanilla-client-first experience.
 - Server-side implementation through Paper plugins.
 - High performance and long-term maintainability.
@@ -75,7 +78,6 @@ The first implementation should **not** attempt to:
 - reproduce Fabric/Forge client-side mod functionality;
 - create a large RPG-style custom GUI system;
 - implement unlimited offline chunk loading;
-- make the Factory World behave like a normal natural survival world;
 - define detailed decay probabilities before the architecture is stable.
 
 ---
@@ -162,13 +164,8 @@ Evolve: SMP
 │   ├── Villager / Artisan
 │   └── History / Era
 │
-├── esmp-resource
-│   └── Renewable Resource Worlds / Cycles
-│
-└── esmp-factory
-    ├── Factory Plots
-    ├── Plot Membership / Roles
-    └── Redstone / World Policy
+└── esmp-resource
+    └── Renewable Resource Worlds / Cycles
 ```
 
 The bootstrap composes Core and gameplay modules and coordinates database migrations, startup, and shutdown. Module boundaries remain explicit application APIs and committed domain events; sharing one artifact does not permit cross-domain business-state access. Independent plugin deployment, classloader boundaries, and cross-plugin version compatibility are not part of the initial design.
@@ -195,8 +192,7 @@ Core should **not** understand gameplay concepts such as:
 - ruins;
 - eras;
 - resource cycles;
-- settlement activity;
-- factory operation.
+- settlement activity.
 
 The principle is:
 
@@ -242,16 +238,6 @@ Owns:
 - resource-world generation;
 - controlled reopening of resource dimensions.
 
-### `esmp-factory`
-
-Owns:
-
-- factory-world plots;
-- per-Plot membership and fixed roles;
-- factory-specific plot and protection rules;
-- redstone policy;
-- factory-world operation policy.
-
 ---
 
 # 5. World Architecture
@@ -268,13 +254,10 @@ ESMP
 ├── Civilization Realm
 │   └── Main World
 │
-├── Resource Realm
-│   ├── Resource Overworld
-│   ├── Resource Nether
-│   └── Resource End
-│
-└── Industry Realm
-    └── Factory World
+└── Resource Realm
+    ├── Resource Overworld
+    ├── Resource Nether
+    └── Resource End
 ```
 
 ## 5.2 World abstraction
@@ -297,7 +280,7 @@ WorldInstance
 └── created_at
 ```
 
-Examples of stable definitions include `MAIN`, `RESOURCE_OVERWORLD`, `RESOURCE_NETHER`, `RESOURCE_END`, and `FACTORY`. Resetting a Resource world creates a new physical `WorldInstance` rather than reusing the old instance identity.
+The stable definitions are `MAIN`, `RESOURCE_OVERWORLD`, `RESOURCE_NETHER`, and `RESOURCE_END`. Resetting a Resource world creates a new physical `WorldInstance` rather than reusing the old instance identity.
 
 Gameplay modules own their policies for each world definition:
 
@@ -314,21 +297,15 @@ RESOURCE_*
 ├── Activity: disabled
 ├── Decay: disabled
 └── Reset: rotating
-
-FACTORY
-├── Factory Plot: enabled
-├── Settlement: disabled
-├── Decay: disabled
-└── Reset: never
 ```
 
-Core identifies definitions and instances but does not own settlement, decay, resource, or factory policy semantics.
+Core identifies definitions and instances but does not own settlement, decay, or resource policy semantics.
 
 Block- and coordinate-sensitive records must use `world_instance_id`. This prevents stale records from one Resource Cycle from targeting a later cycle that reuses the same configured world name.
 
 ## 5.3 Cross-realm player state and item transfer
 
-ESMP intentionally allows players to carry items and normal player state freely between the Main, Resource, and Factory realms.
+ESMP intentionally allows players to carry items and normal player state freely between the Main and Resource realms.
 
 The initial policy is:
 
@@ -400,8 +377,6 @@ The world itself does not need to be reset for this lifecycle to occur.
 **Claim** describes the protected ownership relationship and the actions that add or remove chunks from a settlement. It is not a separate civilization entity.
 
 **Civilization** remains the name of the overall persistent gameplay domain. ESMP does not create a `Civilization` owner record.
-
-Factory World uses the separate `Plot` aggregate.
 
 ## 7.2 Claim granularity
 
@@ -616,19 +591,9 @@ The initial visualization should:
 
 The exact particle style and command syntax remain provisional.
 
-## 7.8 Settlement and Factory claims
+## 7.8 Spatial infrastructure and domain state
 
-Main World and Factory World use different gameplay domains:
-
-```text
-Shared Spatial Claim Infrastructure
-├── Settlement Claim and Protection Engine
-└── Factory Plot and Protection Engine
-```
-
-Reusable infrastructure may include chunk keys, spatial lookup, action vocabulary, authorization results, and visualization primitives. Settlement membership, activity, decay, and history must not leak into Factory Plot data or rules.
-
-Do **not** create a universal business aggregate controlled by `if world_type == ...` branches.
+Core may supply world/chunk keys and other neutral infrastructure. Settlement owns claim authorization, membership, activity, and lifecycle semantics. Resource worlds remain unclaimed; do not introduce a universal gameplay aggregate controlled by `if world_type == ...` branches.
 
 ---
 
@@ -1027,144 +992,13 @@ No special alternative gameplay model is required for these dimensions.
 
 ---
 
-# 16. Factory Realm
-
-The Factory World exists to separate industrial infrastructure from the civilization world.
-
-## 16.1 Core properties
-
-- permanent;
-- claimable;
-- collaborative through per-Plot membership;
-- no settlement decay;
-- no settlement activity requirement;
-- optimized for redstone/industrial construction.
-
-A player may therefore maintain long-term industrial infrastructure without making the civilization world's decay system responsible for preserving factories.
-
-## 16.2 Factory Plot
-
-The Factory World uses a separate `Plot` aggregate with its own membership and claimed chunks:
-
-```text
-Plot
-├── plot_id
-├── world_instance_id
-├── owner_uuid
-├── created_at
-└── operational_state
-
-PlotMember
-├── plot_id
-├── player_uuid
-└── role = MANAGER | MEMBER
-
-PlotChunk
-├── plot_id
-├── world_instance_id
-├── chunk_x
-└── chunk_z
-```
-
-Each owned Plot has exactly one Owner, zero or more Managers, zero or more Members, and every other player as a derived Visitor. Store Owner identity in `Plot.owner_uuid` and active Manager/Member roles in `PlotMember`, unique by `(plot_id, player_uuid)`; do not persist Visitor membership. Roles are fixed, not customizable. There is no separate reusable crew ownership aggregate.
-
-Membership is local to each Plot, independent of every Settlement and other Plot. Familiar role names do not imply shared memberships or automatic inheritance of Settlement capabilities. Factory policy defines the following matrix independently:
-
-| Action | Owner | Manager | Member | Visitor |
-|---|---:|---:|---:|---:|
-| Move through and observe | Yes | Yes | Yes | Yes |
-| Build, break, and use machinery | Yes | Yes | Yes | No |
-| Use controls and containers | Yes | Yes | Yes | No |
-| Interact with protected entities | Yes | Yes | Yes | No |
-| Manage claims, ordinary Members, and settings | Yes | Yes | No | No |
-| Promote/demote Managers, transfer ownership, or release Plot | Yes | No | No | No |
-
-Members can build and operate the factory; Managers additionally administer claims, ordinary Members, and settings. Ownership-only powers remain exclusive to the Owner. Ordinary claim changes must preserve the non-empty Plot invariant, not implicitly release a Plot through Manager permissions.
-
-Factory Visitors may move through and observe only. Unlike Settlement Visitors, they may not operate doors, gates, buttons, levers, pressure plates, machinery, containers, or protected entities. Movement permission does not authorize activating a pressure plate or other control by walking over it; classify physical activation as an interaction separately from movement.
-
-Enforce this through action-specific protection without switching game modes or cancelling all right-clicks indiscriminately. Deny unauthorized direct and indirect effects without treating a Visitor's presence as a reason to stop otherwise authorized machinery. Exact event mappings remain implementation work.
-
-Players choose claim locations and expand through edge-adjacent chunks, not predefined parcels in a generator-imposed grid. Each owned Plot forms one non-empty, four-directionally contiguous component within one Factory world instance; diagonal contact alone does not connect chunks. Claim additions and removals must preserve this invariant. A chunk belongs to at most one Plot. Adjacent Plots retain separate identities rather than merging automatically.
-
-Factory claim size limits, costs, and release rules remain independent policy choices. Do not import the Settlement's 64-chunk default or decay/activity lifecycle. The exact database schema and generator appearance remain deferred.
-
-## 16.3 Industrial aesthetic
-
-The Factory World should minimize natural-world noise.
-
-Desired characteristics:
-
-- mostly flat;
-- little or no natural cave generation;
-- little or no random terrain;
-- minimal natural water;
-- minimal vegetation;
-- reduced hostile/passive mob interference;
-- little visual evidence of ordinary survival-world terrain.
-
-The objective is not a sterile creative-mode superflat test world.
-
-Instead, it should feel like a standardized industrial landscape capable of becoming an industrial district/city.
-
-## 16.4 Custom world generation
-
-A custom `ChunkGenerator` is the preferred long-term approach.
-
-A normal Superflat preset is considered insufficient because it looks too much like a test/creative environment.
-
-The final Factory World generator is not yet specified in detail.
-
----
-
-# 17. Factory Machine Operation
-
-Factory machines initially use ordinary Paper ticking, not an ESMP machine simulation. ESMP supplies land protection and world policy but does not recognize every contraption as a custom machine or impose a per-machine power/capacity budget.
-
-Initial behavior:
-
-- machine behavior follows Paper's ordinary chunk ticking, player-proximity, and world rules;
-- chunks load and unload normally; ESMP provides no dedicated factory chunk-loader or fake player;
-- unloaded chunks do not operate, and ESMP does not simulate or award catch-up production for offline time.
-
-A loaded chunk alone does not guarantee every farm mechanic operates: normal ticking and player-proximity requirements still apply. Server-wide performance budgets and protection checks are not a custom industrial power system.
-
-## 17.1 Carpet / fake players
-
-ESMP should not initially implement its own fake-player system.
-
-Carpet Mod is also not part of the Paper plugin architecture.
-
-The initial project should remain on the Paper + vanilla-client path.
-
-## 17.2 Offline factory operation
-
-If future requirements demand offline factory operation, the preferred architecture is a constrained system such as:
-
-- Factory Power;
-- Operation Capacity;
-- limited active chunks;
-- controlled machine budgets.
-
-Do **not** provide unlimited chunk loading by default.
-
-## 17.3 Redstone policy
-
-Factory World should have an independent redstone/world configuration policy.
-
-Compatibility takes priority over aggressive redstone optimization. Prefer vanilla-like machine behavior, while acknowledging that Paper does not guarantee exact vanilla parity. Any configuration or implementation that changes redstone behavior requires explicit compatibility evaluation before adoption. Choose exact settings against the selected Paper version; do not promise every vanilla contraption will work unchanged.
-
-It should not be mixed into Settlement logic.
-
----
-
-# 18. UI / Player Experience
+# 16. UI / Player Experience
 
 The design target is:
 
 > **Vanilla-feeling interaction, not plugin-server UI overload.**
 
-## 18.1 Preferred interaction hierarchy
+## 16.1 Preferred interaction hierarchy
 
 Use existing Minecraft interaction patterns whenever possible:
 
@@ -1176,7 +1010,7 @@ Use existing Minecraft interaction patterns whenever possible:
 6. books/signs;
 7. modern native Minecraft Dialogs where appropriate.
 
-## 18.2 Settlement and claim example
+## 16.2 Settlement and claim example
 
 Possible command surface:
 
@@ -1201,7 +1035,7 @@ Status: Prosperous
 
 Exact command names and presentation are provisional.
 
-## 18.3 Repair example
+## 16.3 Repair example
 
 A repair station/cellar can use a vanilla container interface to show:
 
@@ -1214,11 +1048,11 @@ The first version should avoid a large custom RPG-style menu hierarchy.
 
 ---
 
-# 19. Persistence and Database Architecture
+# 17. Persistence and Database Architecture
 
 Minecraft world state and ESMP application state must be strictly separated.
 
-## 19.1 Minecraft world data
+## 17.1 Minecraft world data
 
 Managed by Minecraft/Paper:
 
@@ -1231,7 +1065,7 @@ Minecraft World
 └── level data
 ```
 
-## 19.2 ESMP data
+## 17.2 ESMP data
 
 Managed by ESMP:
 
@@ -1249,10 +1083,7 @@ ESMP Database
 ├── repairs
 ├── eras
 ├── history
-├── resource_cycles
-├── factory_plots
-├── factory_plot_members
-└── factory_plot_chunks
+└── resource_cycles
 ```
 
 Exact table names and schema are not finalized.
@@ -1263,13 +1094,13 @@ Coordinate writes through bounded scheduling suited to SQLite's single-writer mo
 
 Use versioned schema migrations. The initial implementation uses SQLite JDBC 3.53.4.0 with small transactional JDBC migrations tracked by `PRAGMA user_version`, rather than adding a migration framework for the initial schema. Repository boundaries support maintainability, not transparent database portability; a future backend change requires explicit migrations and verification.
 
-## 19.3 World identity requirement
+## 17.3 World identity requirement
 
 Every block- or coordinate-sensitive ESMP entity must be scoped by `world_instance_id`. Configuration and realm policy may reference the stable `world_definition_id`.
 
 This is mandatory for preventing cross-world leakage and stale Resource Cycle records.
 
-## 19.4 Recoverable DB-to-world work
+## 17.4 Recoverable DB-to-world work
 
 SQL state and Minecraft world state cannot participate in one atomic transaction. Decay and Repair use persistent, recoverable jobs rather than claiming exactly-once world mutation.
 
@@ -1295,17 +1126,17 @@ World mutation success does not mean Minecraft has durably saved the affected ch
 
 ---
 
-# 20. Version Migration
+# 18. Version Migration
 
 Long-term operation requires two independent migration paths.
 
-## 20.1 Minecraft world migration
+## 18.1 Minecraft world migration
 
 Minecraft/Paper handles Minecraft world-data upgrades.
 
 ESMP should not reimplement Minecraft's chunk/world migration logic.
 
-## 20.2 ESMP database migration
+## 18.2 ESMP database migration
 
 ESMP owns its own schema migrations.
 
@@ -1323,7 +1154,7 @@ V6 → V7
 
 Each application release can ship deterministic migrations.
 
-## 20.3 Upgrade procedure
+## 18.3 Upgrade procedure
 
 Do not target support for a new Minecraft version immediately on release.
 
@@ -1351,7 +1182,7 @@ Minecraft world migration and ESMP DB migration must remain conceptually separat
 
 ---
 
-# 21. Event Architecture
+# 19. Event Architecture
 
 Modules should communicate through explicit application APIs and domain events rather than direct implementation coupling.
 
@@ -1377,11 +1208,11 @@ Durable domain events are recorded in an outbox in the same database transaction
 
 ---
 
-# 22. Scheduling and Performance
+# 20. Scheduling and Performance
 
 Performance is a first-class architectural requirement.
 
-## 22.1 Core principle
+## 20.1 Core principle
 
 Never do:
 
@@ -1393,7 +1224,7 @@ for every settlement
 
 on a regular global schedule.
 
-## 22.2 Preferred model
+## 20.2 Preferred model
 
 ```text
 Player / World Event
@@ -1409,7 +1240,7 @@ Budgeted processing
 World mutation
 ```
 
-## 22.3 Adaptive workload
+## 20.3 Adaptive workload
 
 Decay processing should have a configurable workload budget.
 
@@ -1427,7 +1258,7 @@ increase decay work
 
 This allows long-term background processing without making decay compete aggressively with player gameplay.
 
-## 22.4 Async vs world thread
+## 20.4 Async vs world thread
 
 Safe separation:
 
@@ -1446,7 +1277,7 @@ WORLD EXECUTION CONTEXT
 
 The exact scheduler abstraction must be designed so the same domain code can later accommodate Paper and potentially Folia execution models.
 
-## 22.5 Loaded-chunk work and conflict replanning
+## 20.5 Loaded-chunk work and conflict replanning
 
 Only naturally loaded chunks are eligible for Decay and Repair mutation. A job resumes through load-driven, budgeted scheduling; unloading before application returns affected work to pending rather than triggering a chunk load. Elapsed-time Activity evaluation continues independently, but unloaded-world mutation is not simulated as completed.
 
@@ -1454,11 +1285,11 @@ When a player edit invalidates planned work, preserve that edit and replan the a
 
 ---
 
-# 23. Architectural Boundaries
+# 21. Architectural Boundaries
 
 The following boundaries are considered important.
 
-## 23.1 Core vs gameplay
+## 21.1 Core vs gameplay
 
 ```text
 Core
@@ -1470,19 +1301,13 @@ World
 
 Core must not become a “god module”.
 
-## 23.2 Civilization domain vs Resource
+## 21.2 Civilization domain vs Resource
 
 Settlement ownership, activity, decay, repair, and building history do not exist in Resource worlds.
 
 Resource worlds exist to supply renewable resources. Player inventory and Ender Chest state remain shared with other realms.
 
-## 23.3 Settlement vs Factory
-
-Factory infrastructure does not participate in settlement decay.
-
-Factory plots may reuse spatial claim and authorization infrastructure, but not Settlement domain data or lifecycle rules.
-
-## 23.4 Repair vs History
+## 21.3 Repair vs History
 
 Repair produces historical events.
 
@@ -1492,7 +1317,7 @@ History should not be reduced to a field on Repair.
 
 ---
 
-# 24. Proposed Core Domain Model
+# 22. Proposed Core Domain Model
 
 The following is the current conceptual model, not a finalized Java class design:
 
@@ -1516,25 +1341,19 @@ ESMP
 │   ├── Era
 │   └── History
 │
-├── Resource Domain
-│   └── ResourceCycle
-│
-└── Factory Domain
-    ├── Plot
-    │   ├── PlotMember
-    │   └── PlotChunk
-    └── Operation
+└── Resource Domain
+    └── ResourceCycle
 ```
 
 `Civilization Domain` is an architectural grouping. It must not become a `Civilization` table or aggregate unless a future, separately approved gameplay requirement introduces one.
 
 ---
 
-# 25. Settlement Lifecycle Model
+# 23. Settlement Lifecycle Model
 
 Settlement ownership and physical condition are related but separate state dimensions.
 
-## 25.1 Ownership lifecycle
+## 23.1 Ownership lifecycle
 
 ```text
                     SettlementFoundedEvent
@@ -1574,7 +1393,7 @@ Old baseline records, if retained for historical purposes, are not active repair
 
 Partial reclaim does not override the one-Settlement-per-Building invariant. Active tracking must respect the claiming Settlement's boundaries while retaining historical links to the former structure; exact split/merge bookkeeping remains deferred.
 
-## 25.2 Activity recovery and physical condition
+## 23.2 Activity recovery and physical condition
 
 ```text
 Activity:
@@ -1593,30 +1412,28 @@ An owned ruined settlement remains protected until a valid release operation com
 
 ---
 
-# 26. Data Ownership Matrix
+# 24. Data Ownership Matrix
 
-| System | Main World | Resource World | Factory World |
-|---|---:|---:|---:|
-| Settlement claims | Yes | No | No |
-| Factory plots | No | No | Yes |
-| Claim protection | Settlement policy | No | Plot policy |
-| Team membership | Settlement teams | No | Per-Plot membership |
-| Claim visualization | Yes | No | Yes |
-| Activity | Yes | No | No |
-| Decay | Yes | No | No |
-| Repair | Yes | No | No |
-| Era | Yes | No | No |
-| History | Yes | Cycle history | Optional factory history |
-| Periodic reset | No | Yes | No |
-| Shared player inventory | Yes | Yes | Yes |
-| Shared Ender Chest | Yes | Yes | Yes |
-| Industrial operation policy | No | No | Yes |
+| System | Main World | Resource World |
+|---|---:|---:|
+| Settlement claims | Yes | No |
+| Claim protection | Settlement policy | No |
+| Team membership | Settlement teams | No |
+| Claim visualization | Yes | No |
+| Activity | Yes | No |
+| Decay | Yes | No |
+| Repair | Yes | No |
+| Era | Yes | No |
+| History | Yes | Cycle history |
+| Periodic reset | No | Yes |
+| Shared player inventory | Yes | Yes |
+| Shared Ender Chest | Yes | Yes |
 
 This table is a design boundary, not yet a final implementation schema.
 
 ---
 
-# 27. Current Decisions
+# 25. Current Decisions
 
 The following decisions are considered settled enough to serve as architectural constraints:
 
@@ -1626,52 +1443,48 @@ The following decisions are considered settled enough to serve as architectural 
 4. The Main World is permanent and is the civilization/history world.
 5. Resource Overworld, Nether, and End reset together in one shared cycle. All replacements are generated and pre-generated before closing the old cycle; entry reopens only after all three switch together.
 6. Resource worlds have no settlements or claims.
-7. The permanent Factory World uses independent Plots with fixed roles and contiguous chunk claims. Members build and operate; Managers additionally administer claims, ordinary Members, and settings; ownership powers are Owner-only. Visitors may move and observe but cannot operate controls or machinery.
-8. Factory Plots and Settlements may share spatial claim, authorization, and visualization infrastructure, but not domain data.
-9. Claims use Chunk granularity and do not cross physical world instances.
-10. Each owned Settlement is one non-empty, four-directionally contiguous chunk component; diagonal contact alone is insufficient. Ordinary unclaim cannot remove its last chunk; the Owner must explicitly abandon instead.
-11. Separate Settlements may occupy directly adjacent chunks and do not merge automatically, including Settlements with the same owner.
-12. A player may own multiple settlements.
-13. Settlement chunk claiming is initially free. The configurable per-Settlement maximum is enabled by default at 64 chunks and may be changed or disabled by server policy.
-14. Settlements use exactly four fixed effective roles: one Owner, zero or more Managers, zero or more Members, and every other player as a derived Visitor; custom roles are not supported.
-15. Managers are operational deputies: they may change claims, manage ordinary Members and settings, build, interact, and repair, but may not manage Managers, transfer ownership, or abandon/release the Settlement.
-16. Members are standard collaborators: they may build, interact, use containers, use protected entities or machines, and repair, but may not change claims, membership, roles, or settings.
-17. Visitors use action-specific, adventure-like protection: movement and safe public controls are allowed, while building, containers, protected entities, and direct machine interfaces are denied.
-18. Claims protect their blocks and relevant interactions against unauthorized direct and indirect changes.
-19. Protection must classify actions rather than switch Visitor game mode or cancel every right-click event.
-20. Settlement claims have basic vanilla-client visualization using temporary particles and text UI.
-21. Stable `WorldDefinition` identity is separate from physical `WorldInstance` identity.
-22. Player inventory, equipment, Ender Chest, experience, and normal player state are shared across realms.
-23. ESMP does not create per-realm inventories or item-transfer restrictions.
-24. Settlement activity is more than last-login time and is evaluated per settlement.
-25. Activity uses a decaying score driven primarily by team participation. Meaningful Visitor interactions contribute very little; passersby contribute nothing.
-26. Elapsed-time decay should not require periodic writes to every settlement.
-27. Automation should not provide unlimited activity credit.
-28. Decay preserves building shape and turns abandoned construction into ruins.
-29. Buildings are automatically discovered within claimed Settlements, with one Settlement per tracked Building. Authorized player building edits automatically revise restoration baselines; ESMP decay and repair do not redefine them.
-30. Decay and Repair use durable, budgeted jobs and wait for naturally loaded chunks. Conflicting edits trigger replanning of affected work without overwriting player changes or stopping otherwise valid work.
-31. Natural-world change is low-frequency and localized.
-32. Buildings can be repaired before complete ruin.
-33. Repair is a process rather than an instant operation, and villagers/artisans may perform it.
-34. A completed qualifying repair advances a building's Era once.
-35. Era represents historical restoration cycles.
-36. History survives reclaim, but former team permissions and active repair targets do not. Reclaimed chunks use the claiming Settlement's team and normal claim rules; inherited structures receive a baseline from their current state without restoration or Era advancement.
-37. Ownership, activity, and physical condition are separate. Recovered activity stops further decay without repairing damage or advancing Era. Voluntary abandonment may release intact Settlements; automatic release requires inactivity and ruin.
-38. `Founded` and `Reclaimed` are events rather than durable settlement states.
-39. The initial target is Minecraft Java Edition/Paper 26.2, with Java plugin source, JDK 25, and Gradle Kotlin DSL build configuration. Vanilla client compatibility remains a core goal.
-40. Folia is a possible future scale target, not the initial platform.
-41. ESMP should not initially implement its own fake-player/chunk-loader system.
-42. Factory machines use ordinary Paper ticking and proximity rules, without ESMP simulation, power, or per-machine operating budgets. Unloaded chunks produce nothing; vanilla-like compatibility takes priority over behavior-changing redstone optimizations.
-43. Factory World should have a low-natural-noise industrial generator.
-44. Minecraft world data and ESMP database data are migrated independently.
-45. Initial application persistence uses embedded SQLite with versioned migrations, module-owned repositories, short coordinated writes, and off-world-thread database I/O.
-46. Application APIs enforce synchronous decisions. Durable domain events use a transactional outbox with at-least-once delivery and idempotent consumers; world mutations use recoverable jobs, not a cross-store atomicity assumption.
-47. ESMP deploys as one modular Paper plugin JAR with one bootstrap and coordinated lifecycle. Core remains gameplay-agnostic.
-48. The first UI favors commands, ActionBar, BossBar, chat, containers, books/signs, native dialogs, and temporary particles over large custom GUIs.
+7. Claims use Chunk granularity and do not cross physical world instances.
+8. Each owned Settlement is one non-empty, four-directionally contiguous chunk component; diagonal contact alone is insufficient. Ordinary unclaim cannot remove its last chunk; the Owner must explicitly abandon instead.
+9. Separate Settlements may occupy directly adjacent chunks and do not merge automatically, including Settlements with the same owner.
+10. A player may own multiple settlements.
+11. Settlement chunk claiming is initially free. The configurable per-Settlement maximum is enabled by default at 64 chunks and may be changed or disabled by server policy.
+12. Settlements use exactly four fixed effective roles: one Owner, zero or more Managers, zero or more Members, and every other player as a derived Visitor; custom roles are not supported.
+13. Managers are operational deputies: they may change claims, manage ordinary Members and settings, build, interact, and repair, but may not manage Managers, transfer ownership, or abandon/release the Settlement.
+14. Members are standard collaborators: they may build, interact, use containers, use protected entities or machines, and repair, but may not change claims, membership, roles, or settings.
+15. Visitors use action-specific, adventure-like protection: movement and safe public controls are allowed, while building, containers, protected entities, and direct machine interfaces are denied.
+16. Claims protect their blocks and relevant interactions against unauthorized direct and indirect changes.
+17. Protection must classify actions rather than switch Visitor game mode or cancel every right-click event.
+18. Settlement claims have basic vanilla-client visualization using temporary particles and text UI.
+19. Stable `WorldDefinition` identity is separate from physical `WorldInstance` identity.
+20. Player inventory, equipment, Ender Chest, experience, and normal player state are shared across realms.
+21. ESMP does not create per-realm inventories or item-transfer restrictions.
+22. Settlement activity is more than last-login time and is evaluated per settlement.
+23. Activity uses a decaying score driven primarily by team participation. Meaningful Visitor interactions contribute very little; passersby contribute nothing.
+24. Elapsed-time decay should not require periodic writes to every settlement.
+25. Automation should not provide unlimited activity credit.
+26. Decay preserves building shape and turns abandoned construction into ruins.
+27. Buildings are automatically discovered within claimed Settlements, with one Settlement per tracked Building. Authorized player building edits automatically revise restoration baselines; ESMP decay and repair do not redefine them.
+28. Decay and Repair use durable, budgeted jobs and wait for naturally loaded chunks. Conflicting edits trigger replanning of affected work without overwriting player changes or stopping otherwise valid work.
+29. Natural-world change is low-frequency and localized.
+30. Buildings can be repaired before complete ruin.
+31. Repair is a process rather than an instant operation, and villagers/artisans may perform it.
+32. A completed qualifying repair advances a building's Era once.
+33. Era represents historical restoration cycles.
+34. History survives reclaim, but former team permissions and active repair targets do not. Reclaimed chunks use the claiming Settlement's team and normal claim rules; inherited structures receive a baseline from their current state without restoration or Era advancement.
+35. Ownership, activity, and physical condition are separate. Recovered activity stops further decay without repairing damage or advancing Era. Voluntary abandonment may release intact Settlements; automatic release requires inactivity and ruin.
+36. `Founded` and `Reclaimed` are events rather than durable settlement states.
+37. The initial target is Minecraft Java Edition/Paper 26.2, with Java plugin source, JDK 25, and Gradle Kotlin DSL build configuration. Vanilla client compatibility remains a core goal.
+38. Folia is a possible future scale target, not the initial platform.
+39. ESMP should not initially implement its own fake-player/chunk-loader system.
+40. Minecraft world data and ESMP database data are migrated independently.
+41. Initial application persistence uses embedded SQLite with versioned migrations, module-owned repositories, short coordinated writes, and off-world-thread database I/O.
+42. Application APIs enforce synchronous decisions. Durable domain events use a transactional outbox with at-least-once delivery and idempotent consumers; world mutations use recoverable jobs, not a cross-store atomicity assumption.
+43. ESMP deploys as one modular Paper plugin JAR with one bootstrap and coordinated lifecycle. Core remains gameplay-agnostic.
+44. The first UI favors commands, ActionBar, BossBar, chat, containers, books/signs, native dialogs, and temporary particles over large custom GUIs.
 
 ---
 
-# 28. Intentionally Unresolved
+# 26. Intentionally Unresolved
 
 The major domain boundaries are settled enough to plan implementation. The remaining items below are not all prerequisites for starting the project.
 
@@ -1680,7 +1493,7 @@ The major domain boundaries are settled enough to plan implementation. The remai
 | Runnable foundation (implemented) | Pinned wrapper and dependencies, Java 25 compilation, single-JAR packaging, SQLite world registry, status command, and actual Paper boot/restart verification. |
 | Before enabling durable claims | Define owning-domain tables, claim transaction/cache boundaries, committed ownership history, and version-specific protection action mappings. |
 | Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
-| Before enabling Resource resets or Factory gameplay | Finish evacuation/retired-location handling and backup/restore checks; define Factory limits/release rules and evaluate target-version redstone compatibility. |
+| Before enabling Resource resets | Finish evacuation/retired-location handling and coordinated cutover/backup/restore checks. |
 
 Weights, probabilities, generation appearance, UI polish, and optional features may remain deferred until their implementation slice. This does not permit enabling unsafe or incomplete behavior: satisfy each gate before exposing its feature, rather than blocking all work on every unresolved detail.
 
@@ -1731,14 +1544,6 @@ The following areas are explicitly **not finalized yet**:
 - exact cycle management schema;
 - portal routing and travel-access rules.
 
-### Factory
-
-- exact generator implementation;
-- independent Plot size limits, costs, and release rules; free-location contiguous chunk claiming is settled;
-- version-specific action/event mapping for the settled Factory role matrix, including movement-triggered controls;
-- version-specific redstone settings and compatibility evaluation; compatibility-first ordinary Paper ticking is settled;
-- optional future offline operation.
-
 ### Runtime / Persistence
 
 - future dependency upgrades and owning-domain SQLite schema migrations; current tooling, JDBC driver, and foundation schema are implemented;
@@ -1757,7 +1562,7 @@ Resolve these at the relevant implementation gate. Default to established techni
 
 ---
 
-# 29. Recommended Development Order
+# 27. Recommended Development Order
 
 The architecture suggests the following implementation sequence:
 
@@ -1812,24 +1617,13 @@ Phase 5
   Resource Cycle
     ↓
   Safe reset lifecycle
-
-Phase 6
-  Factory Realm
-    ↓
-  Factory Plot
-    ↓
-  Plot Membership / Roles
-    ↓
-  Factory World generator
-    ↓
-  Redstone policy
 ```
 
-This order makes claim protection usable before automated world mutation. Persist ownership and historical facts from the first owning-state changes; later History work adds presentation and rankings, not retroactive reconstruction of missing events. Each feature must satisfy its gate in §28 before enablement. Detailed optimization and optional automation stay deferred.
+This order makes claim protection usable before automated world mutation. Persist ownership and historical facts from the first owning-state changes; later History work adds presentation and rankings, not retroactive reconstruction of missing events. Each feature must satisfy its gate in §26 before enablement. Detailed optimization and optional automation stay deferred.
 
 ---
 
-# 30. Next Architecture Work
+# 28. Next Architecture Work
 
 The architecture baseline is ready for implementation planning, not a claim that the full plugin specification or implementation is complete.
 
@@ -1845,7 +1639,7 @@ World definition/instance registration, SQLite startup/migrations, and the Paper
 
 - Building discovery must resolve split/merge historical linkage and safe baseline representation before mutation depends on it.
 - Decay/Repair must prove idempotent recovery, edit-conflict preservation, material accounting, and loaded-chunk scheduling before enablement.
-- Resource cutover must prove evacuation and restart-safe routing; Factory policies and target-version compatibility must be verified before use.
+- Resource cutover must prove evacuation, backup/restore safety, and restart-safe routing before use.
 
 Detailed scoring, decay probabilities, particle styles, and generator aesthetics belong to those implementation slices. They are not reasons to continue a broad yes/no architecture questionnaire.
 
@@ -1862,8 +1656,6 @@ Detailed scoring, decay probabilities, particle styles, and generator aesthetics
 | Claim | Protected chunk ownership relationship and the operation that changes it |
 | Settlement Chunk | One claimed Main World chunk belonging to a Settlement |
 | Resource Realm | Renewable resource worlds that periodically reset |
-| Factory World | Permanent industrial world |
-| Plot | Factory-domain collection of claimed chunks |
 | World Definition | Stable configured world role, such as `MAIN` or `RESOURCE_NETHER` |
 | World Instance | One physical Minecraft world incarnation with a Bukkit world UUID |
 | Activity | Quantified measure of meaningful participation in one Settlement |

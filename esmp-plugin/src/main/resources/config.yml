@@ -1,9 +1,9 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
+config-version: 2
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
   RESOURCE_NETHER: resource_nether
   RESOURCE_END: resource_the_end
-  FACTORY: factory

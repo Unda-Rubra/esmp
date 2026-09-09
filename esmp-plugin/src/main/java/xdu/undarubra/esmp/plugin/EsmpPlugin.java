@@ -6,8 +6,9 @@ import xdu.undarubra.esmp.core.world.StoreSnapshot;
 import xdu.undarubra.esmp.core.world.WorldBinding;
 import xdu.undarubra.esmp.core.world.WorldDefinition;
 import xdu.undarubra.esmp.core.world.WorldInstance;
-import xdu.undarubra.esmp.factory.FactoryWorlds;
 import xdu.undarubra.esmp.resource.ResourceWorlds;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +43,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         state = State.STARTING;
         try {
             saveDefaultConfig();
+            migrateConfiguration();
             definitions = collectDefinitions();
             configuredWorlds = readWorldMappings();
             var initialBindings = new ArrayList<WorldBinding>();
@@ -76,13 +78,34 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         var all = new ArrayList<WorldDefinition>();
         all.addAll(CivilizationWorlds.definitions());
         all.addAll(ResourceWorlds.definitions());
-        all.addAll(FactoryWorlds.definitions());
         for (WorldDefinition definition : all) {
             if (result.putIfAbsent(definition.id(), definition) != null) {
                 throw new IllegalArgumentException("Duplicate definition: " + definition.id());
             }
         }
         return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private void migrateConfiguration() {
+        Object version = getConfig().get("config-version", 1);
+        if (!(version instanceof Integer number) || number < 1 || number > 2) {
+            throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
+        }
+        if (number == 1) {
+            var original = getDataFolder().toPath().resolve("config.yml");
+            var backup = getDataFolder().toPath().resolve("config-v1.yml");
+            try {
+                if (!Files.exists(backup)) {
+                    Files.copy(original, backup);
+                }
+            } catch (IOException failure) {
+                throw new IllegalStateException("Could not back up the previous configuration", failure);
+            }
+            getConfig().set("worlds.FACTORY", null);
+            getConfig().set("config-version", 2);
+            saveConfig();
+            getLogger().info("Migrated configuration to version 2; former Factory world mapping retired. World data is untouched.");
+        }
     }
 
     private Map<String, WorldDefinition> readWorldMappings() {
@@ -203,8 +226,8 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         StoreSnapshot snapshot = store.snapshot();
         sender.sendMessage(Component.text("SQLite schema=" + snapshot.schemaVersion()
                 + " | definitions=" + snapshot.definitions().size()
-                + " | stored instances=" + snapshot.instances().size()));
-        for (String module : List.of("civilization", "resource", "factory")) {
+                + " | active-definition instances=" + snapshot.instances().size()));
+        for (String module : List.of("civilization", "resource")) {
             long count = snapshot.definitions().stream().filter(d -> d.moduleId().equals(module)).count();
             sender.sendMessage(Component.text("Module " + module + ": " + count + " world definitions"));
         }
@@ -223,7 +246,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             sender.sendMessage(Component.text(mapping.getValue().id() + " -> " + mapping.getKey()
                     + " | " + (world == null ? "not loaded" : "loaded") + " | instance=" + instanceId));
         }
-        sender.sendMessage(Component.text("Foundation only: no claim protection, decay, repair, Resource reset, or Factory gameplay yet."));
+        sender.sendMessage(Component.text("Foundation only: no claim protection, decay, repair, or Resource reset gameplay yet."));
         return true;
     }
 

@@ -6,7 +6,6 @@ dependencies {
     implementation(project(":esmp-core"))
     implementation(project(":esmp-civilization"))
     implementation(project(":esmp-resource"))
-    implementation(project(":esmp-factory"))
     compileOnly("io.papermc.paper:paper-api:26.2.build.121-stable")
 }
 

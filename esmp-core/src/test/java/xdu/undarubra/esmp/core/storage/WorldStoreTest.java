@@ -59,8 +59,9 @@ class WorldStoreTest {
                     List.of(MAIN, RESOURCE), List.of(new WorldBinding(RESOURCE.id(), physicalId, "world"))).join());
         }
         try (WorldStore reopened = new WorldStore(file)) {
-            var snapshot = reopened.initialize(List.of(MAIN), List.of()).join();
-            assertEquals(List.of(MAIN), snapshot.definitions());
+            WorldDefinition replacement = new WorldDefinition(RESOURCE.id(), "replacement", WorldEnvironment.NORMAL);
+            var snapshot = reopened.initialize(List.of(MAIN, replacement), List.of()).join();
+            assertEquals(List.of(MAIN, replacement), snapshot.definitions());
             assertEquals(MAIN.id(), snapshot.instances().getFirst().definitionId());
             assertEquals(physicalId, snapshot.instances().getFirst().bukkitWorldId());
         }
@@ -98,6 +99,29 @@ class WorldStoreTest {
             var snapshot = reopened.initialize(List.of(RESOURCE), List.of()).join();
             assertEquals(2, snapshot.instances().size());
             assertTrue(snapshot.instances().containsAll(List.of(first.join(), second.join())));
+        }
+    }
+
+    @Test
+    void removedDefinitionsCannotRegisterButTheirHistoricalIdentitySurvives() {
+        Path file = directory.resolve("worlds.db");
+        WorldDefinition legacy = new WorldDefinition("LEGACY", "retired", WorldEnvironment.NORMAL);
+        WorldBinding original = new WorldBinding(legacy.id(), UUID.randomUUID(), "old_world");
+        WorldInstance historical;
+        try (WorldStore store = new WorldStore(file)) {
+            historical = store.initialize(List.of(MAIN, legacy), List.of(original)).join().instances().getFirst();
+        }
+        try (WorldStore current = new WorldStore(file)) {
+            var snapshot = current.initialize(List.of(MAIN), List.of()).join();
+            assertEquals(List.of(MAIN), snapshot.definitions());
+            assertEquals(List.of(), snapshot.instances());
+            assertThrows(CompletionException.class, () -> current.register(original).join());
+            assertThrows(CompletionException.class, () -> current.register(
+                    new WorldBinding(MAIN.id(), original.bukkitWorldId(), original.worldName())).join());
+        }
+        try (WorldStore restored = new WorldStore(file)) {
+            var snapshot = restored.initialize(List.of(MAIN, legacy), List.of(original)).join();
+            assertEquals(List.of(historical), snapshot.instances());
         }
     }
 }

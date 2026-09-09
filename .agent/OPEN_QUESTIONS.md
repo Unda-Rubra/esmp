@@ -1,6 +1,6 @@
 # ESMP Open Questions
 
-This is a gate-oriented index of `ARCHITECTURE.md` §§28–30, not a second architecture. Settled policies must not be reopened merely because their implementation is unfinished.
+This is a gate-oriented index of `ARCHITECTURE.md` §§26–28, not a second architecture. Settled policies must not be reopened merely because their implementation is unfinished.
 
 ## Runnable foundation completed
 
@@ -11,7 +11,7 @@ The next functional slice is Settlement persistence and protection, not another 
 ## Before enabling durable claims
 
 - Owning-domain tables and migrations, claim/member application APIs, and transaction/cache publication boundaries; initial SQLite infrastructure is already implemented.
-- Target-version protection mappings, including Settlement public interactions versus Factory movement-only Visitors.
+- Target-version Settlement protection mappings, including safe public interactions and indirect world changes.
 - Ownership and historical-event persistence from the first committed changes.
 
 ## Before enabling automated Building mutation
@@ -22,18 +22,16 @@ The next functional slice is Settlement persistence and protection, not another 
 - Activity/ruin aggregation and eligibility configuration; meaningful Visitor credit is very small, passersby earn none, and recovered activity stops further decay without healing.
 - Repair/workforce integration and qualifying restoration-cycle rules for Era advancement.
 
-## Before enabling Resource and Factory operations
+## Before enabling Resource operations
 
 - Resource reset interval, generation settings, pre-generation radius, evacuation destination, offline/respawn/portal handling, and retention policy. Shared cycles and advance preparation are settled.
 - Coordinated world/database backup and restore verification, including recovery during Resource cutover.
-- Factory Plot limits, costs, and release rules; fixed per-Plot roles and contiguous claiming are settled.
-- Factory generator implementation and target-version redstone compatibility evaluation; ordinary Paper ticking and compatibility-first policy are settled.
 
 ## Deferred tuning and optional features
 
 - Administrator exemptions, cooldowns, and remaining expansion policy.
 - Activity weights/caps, decay curves/probabilities/material rules, vegetation, repair speed/material values, and workload budgets; configure safe eligibility before enabling affected features.
 - Particle styles, command/Dialog presentation, localization, historical UI, rankings, and Era names.
-- Alliance relationships and optional future offline Factory capacity.
+- Alliance relationships.
 
 These details do not block the initial plugin or claim slice. Resolve them when their feature is implemented; do not enable an incomplete or unsafe feature to avoid its gate.

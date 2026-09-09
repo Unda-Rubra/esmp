@@ -4,9 +4,9 @@ These instructions apply to the entire repository.
 
 ## Mission and current state
 
-ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world, renewable Resource worlds, and a permanent Factory world.
+ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The runnable foundation now builds and starts on Paper 26.2. It provides world-definition contributions, SQLite physical-world registration, configuration/lifecycle, and `/esmp status`. Claims, decay, repair, Resource resets, and Factory gameplay are not implemented; never claim they are protected or operational.
+The runnable foundation builds and starts on Paper 26.2. It provides world-definition contributions, SQLite physical-world registration, configuration/lifecycle, and `/esmp status`. Claims, decay, repair, and Resource resets are not implemented; never claim they are protected or operational.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
@@ -27,10 +27,6 @@ Before non-trivial work, read:
 - **Civilization** is the overall persistent Main World gameplay environment/domain. It is not a player-owned aggregate.
 - **Settlement** is the Main World aggregate for ownership, members, roles, permissions, activity, and claimed chunks.
 - **Claim** is the protected chunk relationship and the operation that changes it.
-- **Plot** is the separate Factory World claim aggregate.
-- Factory Plots use independent fixed Owner/Manager/Member/Visitor roles, per-Plot membership, and freely located four-directionally contiguous chunk claims. Do not introduce a shared crew owner or inherit Settlement membership, capability rules, or the 64-chunk cap.
-- Factory Members may build and operate machinery; Managers additionally manage claims, ordinary Members, and settings; ownership powers are Owner-only. Factory Visitors may only move and observe, not activate controls (including by walking over pressure plates), use inventories, or interact with protected entities. Enforce actions individually.
-- Factory machines use ordinary Paper ticking and player-proximity rules, without initial ESMP machine simulation, power, per-machine budgets, or offline catch-up production. Prefer vanilla-like compatibility; evaluate behavior-changing optimizations explicitly and never promise exact vanilla parity.
 - Use `world_definition_id` for a stable configured world role.
 - Use `world_instance_id` for anything tied to blocks, chunks, entities, or coordinates.
 
@@ -57,7 +53,6 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Visitors may enter and use the fixed safe-public-interaction category but cannot build, use protected inventories, interact with protected entities, or directly use machine interfaces.
 - Implement Visitor access with action classification, never an actual game-mode switch or blanket right-click cancellation.
 - Authorization defaults to deny for non-members unless an explicit permission allows the action.
-- Settlement and Factory domains may share spatial and authorization infrastructure, not business state.
 - Activity is settlement-local and does not require scheduled writes to every inactive settlement.
 - Meaningful Visitor interaction earns very small activity credit relative to the team; passersby earn none. Activity credit grants no extra permissions.
 - Sufficient activity recovery stops further decay without repairing damage or advancing Era; queued mutations must revalidate activity eligibility.
@@ -101,7 +96,7 @@ Use `./gradlew build` for compilation, packaging, and tests, and `./gradlew :esm
 
 Before ending non-trivial work, update `.agent/HANDOFF.md` with:
 
-Keep the handoff a current snapshot, not an append-only transcript. Replace superseded next actions and old verification logs; retain durable rationale in `.agent/DECISIONS.md`. Distinguish prerequisites for the first runnable plugin from later feature-enablement gates in architecture §§28–30. Do not reopen settled gameplay or require all deferred tuning before basic implementation.
+Keep the handoff a current snapshot, not an append-only transcript. Replace superseded next actions and old verification logs; retain durable rationale in `.agent/DECISIONS.md`. Follow the implementation gates in the architecture's final sections. Do not reopen settled gameplay or require all deferred tuning before basic implementation.
 
 ```text
 # Current Handoff

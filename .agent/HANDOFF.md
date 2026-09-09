@@ -2,47 +2,44 @@
 
 ## State
 
-- Git repository on `main`; initial commit `09766ae` establishes repository policies and canonical `ARCHITECTURE.md`. No remote configured or push requested. Commit coherent milestones regularly.
-- Runnable Java 25 foundation uses package/group `xdu.undarubra.esmp`, five Gradle modules, and one deployable `esmp-plugin/build/libs/esmp-0.1.0-SNAPSHOT.jar`.
-- Pins: Gradle Wrapper 9.7.1, Paper 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0, JUnit Jupiter 5.12.2. Verification JDK: Temurin 25.0.4.1+1.
-- Implemented: domain-owned world definitions, bounded serial SQLite I/O, schema version 1, persistent physical world identity, configuration validation, Paper lifecycle/world-load adapter, and `/esmp status`.
-- Not implemented: claims/protection, membership gameplay, Building discovery, decay/repair, durable mutation jobs/outbox, Resource resets, or Factory gameplay. The status command states this explicitly.
+- Git repository on `main`; commit coherent verified milestones regularly. No remote/push requested.
+- Runnable Java 25 foundation: `xdu.undarubra.esmp`, four Gradle modules (`esmp-core`, `esmp-civilization`, `esmp-resource`, `esmp-plugin`), one deployable JAR.
+- Current gameplay scope is permanent Civilization/Main plus renewable Resource worlds. Factory/industrial realm design and implementation are removed, not retained as a dormant module. No new redstone ban is imposed on the remaining worlds.
+- Pins remain Gradle 9.7.1, Paper 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0, JUnit Jupiter 5.12.2; JDK verification used Temurin 25.0.4.1+1.
+- SQLite schema remains version 1. Snapshots/register operations use only definitions supplied by current modules; removed-definition history remains stored without active support.
+- Gameplay claims/protection, Building discovery, decay/repair, durable outbox/jobs, and Resource resets remain unimplemented. `/esmp status` reports foundation scope explicitly.
 
 ## Completed
 
-- Added Git ignore/text/editor policies and migrated all canonical architecture links.
-- Created one Paper composition root and three independent realm-definition modules over a Paper-free core.
-- Added transactional JDBC initialization, schema-version rejection, durable instance UUIDs, binding-conflict rejection, and bounded graceful worker shutdown.
-- Added four storage regression tests and a checksum-verified loopback Paper development launcher requiring explicit EULA acceptance.
-- Verified actual Paper boot, status, clean shutdown/restart, and fail-closed duplicate world mapping. Restored valid configuration and stopped the server.
+- Removed the Factory module, build dependency, world definition, default configuration, and status entry.
+- Added one-time configuration migration: unversioned/version-1 files are backed up to `config-v1.yml`, obsolete `worlds.FACTORY` is removed, and version 2 is saved. Version-2 unknown roles are still rejected.
+- Made registry definition retirement generic and non-destructive. Removed definitions cannot register, their old Bukkit UUIDs cannot be reassigned silently, and historical identities survive.
+- Removed Factory architecture, schemas, permission policy, runtime design, and development milestone; renumbered remaining architecture to 28 sections and 44 current decisions. Recorded the team's workload/balance/performance rationale.
+- Updated README, agent rules, open questions, and decisions. No physical world folder or historical database row was deleted.
 
 ## Changed files
 
-- Root Gradle/settings/properties, wrapper, module build files, and dependency lockfiles: reproducible Java 25 build and one-JAR packaging.
-- `esmp-core/src`: world records, SQLite store, and behavioral regression tests.
-- `esmp-civilization/src`, `esmp-resource/src`, `esmp-factory/src`: five domain-owned world definitions.
-- `esmp-plugin/src`: Paper bootstrap, config/manifest, loaded-world binding, and admin status command.
-- `scripts/run-dev.sh`: local Paper build/download/checksum/start workflow; defaults to 127.0.0.1:25579.
-- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent` memory: actual implemented scope, commands, pins, package name, commit policy, and remaining gates.
+- `settings.gradle.kts`, `esmp-plugin/build.gradle.kts`, deleted `esmp-factory/`: four-module build.
+- `esmp-plugin/src`: current definitions/status, version-2 configuration and legacy migration.
+- `esmp-core/src`: active-definition snapshot/registration boundary; regression for retired identities and strengthened transactional rollback check.
+- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent` memory: current scope, migration behavior, roadmap, and rationale.
 
 ## Verification
 
-- `./gradlew clean build --write-locks --no-daemon` with JDK 25: passed after correcting fat-JAR task dependencies. Core regression XML reported 4 tests, 0 failures/errors/skips.
-- `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh`: actual Paper 26.2 build 121 startup on JDK 25; `esmp status` reported READY, schema 1, five definitions, and one registered MAIN instance.
-- Console `stop`, restart, and `esmp status`: same MAIN instance UUID `75fa0879-8da5-427f-96cf-6af9c900372a`, still one stored instance; Resource/Factory worlds correctly reported not loaded.
-- Temporarily mapped FACTORY to the MAIN physical name: startup rejected `Physical world name assigned twice: world` and disabled ESMP. Restored mapping, restarted to READY with unchanged identity, then stopped cleanly (exit 0).
-- Official SHA-256 checks passed for downloaded JDK, Gradle distribution, and Paper server JAR. Local tooling and server data remain ignored.
-- Final `./gradlew clean build --no-daemon --console=plain`: passed with dependency locks enforced; regression XML confirms 4 tests and zero failures/errors.
-- Artifact inspection passed: all five module classes are Java 25 bytecode, manifest uses `xdu.undarubra.esmp.plugin.EsmpPlugin`, SQLite is embedded, Paper classes and old namespace are absent. Generated wrapper JAR matches official SHA-256.
-- `bash -n scripts/run-dev.sh`, canonical-name/package grep, Markdown links/fences/30-section checks, and `git check-ignore` for tooling/runtime/database/build JAR: passed. Removed unused duplicate `.run/smoke/`; all supervised servers are stopped.
+- `./gradlew clean build --write-locks --no-daemon --console=plain`: passed after the runtime cutover; five storage tests passed with zero failures/errors.
+- Final `./gradlew clean build --no-daemon --console=plain`: passed with locks enforced.
+- Actual Paper upgrade using the existing unversioned config and five stored definitions: migrated once, READY with schema 1 / four active definitions / one active-definition instance. MAIN retained UUID `75fa0879-8da5-427f-96cf-6af9c900372a`.
+- Exact-byte comparison verified `config-v1.yml` preserves the original config. SQL comparisons verified every preexisting definition and instance row remained unchanged.
+- Reintroduced FACTORY under config version 2: Paper rejected the unknown definition and disabled ESMP. Removed the test entry and restarted successfully without repeating migration; backup and historical DB rows remained unchanged.
+- Artifact/document checks passed: no Factory classes/module/config in the deployable JAR; 28 numbered sections and 44 decisions; valid local links and balanced fences. Historical-removal notes and one-time migration code are the intentional remaining references.
+- All smoke servers stopped with exit 0. Removed the obsolete module's empty directories and stale build artifacts; `.run/dev/` retains the valid version-2 development environment.
 
 ## Next action
 
-Implement the first Settlement persistence/protection slice: define owning-domain tables and application APIs, then transaction/cache publication and Paper 26.2 action mappings before enabling claims. Reuse the verified foundation; do not introduce placeholder gameplay or synchronous world-thread SQL.
+Implement the first Settlement persistence/protection slice. Define owning tables/application APIs, transaction/cache publication, and Paper 26.2 protection mappings before enabling claims. Do not restore removed industrial scope from Git history without explicit approval.
 
 ## Risks or blockers
 
-- Paper's optional online version check timed out during a smoke run; plugin readiness/status and clean shutdown still succeeded. The wrapper's first network download also failed TLS; its cache was seeded with the separately downloaded and SHA-256-verified official distribution, without disabling TLS checks.
-- Paper/JOML emits an upstream Unsafe deprecation warning on JDK 25. SQLite tests may emit the JDK native-access warning; the server launcher explicitly enables native access.
-- Automated world mutations still require owning-domain recovery/accounting and safety work. Do not deploy this foundation as a claim-protection plugin.
-- Local JDK and Gradle distribution are in ignored `.tooling/`; development server data is in ignored `.run/dev/`. Set JAVA_HOME to an installed JDK 25 on other machines.
+- Config backups and removed-role DB history are retained deliberately; they do not imply runtime support. No automatic physical world deletion is provided.
+- Paper/JOML and SQLite may emit upstream JDK warnings; the initial foundation already documents them. Claims are still not implemented: this JAR must not be advertised as protecting player construction.
+- Local JDK/tooling and server data are ignored. Set JAVA_HOME to JDK 25; the tested development launcher remains `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh` after EULA acceptance.

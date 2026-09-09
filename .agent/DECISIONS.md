@@ -147,7 +147,7 @@ Reason: configured names may be reused after reset; stale records must not targe
 
 ## 2026-09-09 — Cross-realm transfer
 
-- ESMP permits free transfer of items and normal player state between Main, Resource, and Factory realms.
+- ESMP permits free transfer of items and normal player state between Main and Resource realms.
 - Inventory, hotbar, equipment, offhand, Ender Chest, and experience remain shared.
 - ESMP does not implement per-realm inventories or contraband filtering.
 
@@ -202,7 +202,7 @@ Reason: the user selected natural loading to avoid background chunk-loading cost
 
 ## 2026-09-09 — Single modular plugin and SQLite
 
-- Deploy one Paper plugin JAR with one bootstrap and coordinated lifecycle. Core, Civilization, Resource, and Factory remain internal modules with explicit domain boundaries.
+- Deploy one Paper plugin JAR with one bootstrap and coordinated lifecycle. Core, Civilization, and Resource remain internal modules with explicit domain boundaries.
 - Use embedded SQLite for initial application state, durable jobs, and transactional outbox records. Domains own repositories and schemas; Core owns database infrastructure.
 - Coordinate short writes for SQLite's single-writer model; keep database I/O off the world execution context and Paper world access out of database workers.
 - Versioned migrations precede dependent gameplay enablement. Exact driver, schema, migration library, and build tooling remain implementation choices.
@@ -219,35 +219,9 @@ Reason: the user selected simpler single-server installation and operations with
 
 Reason: shared cycles simplify routing and generation identity; advance preparation reduces the closed-access window at the cost of temporary storage and generation load. Exact schedules, evacuation destinations, and retention remain deferred.
 
-## 2026-09-09 — Factory Plot roles and land allocation
-
-- Each Plot has one Owner, Managers, Members, and derived Visitors. Membership belongs to the Plot, not a reusable crew aggregate, and is independent of Settlements and other Plots.
-- Store the Owner on `Plot`, Manager/Member records in `PlotMember`, and chunk membership in `PlotChunk`. Industrial capability policy remains Factory-owned.
-- Players choose locations and claim contiguous edge-connected chunks; no predefined parcel grid is required. Plots remain non-empty and connected while owned, with exclusive chunks and separate adjacent identities.
-- Factory limits, costs, permissions, and release rules do not inherit Settlement defaults; the Settlement 64-chunk cap is not a Factory decision.
-
-Reason: the user chose familiar fixed roles and flexible contiguous land allocation while retaining independent industrial-domain state. Generator detail and policy tuning are deferred.
-
-## 2026-09-09 — Factory role capabilities
-
-- Members may build, break, operate machinery, use controls/containers, and interact with protected entities.
-- Managers additionally manage claims, ordinary Members, and settings. Only Owner manages Managers, transfers ownership, or releases the Plot.
-- Visitors may move through and observe, but cannot operate controls, machinery, containers, or protected entities. Unlike Settlement Visitors, they receive no public-control allowance.
-- Treat movement-triggered control activation separately from movement; implement action-specific protection, not game-mode switching or blanket right-click cancellation.
-
-Reason: industrial controls can affect an entire production line. Allowing observation does not authorize control activation or justify stopping otherwise authorized machinery.
-
-## 2026-09-09 — Factory compatibility and ordinary ticking
-
-- Prefer vanilla-like behavior over aggressive redstone optimization; behavior-changing settings require explicit compatibility evaluation. Paper is not a guarantee of exact vanilla parity.
-- Use ordinary Paper chunk ticking, proximity, and world rules. No initial ESMP machine simulation, power system, or per-machine operating budget.
-- Unloaded chunks do not operate, and ESMP does not simulate catch-up production. Existing no-custom-chunk-loader/fake-player constraints remain.
-
-Reason: the user selected predictable machine behavior and vanilla-style operation instead of another industrial simulation layer. Exact Paper settings and future offline-capacity features remain deferred.
-
 ## 2026-09-09 — Consolidated implementation gates
 
-Preserve accepted gameplay while separating prerequisites by feature. Runtime/build selection precedes the first runnable plugin; SQLite and protection details precede durable claims; Building identity, restoration safety, recovery/accounting, and eligibility configuration precede automated mutation. Resource and Factory features have their own operational verification gates.
+Preserve accepted gameplay while separating prerequisites by feature. Runtime/build selection precedes the first runnable plugin; SQLite and protection details precede durable claims; Building identity, restoration safety, recovery/accounting, and eligibility configuration precede automated mutation. Resource features have their own operational verification gates.
 
 Ownership/history facts must be persisted from the first owning-state changes. Later History milestones concern presentation and rankings, not reconstructing events that were never saved.
 
@@ -268,9 +242,17 @@ The user requested Git scaffolding before code, regular milestone commits, and t
 ## 2026-09-09 — Runnable plugin foundation and package identity
 
 - User-selected package prefix and Gradle group: `xdu.undarubra.esmp`.
-- Five internal Gradle modules produce one Paper JAR: a Paper composition root, infrastructure-only core, and three modules owning their world definitions. No empty gameplay implementations are advertised.
+- Four internal Gradle modules produce one Paper JAR: a Paper composition root, infrastructure-only core, and two modules owning their world definitions. No empty gameplay implementations are advertised.
 - Pin Gradle 9.7.1, Paper server 26.2 build 121 / API `26.2.build.121-stable`, SQLite JDBC 3.53.4.0, and JUnit Jupiter 5.12.2. Java 25 remains the source/runtime target; verification used local Temurin 25.0.4.1+1.
 - SQLite version 1 persists world definitions and physical identities, using transactional JDBC migrations and `PRAGMA user_version`. A bounded serial worker performs database I/O; no migration framework or generic event bus is introduced before a real consumer requires it.
 - Runtime bindings only use already-loaded, explicitly configured names with compatible environments. The plugin creates no worlds and never maps default Nether/End worlds into renewable Resource roles implicitly.
 
 Reason: deliver a working, restart-safe architecture rather than placeholder gameplay. Subsequent domains can extend verified persistence and lifecycle boundaries without making Core own gameplay semantics.
+
+## 2026-09-09 — Factory Realm removed from current scope
+
+The team removed the dedicated Factory Realm and industrial gameplay to reduce implementation workload and avoid RPG-survival balance and performance pressure from survival redstone machinery. Former Plot, Factory role, generator, and machine-operation decisions are superseded; Git history retains them, not the active architecture or backlog.
+
+Remove the module, active world definition, configuration mapping, status entry, and development milestone. Back up and migrate old configs once. Preserve physical worlds and historical registry identities while excluding unsupported definitions from active snapshots and new registration. Core handles definition retirement generically rather than importing Factory business semantics.
+
+No blanket redstone restriction in the remaining worlds is introduced by this scope cut. Such gameplay policy would require its own decision.

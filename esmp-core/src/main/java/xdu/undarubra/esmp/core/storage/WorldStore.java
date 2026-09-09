@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +36,7 @@ public final class WorldStore implements AutoCloseable {
     private volatile StoreSnapshot snapshot = new StoreSnapshot(0, List.of(), List.of());
     private volatile Thread workerThread;
     private Connection connection;
+    private Set<String> activeDefinitionIds = Set.of();
     private boolean initializationRequested;
     private boolean ready;
     private CompletableFuture<Void> closing;
@@ -59,6 +62,7 @@ public final class WorldStore implements AutoCloseable {
         return enqueue(() -> {
             try {
                 validateInput(capturedDefinitions, capturedBindings);
+                activeDefinitionIds = capturedDefinitions.stream().map(WorldDefinition::id).collect(Collectors.toUnmodifiableSet());
                 Files.createDirectories(databasePath.getParent());
                 connection = new org.sqlite.JDBC().connect("jdbc:sqlite:" + databasePath, new java.util.Properties());
                 try (Statement statement = connection.createStatement()) {
@@ -178,6 +182,9 @@ public final class WorldStore implements AutoCloseable {
     }
 
     private WorldInstance persistBinding(WorldBinding binding) throws SQLException {
+        if (!activeDefinitionIds.contains(binding.definitionId())) {
+            throw new SQLException("World definition is not active: " + binding.definitionId());
+        }
         try (PreparedStatement query = connection.prepareStatement(
                 "SELECT * FROM world_instances WHERE bukkit_world_uuid = ?")) {
             query.setString(1, binding.bukkitWorldId().toString());
@@ -210,14 +217,18 @@ public final class WorldStore implements AutoCloseable {
         try (Statement query = connection.createStatement();
                 ResultSet result = query.executeQuery("SELECT * FROM world_definitions ORDER BY world_definition_id")) {
             while (result.next()) {
-                definitions.add(new WorldDefinition(result.getString("world_definition_id"),
-                        result.getString("module_id"), WorldEnvironment.valueOf(result.getString("environment"))));
+                if (activeDefinitionIds.contains(result.getString("world_definition_id"))) {
+                    definitions.add(new WorldDefinition(result.getString("world_definition_id"),
+                            result.getString("module_id"), WorldEnvironment.valueOf(result.getString("environment"))));
+                }
             }
         }
         try (Statement query = connection.createStatement();
                 ResultSet result = query.executeQuery("SELECT * FROM world_instances ORDER BY world_definition_id, created_at")) {
             while (result.next()) {
-                instances.add(instanceFrom(result));
+                if (activeDefinitionIds.contains(result.getString("world_definition_id"))) {
+                    instances.add(instanceFrom(result));
+                }
             }
         }
         return new StoreSnapshot(SCHEMA_VERSION, definitions, instances);
