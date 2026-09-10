@@ -1,83 +1,74 @@
 # ESMP Open Questions
 
-This is a gate-oriented index of `ARCHITECTURE.md` §§26–28, not a second architecture. Settled policies must not be reopened merely because their implementation is unfinished.
+Gate-oriented implementation index of `ARCHITECTURE.md` §§7–11 and 25–28. The user-authored 2026-09-10 MVP revision supersedes the earlier Building-detector-first plan. Accepted boundaries are not open questions merely because code is unfinished.
 
-## Playable Settlement slice completed
+## Implemented baseline versus target
 
-The Java 25/Paper 26.2 plugin implements world identity, Settlement persistence, contiguous claiming, fixed-role and offer workflows, confirmed abandonment, immutable cache publication, historical/outbox records, protection adapters, and private borders.
+The existing Java 25/Paper 26.2 plugin implements legacy Settlement roles/free claims/player naming, contiguous claims, durable offers/history, protection adapters, GameClock and Activity. Core world schema is 1, Civilization schema 2, config version 3. Governor/Citizen/Public, bans, Parcels, paid claims, official-name administration and management items are target architecture, not implemented behavior.
 
-The user has tested Settlements in game. Preserve the native checklist for regressions and deployment-specific integration checks, rather than treating first in-game verification as the next blocker. Chat ergonomics are deferred by explicit user preference.
+Preserve user-confirmed old Settlement coverage and pending `f8a9f50` checks in [TEST_CHECKLIST.md](TEST_CHECKLIST.md). No new target feature should appear there as completed until its implementation ships. Legacy authorization/Activity checks must be explicitly superseded at migration, not silently renamed now.
 
-Current boundaries: normal PvP, ground-item pickup and natural entity movement remain unchanged. Shared game time, migrated offer/border/throttle timers, Activity scoring/caps/hysteresis, pause intervals and status are implemented. Building/decay/repair/reset/production remain disabled.
+## Immediate plan: MVP Settlement/Parcel revision
 
-## Next: Building discovery and stable identity
+Follow §§27–28 without expanding the full economy to satisfy the first dependency:
 
-- Define automatic discovery, split/merge identity and claim-change reconciliation before implementing Building tracking.
-- Future production must consume Activity's persisted pause intervals and define input/output/in-progress-job accounting; no catch-up from paused time.
-- Activity balance testing and explicit migration of an installed Activity policy; initial formula, caps and thresholds are no longer unresolved.
-- Leap/season boundaries and calendar presentation remain open. MAIN source, all-forward-jump counting, rewind re-anchoring, frozen time and normal restart are implemented; paired world/database restore remains separately gated.
+1. **Paid claim transaction and pricing hook.** Define the minimal real ledger/charging contract, payer (wallet/treasury), initial funding, configured marginal area curve, quote/commit consistency, insufficient-funds behavior, retries and atomic debit+claim+history. Define any refund/no-refund behavior before changing unclaim. Existing claims are not retroactively billed without an explicit migration decision. Full markets, Facility production and transport are not prerequisites.
+2. **Governance migration and bans.** Map legacy Manager/Member/Visitor to Governor/Citizen/Public in schema, APIs, commands, cached views, offer workflows and Activity admission. Preserve one Owner and transfer-to-Citizen atomically. Define migration of pending offers, administrator identification/override scope, ban/governance consistency and cache invalidation. Bans deny governed interactions, not movement/information; administrators bypass bans.
+3. **Parcel persistence and geometry.** Implement world-aligned 8×8×8 cells inside one Settlement, no overlap, six-face connectivity, unique local names and zero/multiple Holders. Define bounded geometry/edit budgets, coordinate handling at negative/world-height limits, immutable publication and atomic conflict rejection. A Parcel is not a sovereign claim or Building identity.
+4. **Authorization and complete commands.** Implement administrator → ban → spatial lookup → Parcel/default policy → relation-set resolution for BUILD/INTERACT/CONTAINER/AUTOMATION. Define server default policy, policy-edit authority and source/destination checks for automation. Public can be a Holder; Citizen+Holder is not collapsed to one highest role. Specify durable governance+all-Holder consent, membership/Holder changes during approval, admin dispute handling, and interaction of assigned Parcels with Settlement unclaim/abandonment so governance cannot bypass consent indirectly.
+5. **Management frontends and naming administration.** Management Book/Parcel Wand must call the command/application APIs, not introduce parallel rules. Define issuance/PDC handling, session selections and previews, named off-hand Name Tag matching, cuboid addition of only unparcelled cells, surface removal and atomicity. Assigned geometry still requires consent. Define stable numeric identity alongside/migrated from existing UUIDs, generated labels, qualification/approval, legacy-name treatment, naming charges if enabled, name uniqueness and historical preservation. Do not invent final command grammar from the illustrative §16 examples.
 
-### Building detection research — 2026-09-09, not an algorithm decision
+Activity integration is part of the authorization cutover, not a cosmetic enum rename: Public/Holder credit eligibility/weights, bans, policy revisions, persistent actor limits and installed-policy migration need a coherent contract. Keep game-time/freeze/no-downtime semantics and anti-farming bounds. The current installed-policy-change rejection is not a completed migration mechanism.
 
-The user requested research before implementing discovery and a useful way to evaluate competing algorithms. No detector, large-model dependency, or evaluation-tool implementation is approved by this survey.
+## Next MVP slice: Building identity, geometry and evaluation
 
-Primary sources inspected:
+After Settlement/Parcel revision, define discovery and stable identity across splits/merges/claim changes. The geometry contract now explicitly needs occupied volume, exterior surface, interior volume, openings and structural components/support relations. Recognition and persistent identity remain distinct from Parcel usage permissions.
 
-- [CraftAssist paper](https://arxiv.org/abs/1907.08584), §§5.4–5.5 and 6: connected components of unnatural/player-placed blocks plus a 3D CNN for semantic house parts. Releases 2586 house-building traces and annotations for 2050 houses; these are not crowded-settlement whole-building instance labels. [Implementation](https://github.com/facebookresearch/craftassist/blob/master/python/craftassist/heuristic_perception.py) confirms local connected-component heuristics. Its README targets Minecraft 1.12-era infrastructure, not a drop-in Paper 26.2 module.
-- [Yang et al., 2022, voxel-based room segmentation and space partition](https://www.mdpi.com/2220-9964/11/10/530): occupancy/free/unknown voxels, Euclidean distance transform, inner-sphere graph seeds, wavefront growth, plane partitioning and graph-cut labeling. The authors explicitly report wide-opening undersegmentation and remaining manual correction/efficiency limitations. Room partitions are not whole-building identities.
-- [scikit-image watershed example](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html): marker-based distance-transform watershed separates touching regions; useful reproducible baseline, not a demonstrated Minecraft building detector.
-- [Mask3D](https://github.com/JonasSchult/Mask3D): learned 3D instance segmentation with published checkpoints on ScanNet/ScanNet200/S3DIS/STPLS3D. Its reference stack uses CUDA/MinkowskiEngine; no inspected evidence establishes Minecraft/Paper accuracy or cheap CPU deployment. Minecraft-specific data/features and retraining/evaluation would need investigation.
-- [napari labels](https://napari.org/stable/howtos/layers/labels.html) supports integer-label overlays, slicing and manual annotation; [scikit-image segmentation metrics](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_metrics.html) documents adapted Rand and separate split/merge variation-of-information errors.
+The evaluation corpus must cover the new renovation invariant: a ruined tower enclosed by a new hall must not have obsolete exterior walls repaired through the new interior merely because target cells are air. Label active/damaged/conflicted/retired/historical-only fragments or an equivalent representation; preserve historical evidence while preventing obsolete restoration. Unknown/unloaded data is not air. Block entities require separate policy before any ordinary-block mutation treatment.
 
-Research recommendation [INFERENCE], not accepted design: first build a read-only snapshot/label/replay benchmark, comparing material-filtered components, free-space/geometry partitioning, and a learned candidate on the same scenes. Use exact block states and claim bounds rather than screenshots alone. Distinguish construction evidence, room/region segmentation, whole-building grouping, and persistent identity matching; no one inspected method solves all four.
+### Research leads retained — not a detector selection
 
-Proposed evaluation tool: bounded Paper snapshots exported with world instance, coordinates, block palette/state, claim mask and unknown/unloaded mask; offline napari reference/prediction overlays and slice inspection; reproducible algorithm/config runs; edit-sequence replay. Annotate solid block ownership separately from optional room-air volumes. Measure per-building overlap/precision/recall, false merges/splits, terrain leakage, identity changes under benign edits, and capture/analysis resource costs. Unknown chunks must not be treated as air.
+The 2026-09-09 survey remains evidence for this later slice, not the immediate next implementation. No model, dataset, benchmark tool or detector was deployed, and no ESMP accuracy/latency was measured.
 
-Candidate fixture families: isolated houses, road-connected houses, shared walls, multi-storey/underground structures, open barns/ruins, natural caves/trees/cliffs, renovations/bridges, and cross-Settlement boundaries. Human reference labeling is an offline development activity, not a requirement for player building registration. Resolve ambiguous shared-wall/building-group semantics before treating any model output as authoritative. Hold out real builds and edit sequences; rotated/material-swapped copies must not leak across training and evaluation.
+- [CraftAssist paper](https://arxiv.org/abs/1907.08584), §§5.4–5.5 and 6: unnatural/player-placed connected components plus a 3D CNN for house parts; 2586 house traces and 2050 annotated houses, not crowded-settlement whole-building labels. [Heuristic implementation](https://github.com/facebookresearch/craftassist/blob/master/python/craftassist/heuristic_perception.py) is a Minecraft 1.12-era reference, not a Paper 26.2 module.
+- [Yang et al., 2022](https://www.mdpi.com/2220-9964/11/10/530): voxel occupancy/free/unknown regions, distance transform, inner-sphere graph seeds, wavefront growth and graph cuts. Wide openings can undersegment; manual correction/efficiency limits remain. Rooms are not whole buildings.
+- [Watershed baseline](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html): reproducible distance-transform partitioning, not proven Minecraft detection.
+- [Mask3D](https://github.com/JonasSchult/Mask3D): 3D instance segmentation on other datasets; reference CUDA/MinkowskiEngine stack, no established Minecraft accuracy or inexpensive CPU deployment.
+- [napari labels](https://napari.org/stable/howtos/layers/labels.html) and [segmentation metrics](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_metrics.html): candidate annotation/slice overlays and adapted Rand/split-merge evaluation tooling.
 
-No algorithms/models were run on ESMP scenes and no accuracy or latency claims are established. Some search providers blocked automated requests; the MDPI full method/discussion was recovered through the browser. Retain the initial survey as leads, not an exhaustive literature review.
+Unaccepted research proposal [INFERENCE]: bounded read-only Paper snapshot export, offline reference/prediction overlays, reproducible candidate runs and edit-sequence replay. Compare filtered components, free-space/geometry partitioning and learned candidates. Record world instance, block states, claims/Parcels, unavailable masks and relevant revisions. Measure block assignment, terrain leakage, false merges/splits, interior/exterior and renovation errors, identity stability and capture/analysis cost. Offline annotation does not make player registration mandatory. Hold out real builds and avoid transformed-copy train/test leakage.
 
-## Before enabling Facilities and cultural capabilities
+## MVP durable mutation, Decay and Repair gates
 
-- Concrete four-stage upgrade criteria, cultural qualification and higher-stage unlocks; Village-or-certified-landmark basic teleport access is settled.
-- Facility/Building linkage, workforce checks and Repair sharing, certificate scope/records/rechecks/reactivation, and ownership/claim-change handling.
-- Shared production-capacity units, allocation authority and stage amounts; a Settlement-wide ceiling is settled.
-- Recipes, eligible mined inputs, stale-state validity, inputs/output reservations and bounded offline accounting. Functional shared housing and affected-capability suspension are settled.
+- Journal/checkpoint implementation, paired world/database reconciliation, expected-state and geometry-level conflict preservation, idempotent material accounting, and naturally loaded/budgeted work.
+- Whole-Building Repair as the initial player-facing scope, internally localized batches, and clear baseline retirement under renovation. Block entities cannot be handled as ordinary blocks until safe policy exists.
+- Small material/profile and weathering/integrity sets; DROP/TOPPLE/CAVE_IN are initial candidate failure modes, not a full-physics commitment. System decay must not generate ordinary collectible drops.
+- Coarse localized due analysis for ordinary wild structures and lightweight infrastructure segments; define eligibility and promotion to richer persistent tracking. No global full-world scan.
+- Repair/villager integration and qualifying Era thresholds. **No automatic inactivity/ruin-based Settlement release in the MVP**, even after physical decay exists.
 
-## Before enabling Economy and Transport
+## Economy / Facilities / Transport / Resource gates
 
-- Stable ledger operations/audit, issuance-budget allocation/replenishment and Owner-approved operating-budget controls.
-- Physical depot/stall stock permissions, deposit/withdrawal and purchase/collection recovery, crash-safe item/payment settlement, and ownership changes.
-- Exact NPC buy/sell catalogues including vanilla farm outputs, prices/spreads/quote behavior, quantities and replenishment. Global bounded bands, finite stock and separate lists are settled.
-- Natural regional profiles/modifier values and exact seasonal effects; keep underlying regional identity independent from seasonal cosmetics.
-- Route corridors/land permissions/targeted invalidation, bulk weights and throughput windows, mode/distance rates, reservations and payment recovery.
-- Bounded destination storage, held-cargo recovery and original-recipient access after endpoint/ownership changes; no new departures after disruption and preserved existing shipment schedules are settled.
-- Teleport cargo classification/portable-container treatment, fee presentation, safe destinations and payment recovery. Shared-storage bypasses are accepted.
+- Preserve existing accounting/recovery gates beyond the minimal claim-charging dependency: physical depot/stall permissions, stock/item conversion, audited wallets/treasuries, issuance/operating budgets, transactional quotes/payments, ownership changes and restart recovery.
+- Initial Facilities remain a bounded simple catalogue with automatic functional basics and reviewed higher certification. Define Building/Facility linkage, workforce/housing checks, capacity allocations, recipes/mined inputs, qualification reactivation and production pause-interval accounting.
+- Define stage/culture criteria and later unlocks; Village-or-certified-landmark basic teleport qualification remains accepted. Culture does not independently increase production capacity or redefine Era.
+- Server Trade has accepted finite stock, global bounded bands and separate buy/sell lists; catalogues, farm-output eligibility, spreads and replenishment values remain open. Physical stalls come before advanced order/delivery systems.
+- Routes need corridor/land/Parcel authorization, targeted invalidation, bulk/throughput/rates, bounded held cargo, original-recipient access and payment recovery. Disruption blocks new departures, not existing shipment schedules. Teleport needs safe destinations and understandable cargo fees; shared-storage bypasses remain accepted.
+- Shared Resource cutover needs evacuation, retired login/respawn/portal handling, generation/retention policy and verified paired backup/restore. MAIN is the clock source, not resettable Resource instances.
+- Calendar leap/season boundaries and safe bounded native effects remain open; regional identity stays separate from cosmetics. Full seasonal palette techniques remain deferred.
 
-## Before enabling native seasonal mutations
+## Required next major phase after stable MVP: dynamic Settlement cycles
 
-- Calendar reconciliation above and reversible loaded-area effects that preserve player builds, expected state, ownership, and Building baselines.
-- Bounded scheduling and world/database reconciliation; offline production is not permission to simulate physical mutations in unloaded chunks.
+This phase is mandatory, not optional or dependent on disasters. Civic Capacity/maintenance capacity, area/Building/Facility/infrastructure demand, selective preservation, mature/new-city incentives and gradual peripheral release are candidate mechanisms. Define formulas, UI, ownership guarantees, Holder consent/rights, release timing, contiguity, reclamation and protection of historic cores before enabling any automatic ownership loss.
 
-## Before enabling automated Building mutation
+MVP Settlements remain persistent unless explicitly abandoned or changed through an authorized lifecycle operation. Do not reinterpret existing Activity INACTIVE or future Building RUINED as permission to release claims.
 
-- Automatic discovery algorithm, stable identity across split/merge and claim changes, and historical linkage during partial reclaim.
-- Block-entity/inventory baseline representation and restoration safety; inherited structures use current-state baselines and authorized edits automatically revise targets.
-- Durable journal/checkpoint implementation, world-save/database reconciliation, idempotent material accounting, and transactional outbox storage/retry scheduling.
-- Activity/ruin aggregation and eligibility configuration; meaningful Visitor credit is very small, passersby earn none, and recovered activity stops further decay without healing.
-- Repair/workforce integration and qualifying restoration-cycle rules for Era advancement.
+## Further world evolution and open disaster design
 
-## Before enabling Resource operations
+- Coarse Anthropogenic Landforms are an accepted later direction for significant excavations, fills, lakes, hills or canals; incidental edits are not full persistent terrain records and Buildings remain Building data. Fixed 8×8×8 is preferred initially; significance/material rules, simulation, erosion and adaptive refinement remain open.
+- Chunk retirement/regeneration needs explicit safeguards for Parcels, Buildings, entities, POI, infrastructure, history and player terrain changes.
+- Disasters, sea-level shifts, Disaster Operators/Fields and Epoch transitions remain open/optional. They are not prerequisites for the required dynamic-cycle phase.
+- Other deferred refinements: exemptions/cooldowns, presentation/localization/rankings, alliances, advanced Repair scopes and policy-migration UX. Resolve each at its own gate without inventing new MVP systems.
 
-- Resource reset interval, generation settings, pre-generation radius, evacuation destination, offline/respawn/portal handling, and retention policy. Shared cycles and advance preparation are settled.
-- Coordinated world/database backup and restore verification, including recovery during Resource cutover.
+## Canonical ambiguities to resolve at the affected implementation gate
 
-## Deferred tuning and optional features
-
-- Administrator exemptions, cooldowns, and remaining expansion policy.
-- Activity weights/caps, decay curves/probabilities/material rules, vegetation, repair speed/material values, and workload budgets; configure safe eligibility before enabling affected features.
-- Particle styles, command/Dialog presentation, localization, historical UI, rankings, and Era names.
-- Alliance relationships.
-- Full seasonal grass/foliage palette techniques and compatibility; explicitly deferred beyond the initial native-effects scope.
-
-These details do not block the initial plugin or claim slice. Resolve them when their feature is implemented; do not enable an incomplete or unsafe feature to avoid its gate.
+The user-authored architecture was not rewritten during this notes synchronization. The specific §§7, 23 and 25–28 govern the MVP: old broad civilization-cycle diagrams and the generic Release glossary should not be read as enabling automatic MVP release. The illustrative `/settlement create <name>` example is not a final naming contract. Numeric Settlement identity versus the existing UUID schema, assigned-Parcel interactions with parent claim release, and exact ban/administrator/policy-edit rules still require implementation decisions; do not silently fill them with legacy behavior.

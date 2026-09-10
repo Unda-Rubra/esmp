@@ -4,6 +4,12 @@ Purpose: accumulate completed implementation milestones and what the user should
 
 Maintenance: append each completed gameplay change with its commit, player-visible checks and known limits. Keep automated/agent verification separate from user acceptance. Check boxes only after the user reports the corresponding result; carry unresolved checks through handoffs. Retain this temporary document until the user confirms the batch is tested and requests removal or archival.
 
+## Architecture revision notice — 2026-09-10
+
+The checks below target the **implemented `f8a9f50` baseline**, including legacy Manager/Member/Visitor authorization, current player naming and existing claim behavior. They are not acceptance evidence for the new MVP target. Paid claims, Governor/Citizen/Public+BANNED, Parcels/Holders, Management Book/Parcel Wand, and administrator-mediated naming are unimplemented and must not be marked complete here.
+
+Keep all existing pending user checks and prior user-confirmed Settlement results. When the corresponding migration ships, append its commit and new checks and explicitly supersede affected legacy expectations. Inactivity-driven automatic release is outside the MVP; the dynamic-cycle phase is required after the MVP, not enabled by current Activity. The current architecture synchronization is documentation-only and adds no completed gameplay milestone.
+
 ## Completed implementation awaiting user acceptance
 
 | Milestone | Commit | Agent verification | User acceptance |

@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The plugin implements playable Settlements on Paper 26.2: persistent claims/roles/offers, confirmed abandonment, history/outbox, action-specific protection, and private borders. Building discovery, Activity, decay/repair, automatic release, and Resource resets remain disabled.
+The plugin implements the legacy Settlement role/claim workflows, shared GameClock and Activity on Paper 26.2. The target architecture now requires paid claims, Governor/Citizen/Public plus bans, Parcels, tools and naming administration; these changes are not yet implemented. Building discovery, decay/repair, Resource resets and economy remain disabled. Automatic Settlement release is outside the MVP; dynamic cycles are required immediately after a stable MVP, not an optional someday feature.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
@@ -17,7 +17,7 @@ Use Java source under `xdu.undarubra.esmp`, JDK 25, and Gradle Kotlin DSL. Pins:
 Before non-trivial work, read:
 
 1. `README.md` for the human entry point.
-2. `ARCHITECTURE.md`, especially Current Decisions, Intentionally Unresolved, and Next Architecture Work.
+2. `ARCHITECTURE.md`, especially Current Decisions, Deferred and Open Design, Recommended Development Order, and Immediate Architecture Work.
 3. `.agent/DECISIONS.md` for rationale.
 4. `.agent/OPEN_QUESTIONS.md` for unresolved designs.
 5. `.agent/HANDOFF.md` for the current state.
@@ -27,6 +27,8 @@ Before non-trivial work, read:
 - **Civilization** is the overall persistent Main World gameplay environment/domain. It is not a player-owned aggregate.
 - **Settlement** is the Main World aggregate for ownership, members, roles, permissions, activity, and claimed chunks.
 - **Claim** is the protected chunk relationship and the operation that changes it.
+- **Parcel** is a 3D permission subdivision within one Settlement, using world-aligned 8×8×8 cells; not a sovereign claim or the removed Factory Plot.
+- Target governance vocabulary is Owner / Governor / Citizen / Public; Holder is an independent Parcel relationship and BANNED is a negative Settlement-local override. Existing Manager/Member/Visitor code is legacy awaiting migration, not an alias to retain.
 - Use `world_definition_id` for a stable configured world role.
 - Use `world_instance_id` for anything tied to blocks, chunks, entities, or coordinates.
 
@@ -41,24 +43,26 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Settlement claims protect direct and indirect world changes.
 - Each owned Settlement is one four-directionally contiguous chunk component; diagonal contact alone does not connect chunks.
 - Adding a chunk must preserve contiguity, and unclaiming must not split the Settlement.
-- Ordinary unclaim must not remove the last Settlement chunk, even for the Owner. Ending the claim requires the Owner's explicit abandon operation; Managers cannot bypass this through unclaiming.
+- Ordinary unclaim must not remove the last Settlement chunk. Ending ownership requires explicit confirmed Owner abandonment or an authorized administrative lifecycle operation.
 - Adjacent Settlements remain separate identities and never merge automatically, including when they share an owner.
-- Settlement chunk claiming is initially free. The configurable per-Settlement chunk cap is enabled by default at 64 chunks and may be changed or disabled by server policy.
-- Settlement roles are fixed: exactly one Owner while owned, zero or more Managers, zero or more Members, and every other player as a derived Visitor.
-- Store the Owner only in `Settlement.owner_uuid`, store Managers and Members in `SettlementMember`, and never persist Visitor memberships.
-- Custom Settlement roles are not supported.
-- Owner has every Settlement capability and exclusively controls Manager promotion/demotion, ownership transfer, and abandon/release.
-- Managers may claim/unclaim, manage ordinary Members and settings, build, interact, use protected resources, and repair; they cannot manage Managers or exercise ownership-only operations.
-- Members may build, break, interact, use containers, use protected entities or machines, and repair; they cannot manage claims, people, roles, or settings.
-- Visitors may enter and use the fixed safe-public-interaction category but cannot build, use protected inventories, interact with protected entities, or directly use machine interfaces.
-- Implement Visitor access with action classification, never an actual game-mode switch or blanket right-click cancellation.
-- Authorization defaults to deny for non-members unless an explicit permission allows the action.
+- Target claims consume currency on creation/expansion through a marginal price curve increasing with current claimed area. Existing free claims are legacy behavior awaiting migration. The independent configurable chunk cap remains available.
+- The target has one Owner, zero or more Governors and Citizens, and derived Public users. Store Owner only in `Settlement.owner_uuid`, Governors/Citizens in `SettlementMember`, and never persist Public memberships. No duplicate legacy role names after cutover.
+- Ownership transfer preserves consent/atomicity; the former Owner becomes Citizen. Existing ownership-only governance restrictions remain subject to the canonical Settlement/Parcel rules, not a blanket authorization bypass.
+- Owner/Governor may ban non-administrators locally. Banned players retain movement/informational access but cannot perform Settlement/Parcel-governed interactions; server administrators bypass Settlement bans.
+- Authorization order is administrator override, Settlement ban, world/Settlement lookup, Parcel lookup, applicable policy, then actor relations. Relations are a set: any allowed applicable relation grants the action unless an earlier negative override applies.
+- Parcel policy overrides ordinary Settlement defaults but cannot grant governance powers. Expose only BUILD / INTERACT / CONTAINER / AUTOMATION; no per-block ACLs.
+- Unparcelled space uses a server-defined default policy. Public/Holder access is policy-driven, not a game-mode switch, blanket cancellation, or fixed adventure-like Visitor rule.
+- Parcel cells must lie inside one Settlement, not overlap, and form a six-face-connected set. Names are unique within a Settlement. Zero/multiple Holders are valid; Public players may hold Parcels without becoming Citizens.
+- Unassigned Parcels are governable by Owner/Governors. Assigned Parcel revocation, Holder removal or boundary changes require governance and all Holders to agree; neither side may reshape unilaterally. Administrators resolve disputes. Rent/contracts are not modeled.
+- Source and destination of protected automation must both authorize the operation; same Settlement does not imply same Parcel policy.
+- Commands must cover all operations. Management Book and Parcel Wand are replaceable convenience frontends with no item-owned authority. Wand + named off-hand Name Tag selects aligned 8×8×8 cells; preview then atomically validate/commit. Surface-cell deletion must preserve connectivity.
+- Initial Settlements use stable numeric identity/generated labels; official naming and every rename are administrator-mediated after qualification. Name/ID migration from existing data is an implementation gate, not permission to delete historical names.
 - Settlement writes go through the Paper runtime coordinator, which reserves affected territory until committed SQL is published to the main-thread index. Do not add mutation callers that bypass this publication gate.
 - Fatal persistence failures and hot unloading stop the server rather than dropping protection. Use full restarts; no reload command or plugin-manager hot reload.
 - Activity is settlement-local and does not require scheduled writes to every inactive settlement.
-- Meaningful Visitor interaction earns very small activity credit relative to the team; passersby earn none. Activity credit grants no extra permissions.
+- Migrate Activity authorization to Governor/Citizen/Holder/Public and bans without increasing farming potential. Existing Visitor weights are legacy; Public/Holder weights and their persisted-policy migration still need definition.
 - Sufficient activity recovery stops further decay without repairing damage or advancing Era; queued mutations must revalidate activity eligibility.
-- Confirmed Owner abandonment may release intact or active Settlements. Automatic release requires inactivity and ruin; release preserves history and does not mutate buildings.
+- MVP Settlements remain owned/protected regardless of inactivity or ruin unless explicitly abandoned or changed by an authorized lifecycle operation. Automatic peripheral release/Civic Capacity belongs to the required post-MVP dynamic-cycle phase; its rules remain unresolved.
 - Reclaim uses normal chunk claiming and the claiming Settlement's team, never restored former permissions. History survives, but the active restoration baseline starts from the inherited structure's current state; reclaim does not repair or advance Era.
 - Never scan every block in every settlement on a global timer.
 - Never access or mutate Paper world state from an arbitrary asynchronous thread.
@@ -66,6 +70,9 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Decay and Repair wait for naturally loaded chunks; do not load or retain chunks solely to progress jobs. Pending work survives restart.
 - Preserve concurrent player edits and replan affected outdated work; unaffected valid work may continue.
 - Durable events use a transactional outbox with at-least-once delivery and idempotent consumer effects. Reconcile world-save and DB progress independently rather than assuming exactly-once mutation.
+- Building geometry must represent occupied/interior/exterior regions, openings and structural/support relationships. Renovation may conflict/retire old restoration fragments; expected-air checks alone cannot justify restoring obsolete walls through a new interior.
+- Block entities require a dedicated safe policy; system decay creates no ordinary collectible drops. Start structural decay with bounded material profiles/failure modes, not full physics; wild structures/infrastructure use coarse localized/lightweight models.
+- All gameplay timing uses shared game time. Freeze with `advance_time=false`; count forward sleep/command jumps, re-anchor rewinds, and never accrue downtime.
 
 ## How to change architecture
 
@@ -75,7 +82,7 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 4. Remove the corresponding item from `.agent/OPEN_QUESTIONS.md`.
 5. Update `README.md` only when the human onboarding path or settled summary changes.
 
-The architecture draft is canonical. `.agent` files summarize it; they must not create a second architecture.
+The architecture is canonical. `.agent` files summarize it; they must not create a second architecture. Older decision-log entries are historical where the current architecture explicitly supersedes them. Preserve the distinction between implemented legacy behavior and the accepted target.
 
 ## How to change code
 
@@ -99,6 +106,7 @@ Use `./gradlew build` for compilation, packaging, and tests, and `./gradlew :esm
 Before ending non-trivial work, update `.agent/HANDOFF.md` with:
 
 Keep the handoff a current snapshot, not an append-only transcript. Retain durable rationale in `.agent/DECISIONS.md` and distinguish actual server/client evidence from unit tests or unverified UI behavior.
+- Maintain `.agent/TEST_CHECKLIST.md` with completed implementation and pending user acceptance. Do not add unimplemented target features as completed or replace legacy checks with unimplemented semantics; append/update them when the corresponding migration actually ships.
 
 ```text
 # Current Handoff
