@@ -6,9 +6,8 @@ description: Persistent-world SMP with protected Settlements and durable members
 load: POSTWORLD
 commands:
   esmp:
-    description: Inspect ESMP operational state
-    usage: /esmp status
-    permission: esmp.admin
+    description: Request ESMP tools or inspect operational state
+    usage: /esmp tools <parcel_wand|management_book> | /esmp status
   settlement:
     description: Claim and manage a protected Settlement
     usage: /settlement help

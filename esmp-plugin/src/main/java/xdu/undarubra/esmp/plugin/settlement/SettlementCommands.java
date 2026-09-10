@@ -52,7 +52,6 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "unban",
                     "bans",
                     "certify",
-                    "tools",
                     "parcel",
                     "bypass",
                     "help");
@@ -96,10 +95,6 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             null,
                             new SettlementRuntime.Reservation(world, chunk),
                             () -> runtime.service().create(actor, world, chunk));
-                }
-                case "tools" -> {
-                    exact(args, 2, "tools <book|stick>");
-                    runtime.tools().issue(player, args[1]);
                 }
                 case "parcel" -> runtime.tools().command(player, args);
                 case "price" -> {
@@ -615,8 +610,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/settlement rename <settlement> <official-name> | certify <settlement>"
                             + " <true|false> (admin)",
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
-                        "/settlement tools <book|stick> | parcel help | abandon <settlement> |"
-                            + " confirm <offer-id>")) {
+                        "/esmp tools <parcel_wand|management_book>",
+                        "/settlement parcel help | abandon <settlement> | confirm <offer-id>")) {
             player.sendMessage(Component.text(line));
         }
     }

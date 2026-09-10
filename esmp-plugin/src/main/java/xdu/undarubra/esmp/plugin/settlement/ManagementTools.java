@@ -70,9 +70,15 @@ public final class ManagementTools implements Listener, AutoCloseable {
         renderUntil.remove(player);
     }
 
-    public void issue(Player player, String kind) {
-        if (!kind.equals("book") && !kind.equals("stick"))
-            throw new SettlementException("Use tools book or tools stick");
+    public static final List<String> TOOL_NAMES = List.of("parcel_wand", "management_book");
+
+    public void issue(Player player, String toolName) {
+        String kind = switch (toolName.toLowerCase(Locale.ROOT)) {
+            case "parcel_wand" -> "stick";
+            case "management_book" -> "book";
+            default -> throw new SettlementException(
+                    "Usage: /esmp tools <parcel_wand|management_book>");
+        };
         for (var item : player.getInventory().getContents())
             if (kind.equals(kind(item)))
                 throw new SettlementException("You already have this tool");
@@ -108,7 +114,8 @@ public final class ManagementTools implements Listener, AutoCloseable {
         player.getInventory().addItem(item);
         lastIssue.put(player.getUniqueId(), now);
         player.sendMessage(
-                Component.text("Issued " + kind + "; replaceable, no transferable authority."));
+                Component.text("Issued " + toolName.toLowerCase(Locale.ROOT)
+                        + "; replaceable, no transferable authority."));
     }
 
     private String kind(ItemStack item) {
@@ -201,7 +208,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         .append(link("Create here", "/settlement create", false))
                         .append(link("My Settlements", "/settlement list", false))
                         .append(link("First claim price", "/settlement price", false))
-                        .append(link("Parcel Wand", "/settlement tools stick", false));
+                        .append(link("Parcel Wand", "/esmp tools parcel_wand", false));
         if (settlement == null) {
             player.openBook(
                     Book.builder()

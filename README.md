@@ -43,7 +43,7 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 1. 已运行的开发服先输入 `stop`，不要热重载。阅读并接受 [Minecraft EULA](https://aka.ms/MinecraftEULA)，运行 `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh`。
 2. 等到控制台出现 `ESMP READY` 和 `Settlement protection enabled`。使用 **Minecraft Java 26.2** 连接 **`127.0.0.1:25579`**。
 3. 输入 `/settlement create`，记下返回编号。走到相邻区块后输入 `/settlement price 1` 和 `/settlement claim 1`；将示例 `1` 换成自己的编号。
-4. 输入 `/settlement tools book` 获取管理书；等待至少 40 个推进中的游戏刻后，用 `/settlement tools stick` 获取 Parcel 木棍。
+4. 输入 `/esmp tools management_book` 获取管理书；等待至少 40 个推进中的游戏刻后，用 `/esmp tools parcel_wand` 获取 Parcel 木棍。普通玩家可以领取，不需要 OP。
 5. 完成后控制台 `stop`。再次启动后，角色、Parcel、提案、时钟与活跃度继续保留。
 
 本机已有工具链可使用：
@@ -115,14 +115,14 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 | 禁令 | `/settlement ban\|unban <聚落> <玩家>`、`bans <聚落>` |
 | 邀请/确认 | `/settlement offers`、`accept\|decline\|cancel <offer-id>`、`abandon <聚落>`、`confirm <offer-id>` |
 | 命名/历史 | `/settlement certify <聚落> <true\|false>`、`rename <聚落> <正式名>`（均需管理员）、`history <聚落或历史UUID>` |
-| 工具 | `/settlement tools <book\|stick>`、`parcel help` |
+| 工具 | `/esmp tools <parcel_wand\|management_book>`；操作帮助为 `/settlement parcel help` |
 | Parcel 选择 | `/settlement parcel pos1\|pos2 [x y z]`、`clear`、`add <聚落> <名>`、`commit` |
 | Parcel 查看 | `/settlement parcel list <聚落>`、`info\|view <聚落> <Parcel>` |
 | Parcel 修改 | `/settlement parcel remove <聚落> <Parcel> <x y z>`、`delete <聚落> <Parcel>`、`rename <聚落> <Parcel> <新名>` |
 | Holder/权限 | `/settlement parcel holders <聚落> <Parcel> <玩家逗号列表\|none>`、`policy <聚落> <Parcel> <权限域> <关系逗号列表\|none>` |
 | Parcel 提案 | `/settlement parcel requests <聚落>`、`approve\|reject <聚落> <提案UUID>` |
 
-表格省略前缀的命令继承所在行的 `/settlement` 或 `/settlement parcel`。管理命令由玩家在游戏内执行；控制台使用 `esmp status` 查看状态。
+表格省略前缀的命令继承所在行的 `/esmp`、`/settlement` 或 `/settlement parcel`。工具只能由玩家领取，使用 `esmp.settlement` 权限（默认开放）；`/esmp status` 仍仅限管理员。旧领取入口和物品材质名参数不再作为别名保留；已有工具继续可用。
 
 ## 活跃度与保护边界
 

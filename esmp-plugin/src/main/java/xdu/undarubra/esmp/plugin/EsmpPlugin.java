@@ -6,6 +6,7 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldLoadEvent;
@@ -15,6 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import xdu.undarubra.esmp.civilization.CivilizationWorlds;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.settlement.SettlementPolicy;
+import xdu.undarubra.esmp.civilization.settlement.SettlementException;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.core.world.StoreSnapshot;
@@ -22,6 +24,7 @@ import xdu.undarubra.esmp.core.world.WorldBinding;
 import xdu.undarubra.esmp.core.world.WorldDefinition;
 import xdu.undarubra.esmp.core.world.WorldInstance;
 import xdu.undarubra.esmp.plugin.settlement.ClaimProtection;
+import xdu.undarubra.esmp.plugin.settlement.ManagementTools;
 import xdu.undarubra.esmp.plugin.settlement.SettlementCommands;
 import xdu.undarubra.esmp.plugin.settlement.SettlementRuntime;
 import xdu.undarubra.esmp.resource.ResourceWorlds;
@@ -427,12 +430,37 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("esmp.admin")) {
-            sender.sendMessage(Component.text("You do not have permission to inspect ESMP."));
+        if (args.length > 0 && args[0].equalsIgnoreCase("tools")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(Component.text("Tool requests must be made by a player."));
+                return true;
+            }
+            if (!player.hasPermission("esmp.settlement")) {
+                player.sendMessage(Component.text("You do not have permission to request ESMP tools."));
+                return true;
+            }
+            if (args.length != 2) {
+                player.sendMessage(Component.text("Usage: /esmp tools <parcel_wand|management_book>"));
+                return true;
+            }
+            if (settlements == null || !settlements.ready()) {
+                player.sendMessage(Component.text("ESMP tools are initializing or unavailable."));
+                return true;
+            }
+            try {
+                settlements.tools().issue(player, args[1]);
+            } catch (SettlementException | IllegalArgumentException rejected) {
+                player.sendMessage(Component.text(rejected.getMessage()));
+            }
             return true;
         }
         if (args.length != 1 || !args[0].equalsIgnoreCase("status")) {
-            sender.sendMessage(Component.text("Usage: /" + label + " status"));
+            sender.sendMessage(Component.text(
+                    "Usage: /esmp tools <parcel_wand|management_book> | /esmp status (admin)"));
+            return true;
+        }
+        if (!sender.hasPermission("esmp.admin")) {
+            sender.sendMessage(Component.text("You do not have permission to inspect ESMP."));
             return true;
         }
         sender.sendMessage(
@@ -502,10 +530,18 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
     @Override
     public List<String> onTabComplete(
             CommandSender sender, Command command, String alias, String[] args) {
-        if (sender.hasPermission("esmp.admin")
-                && args.length == 1
-                && "status".startsWith(args[0].toLowerCase(java.util.Locale.ROOT))) {
-            return List.of("status");
+        boolean toolsAllowed = sender instanceof Player && sender.hasPermission("esmp.settlement");
+        if (args.length == 1) {
+            var choices = new ArrayList<String>();
+            if (toolsAllowed) choices.add("tools");
+            if (sender.hasPermission("esmp.admin")) choices.add("status");
+            String prefix = args[0].toLowerCase(java.util.Locale.ROOT);
+            return choices.stream().filter(choice -> choice.startsWith(prefix)).toList();
+        }
+        if (toolsAllowed && args.length == 2 && args[0].equalsIgnoreCase("tools")) {
+            String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
+            return ManagementTools.TOOL_NAMES.stream()
+                    .filter(name -> name.startsWith(prefix)).toList();
         }
         return List.of();
     }

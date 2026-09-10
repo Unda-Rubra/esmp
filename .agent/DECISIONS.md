@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The current `ARCHITECTURE.md` takes precedence; older entries describe historical decisions where superseded. In particular, legacy free claims, Manager/Member/Visitor access, player-controlled naming, blanket ownership capabilities and automatic-release scheduling below are not the new MVP target.
 
+## 2026-09-10 — Semantic tool requests under the ESMP root command
+
+The user corrected the desired spelling to plural `/esmp tools`. Use `parcel_wand` and `management_book`, not material names. Remove the prior Settlement issuance route; do not add singular or material-name aliases. Update root/subcommand completion, help and management-book links together.
+
+Root registration no longer globally requires `esmp.admin`: player tool issuance checks the existing default-enabled `esmp.settlement` permission and readiness, while status retains its administrator check. Console tool requests are rejected. Persisted item tag values remain unchanged because this is a command-interface cutover, not an item-data migration; old tools still work and count for duplicate prevention.
+
+Reason: make server-provided tools discoverable under a semantic, native ESMP command without accidentally restricting ordinary players or broadening administrator diagnostics access.
+
 ## 2026-09-10 — Settlement/Parcel implemented with numeric-only claim pricing
 
 The user explicitly postponed real currency: use numbers now and do not consume currency/items until a currency system is selected. This supersedes the earlier immediate real-ledger requirement. Claim price is configurable base + step×current area (initially 100 + 25×area); committed history records the value and `charged=false`. No mock wallet, funding, deduction or refund is introduced.
