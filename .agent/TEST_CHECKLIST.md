@@ -4,11 +4,11 @@ Purpose: accumulate completed implementation milestones and what the user should
 
 Maintenance: append each completed gameplay change with its commit, player-visible checks and known limits. Keep automated/agent verification separate from user acceptance. Check boxes only after the user reports the corresponding result; carry unresolved checks through handoffs. Retain this temporary document until the user confirms the batch is tested and requests removal or archival.
 
-## Architecture revision notice — 2026-09-10
+## Version coverage
 
-The checks below target the **implemented `f8a9f50` baseline**, including legacy Manager/Member/Visitor authorization, current player naming and existing claim behavior. They are not acceptance evidence for the new MVP target. Paid claims, Governor/Citizen/Public+BANNED, Parcels/Holders, Management Book/Parcel Wand, and administrator-mediated naming are unimplemented and must not be marked complete here.
+Sections 1–5 preserve the `f8a9f50` clock/Activity baseline checks and their pending user outcomes. Its Manager/Member/Visitor, player-naming and config-version-3 expectations are historical. **The current Settlement/Parcel implementation is `d14bb63`; use section 6 for the new roles, numeric-only prices, tools, consent, naming and config/schema migration.** No automated result below is a user sign-off.
 
-Keep all existing pending user checks and prior user-confirmed Settlement results. When the corresponding migration ships, append its commit and new checks and explicitly supersede affected legacy expectations. Inactivity-driven automatic release is outside the MVP; the dynamic-cycle phase is required after the MVP, not enabled by current Activity. The current architecture synchronization is documentation-only and adds no completed gameplay milestone.
+Inactivity-driven automatic release remains outside MVP. Existing pending checks are retained rather than marked passed or silently rewritten. Real currency integration is deliberately absent: current prices are numbers, not deductions or mock balances.
 
 ## Completed implementation awaiting user acceptance
 
@@ -17,6 +17,10 @@ Keep all existing pending user checks and prior user-confirmed Settlement result
 | Shared persisted game clock | `f8a9f50` | Build/regressions; live forward jumps, rewind, freeze, changed tick rate, exact frozen restart and bed sleep | Pending |
 | Existing gameplay timers migrated to ticks | `f8a9f50` | Build; existing offer tests and legacy deadline conversion regression; plugin boot | Pending |
 | Settlement Activity scoring and status | `f8a9f50` | Build/regressions; live real block credit, inactivity/grace, persisted status | Pending |
+| Numeric claim pricing and stable numbering | `d14bb63` | Build/domain tests; live 100/125 prices with explicit not-charged output | Pending |
+| Governor/Citizen/Public and local bans | `d14bb63` | Role migration tests; live promotion, ban-driven inventory revocation and restart | Pending |
+| Parcel geometry, policies and Holder consent | `d14bb63` | Six new domain regressions; live Public Holder access, mutual deletion and two-sided hopper checks | Pending |
+| Management book/stick and naming administration | `d14bb63` | Real book-open packet, named-stick selection/preview/commit, admin naming and restart; native visual appearance still pending | Pending |
 
 Earlier Settlement claiming/protection/team functionality was already user-confirmed. Its existing [README checklist](../README.md#两名玩家的验证清单) remains available for optional regressions; do not reopen it as untested work.
 
@@ -60,3 +64,36 @@ Abrupt failure can lose uncheckpointed clock-only progress and uncommitted/coale
 ## Later completed milestones
 
 Append completed work here as implementation proceeds. Do not add planned Building/Facility/decay features until they actually exist.
+
+## 6. Settlement/Parcel acceptance — `d14bb63`
+
+Use disposable copied data and a native 26.2 client. Keep ordinary governance test accounts non-OP: server administrators can override Parcel consent, which would invalidate a test of normal Holder rights. Replace example `1` with the returned Settlement number.
+
+### Numeric prices and naming
+
+- [ ] Run `/settlement create`, then `/settlement price 1` and claim an adjacent chunk. Defaults show 100 for creation and 125 for the next chunk; no items, real currency or artificial wallet balance are deducted. History records the quoted number and `charged=false`.
+- [ ] New Settlements start as `S#number`. An ordinary Owner cannot rename one. An administrator uses `/settlement certify 1 true` and `/settlement rename 1 Harbor`; number/UUID stay stable and history retains the naming event. Existing pre-migration names remain usable.
+
+### Roles and bans
+
+- [ ] Invite/accept produces Citizen; Owner promotion plus recipient acceptance produces Governor. Governor cannot promote other Governors or perform ownership-only operations. Public users remain nonmembers even when holding a Parcel.
+- [ ] A Public Holder opens an allowed Parcel container. Owner/Governor bans them: the inventory closes, subsequent governed interactions are denied, but walking and informational commands still work. Unban restores ordinary policy; identified administrators cannot be banned.
+
+### Tools and geometry
+
+- [ ] `/settlement tools book` opens useful current command links. `/settlement tools stick` supplies the marked stick; a named off-hand Name Tag plus left/right clicks selects a named Parcel. Passing either item to another player does not grant governance. Duplicate issuance and crafting/anvil/grindstone conversion are blocked as documented.
+- [ ] Preview and commit an 8×8×8-aligned Parcel, including negative coordinates. Face-connected extensions succeed; diagonal-only/disconnected/outside-Settlement selections fail atomically. Existing other-Parcels' cells are skipped only when the resulting shape stays valid. Surface removal must not split the remainder.
+- [ ] Compare cyan current, green selected, blue existing and red conflict/removal corner particles in the native client. `parcel commit` requires a current preview; expiry, state change, logout and restart do not permit replaying an old selection. Position commands work without owning tools.
+
+### Holder consent and parent protection
+
+- [ ] Assign two Holders using a proposal; both must approve along with governance. Then propose a boundary, policy, Holder-list or naming change: no unilateral edit succeeds. Approvals survive restart; stale/expired proposals cannot apply, stale still-pending proposals may be rejected, and resolved proposals cannot replay.
+- [ ] Parent unclaim/abandonment cannot remove a Parcel indirectly. Remove affected Parcels through their required consent first. Unassigned Parcel governance and explicit administrator dispute handling remain usable and auditable.
+
+### Policy separation, automation and migration
+
+- [ ] Give a Public player HOLDER access in one Parcel: permitted building/containers work there, not in the unassigned surrounding Settlement. A Citizen+Holder can use either allowed relation. Denying CONTAINER while allowing BUILD must block containers even for Owner unless explicit administrator bypass is enabled.
+- [ ] A hopper crossing two different Parcels is blocked by default. Grant PUBLIC AUTOMATION only on one side: still blocked. Grant it on both protected sides: items move. Confirm the corresponding desired piston/fluid boundaries on the native server too; do not assume every adapter from the hopper result alone.
+- [ ] Upgrade a disposable old database/config and restart: roles become Governor/Citizen, UUIDs/offers/history/Activity stay intact, stable numbers and grandfathered names appear, and config 4/Civilization schema 3 are present. Parcel cells, policies, Holders and proposals persist across another restart; session previews do not.
+
+Native visual caveat: the automated older-protocol client opened the book and exercised real stick actions but produced particle decoding warnings. It did not verify how pages or colored previews look in the target desktop client.
