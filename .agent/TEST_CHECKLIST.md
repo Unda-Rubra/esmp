@@ -8,6 +8,8 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 Sections 1–5 preserve the `f8a9f50` clock/Activity baseline checks and their pending user outcomes. Its Manager/Member/Visitor, player-naming and config-version-3 expectations are historical. **The current Settlement/Parcel implementation is `d14bb63`; use section 6 for the new roles, numeric-only prices, tools, consent, naming and config/schema migration.** No automated result below is a user sign-off.
 
+Tool command routing is updated by `7aaccd6`: current examples use `/esmp tools parcel_wand` and `/esmp tools management_book`. The underlying `d14bb63` tools/Parcel behavior and stored item identities remain unchanged; old issuance commands are not retained as aliases.
+
 Inactivity-driven automatic release remains outside MVP. Existing pending checks are retained rather than marked passed or silently rewritten. Real currency integration is deliberately absent: current prices are numbers, not deductions or mock balances.
 
 ## Completed implementation awaiting user acceptance
@@ -21,6 +23,7 @@ Inactivity-driven automatic release remains outside MVP. Existing pending checks
 | Governor/Citizen/Public and local bans | `d14bb63` | Role migration tests; live promotion, ban-driven inventory revocation and restart | Pending |
 | Parcel geometry, policies and Holder consent | `d14bb63` | Six new domain regressions; live Public Holder access, mutual deletion and two-sided hopper checks | Pending |
 | Management book/stick and naming administration | `d14bb63` | Real book-open packet, named-stick selection/preview/commit, admin naming and restart; native visual appearance still pending | Pending |
+| Semantic `/esmp tools` routing | `7aaccd6` | Live non-OP issuance/completion, status permission gate, invalid/legacy route rejection, existing-item compatibility and updated book link | Pending |
 
 Earlier Settlement claiming/protection/team functionality was already user-confirmed. Its existing [README checklist](../README.md#两名玩家的验证清单) remains available for optional regressions; do not reopen it as untested work.
 
@@ -81,7 +84,7 @@ Use disposable copied data and a native 26.2 client. Keep ordinary governance te
 
 ### Tools and geometry
 
-- [ ] `/settlement tools book` opens useful current command links. `/settlement tools stick` supplies the marked stick; a named off-hand Name Tag plus left/right clicks selects a named Parcel. Passing either item to another player does not grant governance. Duplicate issuance and crafting/anvil/grindstone conversion are blocked as documented.
+- [ ] `/esmp tools management_book` opens useful current command links. `/esmp tools parcel_wand` supplies the marked stick; a named off-hand Name Tag plus left/right clicks selects a named Parcel. Passing either item to another player does not grant governance. Duplicate issuance and crafting/anvil/grindstone conversion are blocked as documented.
 - [ ] Preview and commit an 8×8×8-aligned Parcel, including negative coordinates. Face-connected extensions succeed; diagonal-only/disconnected/outside-Settlement selections fail atomically. Existing other-Parcels' cells are skipped only when the resulting shape stays valid. Surface removal must not split the remainder.
 - [ ] Compare cyan current, green selected, blue existing and red conflict/removal corner particles in the native client. `parcel commit` requires a current preview; expiry, state change, logout and restart do not permit replaying an old selection. Position commands work without owning tools.
 
@@ -97,3 +100,7 @@ Use disposable copied data and a native 26.2 client. Keep ordinary governance te
 - [ ] Upgrade a disposable old database/config and restart: roles become Governor/Citizen, UUIDs/offers/history/Activity stay intact, stable numbers and grandfathered names appear, and config 4/Civilization schema 3 are present. Parcel cells, policies, Holders and proposals persist across another restart; session previews do not.
 
 Native visual caveat: the automated older-protocol client opened the book and exercised real stick actions but produced particle decoding warnings. It did not verify how pages or colored previews look in the target desktop client.
+
+## 7. Semantic tool commands — `7aaccd6`
+
+- [ ] As a non-OP player, tab-complete and request `/esmp tools parcel_wand` and `/esmp tools management_book`. `/esmp status` must remain denied without administrator permission. Singular `tool`, old material-name arguments and the former Settlement issuance route must not issue items. Existing tools must still work and prevent duplicate issuance; the book's Parcel Wand link must use the new command.
