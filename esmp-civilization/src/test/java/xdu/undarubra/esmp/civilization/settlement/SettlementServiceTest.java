@@ -6,20 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Path;
-import xdu.undarubra.esmp.core.time.GameClock;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+
 import xdu.undarubra.esmp.core.storage.WorldStore;
+import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.core.world.WorldBinding;
 import xdu.undarubra.esmp.core.world.WorldDefinition;
 import xdu.undarubra.esmp.core.world.WorldEnvironment;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 @Timeout(20)
 class SettlementServiceTest {
@@ -37,24 +39,52 @@ class SettlementServiceTest {
     @BeforeEach
     void open() {
         database = new WorldStore(directory.resolve("esmp.db"));
-        var snapshot = database.initialize(List.of(
-                new WorldDefinition("MAIN", "civilization", WorldEnvironment.NORMAL),
-                new WorldDefinition("RESOURCE_OVERWORLD", "resource", WorldEnvironment.NORMAL)), List.of(
-                new WorldBinding("MAIN", UUID.randomUUID(), "world"),
-                new WorldBinding("RESOURCE_OVERWORLD", UUID.randomUUID(), "resource"))).join();
-        world = snapshot.instances().stream().filter(i -> i.definitionId().equals("MAIN")).findFirst().orElseThrow().instanceId();
-        resourceWorld = snapshot.instances().stream().filter(i -> i.definitionId().equals("RESOURCE_OVERWORLD")).findFirst().orElseThrow().instanceId();
+        var snapshot =
+                database.initialize(
+                                List.of(
+                                        new WorldDefinition(
+                                                "MAIN", "civilization", WorldEnvironment.NORMAL),
+                                        new WorldDefinition(
+                                                "RESOURCE_OVERWORLD",
+                                                "resource",
+                                                WorldEnvironment.NORMAL)),
+                                List.of(
+                                        new WorldBinding("MAIN", UUID.randomUUID(), "world"),
+                                        new WorldBinding(
+                                                "RESOURCE_OVERWORLD",
+                                                UUID.randomUUID(),
+                                                "resource")))
+                        .join();
+        world =
+                snapshot.instances().stream()
+                        .filter(i -> i.definitionId().equals("MAIN"))
+                        .findFirst()
+                        .orElseThrow()
+                        .instanceId();
+        resourceWorld =
+                snapshot.instances().stream()
+                        .filter(i -> i.definitionId().equals("RESOURCE_OVERWORLD"))
+                        .findFirst()
+                        .orElseThrow()
+                        .instanceId();
         clock = new GameClock(database);
         clock.initialize(clockSource, 0, true).join();
-        service = new SettlementService(database, new SettlementPolicy(true, 3, 1_728_000, 36_000, 1_728_000, 1_200), clock);
+        service =
+                new SettlementService(
+                        database,
+                        new SettlementPolicy(true, 3, 1_728_000, 36_000, 1_728_000, 1_200, 100, 25),
+                        clock,
+                        ignored -> false);
         service.initialize().join();
     }
 
     @AfterEach
-    void close() { database.close(); }
+    void close() {
+        database.close();
+    }
 
-    private UUID create(String name, int x, int z) {
-        return service.create(owner, world, new ChunkPosition(x, z), name).join().settlementId();
+    private UUID create(int x, int z) {
+        return service.create(owner, world, new ChunkPosition(x, z)).join().settlementId();
     }
 
     private void join(UUID id, UUID player) {
@@ -63,7 +93,10 @@ class SettlementServiceTest {
     }
 
     private SettlementView current(UUID id) {
-        return service.initialize().join().stream().filter(s -> s.id().equals(id)).findFirst().orElseThrow();
+        return service.initialize().join().stream()
+                .filter(s -> s.id().equals(id))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static void rejected(Runnable action) {
@@ -73,7 +106,7 @@ class SettlementServiceTest {
 
     @Test
     void claimingPreservesEdgesCapAndLastChunkWithoutFailedEvents() {
-        UUID id = create("Oakfall", 0, 0);
+        UUID id = create(0, 0);
         rejected(() -> service.claim(owner, id, world, new ChunkPosition(1, 1)).join());
         service.claim(owner, id, world, new ChunkPosition(1, 0)).join();
         service.claim(owner, id, world, new ChunkPosition(2, 0)).join();
@@ -89,76 +122,84 @@ class SettlementServiceTest {
 
     @Test
     void adjacentSettlementsRemainSeparateAndResourceWorldCannotBeClaimed() {
-        UUID first = create("North", 0, 0);
-        assertEquals(Role.VISITOR, current(first).role(null));
-        UUID second = create("South", 0, 1);
+        UUID first = create(0, 0);
+        assertEquals(Role.PUBLIC, current(first).role(null));
+        UUID second = create(0, 1);
         assertNotEquals(first, second);
-        rejected(() -> service.create(other, world, new ChunkPosition(0, 0), "Collision").join());
-        rejected(() -> service.create(owner, resourceWorld, new ChunkPosition(0, 0), "Resource").join());
+        rejected(() -> service.create(other, world, new ChunkPosition(0, 0)).join());
+        rejected(() -> service.create(owner, resourceWorld, new ChunkPosition(0, 0)).join());
         join(first, member);
-        assertEquals(Role.MEMBER, current(first).role(member));
-        assertEquals(Role.VISITOR, current(second).role(member));
+        assertEquals(Role.CITIZEN, current(first).role(member));
+        assertEquals(Role.PUBLIC, current(second).role(member));
         assertEquals(2, service.initialize().join().size());
     }
 
     @Test
     void consentAndOwnershipTransferPreserveRoleBoundaries() {
-        UUID id = create("Town", 0, 0);
-        var invitation = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
-        assertEquals(Role.VISITOR, current(id).role(member));
+        UUID id = create(0, 0);
+        var invitation =
+                service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
+        assertEquals(Role.PUBLIC, current(id).role(member));
         rejected(() -> service.accept(other, invitation.id(), false).join());
         service.accept(member, invitation.id(), false).join();
         rejected(() -> service.claim(member, id, world, new ChunkPosition(1, 0)).join());
-        var promotion = service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
-        assertEquals(Role.MEMBER, current(id).role(member));
+        var promotion =
+                service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
+        assertEquals(Role.CITIZEN, current(id).role(member));
         service.accept(member, promotion.id(), false).join();
         service.claim(member, id, world, new ChunkPosition(1, 0)).join();
         rejected(() -> service.offer(member, id, member, SettlementOffer.Type.ABANDON).join());
         rejected(() -> service.offer(member, id, other, SettlementOffer.Type.PROMOTE).join());
         join(id, other);
-        var transfer = service.offer(owner, id, other, SettlementOffer.Type.TRANSFER).join().offer();
+        var transfer =
+                service.offer(owner, id, other, SettlementOffer.Type.TRANSFER).join().offer();
         service.accept(other, transfer.id(), false).join();
         SettlementView changed = current(id);
         assertEquals(other, changed.owner());
-        assertEquals(Role.MEMBER, changed.role(owner));
-        assertEquals(Role.MANAGER, changed.role(member));
+        assertEquals(Role.CITIZEN, changed.role(owner));
+        assertEquals(Role.GOVERNOR, changed.role(member));
         assertFalse(changed.members().containsKey(other));
         rejected(() -> service.demote(member, id, member).join());
         service.demote(other, id, member).join();
-        assertEquals(Role.MEMBER, current(id).role(member));
+        assertEquals(Role.CITIZEN, current(id).role(member));
     }
 
     @Test
-    void revokedManagerCannotGrantMembershipThroughAnOldOffer() {
-        UUID id = create("Town", 0, 0);
+    void revokedGovernorCannotGrantCitizenshipThroughAnOldOffer() {
+        UUID id = create(0, 0);
         join(id, member);
-        var promotion = service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
+        var promotion =
+                service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
         service.accept(member, promotion.id(), false).join();
-        var invitation = service.offer(member, id, other, SettlementOffer.Type.INVITE).join().offer();
+        var invitation =
+                service.offer(member, id, other, SettlementOffer.Type.INVITE).join().offer();
         service.demote(owner, id, member).join();
         rejected(() -> service.accept(other, invitation.id(), false).join());
         service.remove(member, id, member, true).join();
-        assertEquals(Role.VISITOR, current(id).role(member));
+        assertEquals(Role.PUBLIC, current(id).role(member));
         rejected(() -> service.remove(owner, id, owner, true).join());
     }
 
     @Test
     void expiryCancellationAndDeclineCannotBeReplayed() {
-        UUID id = create("Town", 0, 0);
+        UUID id = create(0, 0);
         var expired = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
         clock.sample(clockSource, expired.expiresAtTick(), true);
         rejected(() -> service.accept(member, expired.id(), false).join());
         assertTrue(service.offers(member).join().isEmpty());
-        var invitation = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
+        var invitation =
+                service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
         service.resolveOffer(member, invitation.id(), true).join();
         rejected(() -> service.accept(member, invitation.id(), false).join());
         join(id, member);
-        var promotion = service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
+        var promotion =
+                service.offer(owner, id, member, SettlementOffer.Type.PROMOTE).join().offer();
         service.accept(member, promotion.id(), false).join();
         var outgoing = service.offer(owner, id, other, SettlementOffer.Type.INVITE).join().offer();
         service.resolveOffer(member, outgoing.id(), false).join();
         rejected(() -> service.accept(other, outgoing.id(), false).join());
-        var transfer = service.offer(owner, id, member, SettlementOffer.Type.TRANSFER).join().offer();
+        var transfer =
+                service.offer(owner, id, member, SettlementOffer.Type.TRANSFER).join().offer();
         rejected(() -> service.resolveOffer(member, transfer.id(), false).join());
         service.resolveOffer(member, transfer.id(), true).join();
         assertEquals(owner, current(id).owner());
@@ -166,7 +207,7 @@ class SettlementServiceTest {
 
     @Test
     void abandonmentRequiresFreshRevisionAndPreservesHistoryAfterReclaim() {
-        UUID id = create("Town", 0, 0);
+        UUID id = create(0, 0);
         var warning = service.offer(owner, id, owner, SettlementOffer.Type.ABANDON).join().offer();
         service.claim(owner, id, world, new ChunkPosition(1, 0)).join();
         service.unclaim(owner, id, new ChunkPosition(1, 0)).join();
@@ -178,15 +219,16 @@ class SettlementServiceTest {
         rejected(() -> service.accept(owner, valid.id(), false).join());
         service.accept(owner, valid.id(), true).join();
         assertTrue(service.initialize().join().isEmpty());
-        UUID reclaimed = service.create(other, world, new ChunkPosition(0, 0), "Town").join().settlementId();
+        UUID reclaimed =
+                service.create(other, world, new ChunkPosition(0, 0)).join().settlementId();
         assertNotEquals(id, reclaimed);
-        assertEquals(Role.VISITOR, current(reclaimed).role(owner));
+        assertEquals(Role.PUBLIC, current(reclaimed).role(owner));
         assertTrue(service.history(id).join().stream().anyMatch(e -> e.type().equals("RELEASED")));
     }
 
     @Test
     void outboxAndClaimsSurviveRestartWithoutDuplicateAcknowledgements() {
-        UUID id = create("Town", -2, -3);
+        UUID id = create(-2, -3);
         join(id, member);
         var pending = service.pendingEvents().join();
         assertEquals(3, pending.size());
@@ -195,21 +237,28 @@ class SettlementServiceTest {
         assertTrue(service.pendingEvents().join().isEmpty());
         database.close();
         database = new WorldStore(directory.resolve("esmp.db"));
-        database.initialize(List.of(new WorldDefinition("MAIN", "civilization", WorldEnvironment.NORMAL)), List.of()).join();
+        database.initialize(
+                        List.of(
+                                new WorldDefinition(
+                                        "MAIN", "civilization", WorldEnvironment.NORMAL)),
+                        List.of())
+                .join();
         clock = new GameClock(database);
         clock.initialize(clockSource, 0, true).join();
-        service = new SettlementService(database, SettlementPolicy.defaults(), clock);
+        service =
+                new SettlementService(
+                        database, SettlementPolicy.defaults(), clock, ignored -> false);
         SettlementView persisted = service.initialize().join().getFirst();
         assertEquals(id, persisted.id());
         assertTrue(persisted.chunks().contains(new ChunkPosition(-2, -3)));
-        assertEquals(Role.MEMBER, persisted.role(member));
+        assertEquals(Role.CITIZEN, persisted.role(member));
         assertEquals(3, service.history(id).join().size());
         assertTrue(service.pendingEvents().join().isEmpty());
     }
 
     @Test
     void legacyOfferDeadlinesConvertOnceWithoutResettingIdentityOrLifetime() {
-        UUID id = create("Legacy", 0, 0);
+        UUID id = create(0, 0);
         var offer = service.offer(owner, id, member, SettlementOffer.Type.INVITE).join().offer();
         dbLegacyDeadline(offer.id());
         service.initialize().join();
@@ -220,25 +269,43 @@ class SettlementServiceTest {
         assertEquals(id, current(id).id());
         assertEquals(2, service.history(id).join().size());
         service.initialize().join();
-        assertEquals(migrated.expiresAtTick(), service.inspectOffer(offer.id()).join().expiresAtTick());
+        assertEquals(
+                migrated.expiresAtTick(), service.inspectOffer(offer.id()).join().expiresAtTick());
         clock.sample(clockSource, migrated.expiresAtTick(), true);
         rejected(() -> service.accept(member, offer.id(), false).join());
     }
 
     private void dbLegacyDeadline(UUID offer) {
-        database.transact(connection -> {
-            try (var statement = connection.createStatement()) {
-                statement.executeUpdate("ALTER TABLE settlements DROP COLUMN founded_tick");
-                statement.executeUpdate("ALTER TABLE settlement_events DROP COLUMN game_tick");
-                statement.executeUpdate("UPDATE civilization_schema SET version=1");
-            }
-            try (var update = connection.prepareStatement("UPDATE settlement_offers SET expires_at=? WHERE offer_id=?")) {
-                update.setLong(1, System.currentTimeMillis() + 60000);
-                update.setString(2, offer.toString());
-                update.executeUpdate();
-            }
-            return null;
-        }).join();
+        database.transact(
+                        connection -> {
+                            try (var statement = connection.createStatement()) {
+                                statement.executeUpdate(
+                                        "ALTER TABLE settlements DROP COLUMN founded_tick");
+                                statement.executeUpdate(
+                                        "ALTER TABLE settlement_events DROP COLUMN game_tick");
+                                statement.executeUpdate("UPDATE civilization_schema SET version=1");
+                                for (String table :
+                                        List.of(
+                                                "parcel_approvals",
+                                                "parcel_requests",
+                                                "parcel_policy",
+                                                "parcel_holders",
+                                                "parcel_cells",
+                                                "parcels",
+                                                "settlement_bans",
+                                                "settlement_details"))
+                                    statement.executeUpdate("DROP TABLE " + table);
+                            }
+                            try (var update =
+                                    connection.prepareStatement(
+                                            "UPDATE settlement_offers SET expires_at=? WHERE"
+                                                    + " offer_id=?")) {
+                                update.setLong(1, System.currentTimeMillis() + 60000);
+                                update.setString(2, offer.toString());
+                                update.executeUpdate();
+                            }
+                            return null;
+                        })
+                .join();
     }
-
 }

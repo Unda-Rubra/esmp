@@ -26,7 +26,7 @@ import xdu.undarubra.esmp.civilization.settlement.SettlementView;
 public final class ClaimVisualization implements Listener, AutoCloseable {
     private record Request(UUID settlementId, long expiresAt) { }
     private static final Particle.DustOptions TEAM = new Particle.DustOptions(Color.LIME, 1.0f);
-    private static final Particle.DustOptions VISITOR = new Particle.DustOptions(Color.RED, 1.0f);
+    private static final Particle.DustOptions PUBLIC = new Particle.DustOptions(Color.RED, 1.0f);
     private static final Particle.DustOptions CURRENT = new Particle.DustOptions(Color.WHITE, 0.7f);
     private final JavaPlugin plugin;
     private final SettlementRuntime runtime;
@@ -79,7 +79,7 @@ public final class ClaimVisualization implements Listener, AutoCloseable {
                     SettlementView settlement = runtime.index().at(instance, x, z);
                     if (settlement == null || (entry.getValue().settlementId() != null
                             && !settlement.id().equals(entry.getValue().settlementId()))) { continue; }
-                    Particle.DustOptions color = settlement.role(player.getUniqueId()).canBuild() ? TEAM : VISITOR;
+                    Particle.DustOptions color = settlement.role(player.getUniqueId()).canBuild() ? TEAM : PUBLIC;
                     if (!same(settlement, runtime.index().at(instance, x - 1, z))) {
                         remaining = edge(player, color, x * 16, z * 16, 0, 1, y, remaining);
                     }

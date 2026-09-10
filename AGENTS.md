@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The plugin implements the legacy Settlement role/claim workflows, shared GameClock and Activity on Paper 26.2. The target architecture now requires paid claims, Governor/Citizen/Public plus bans, Parcels, tools and naming administration; these changes are not yet implemented. Building discovery, decay/repair, Resource resets and economy remain disabled. Automatic Settlement release is outside the MVP; dynamic cycles are required immediately after a stable MVP, not an optional someday feature.
+The plugin implements Settlement/Parcel governance, Governor/Citizen/Public, local bans, durable Holder consent, numeric claim pricing, naming administration, book/stick tools, GameClock and Parcel-aware Activity on Paper 26.2. Prices are numbers only by explicit user instruction: no currency/items are consumed until a currency system is chosen. Core world schema is 1, Civilization schema 3, config 4. Building discovery, decay/repair, Resource resets and the actual economy remain disabled. Automatic release stays outside MVP; dynamic cycles are required after stable MVP.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
@@ -28,7 +28,7 @@ Before non-trivial work, read:
 - **Settlement** is the Main World aggregate for ownership, members, roles, permissions, activity, and claimed chunks.
 - **Claim** is the protected chunk relationship and the operation that changes it.
 - **Parcel** is a 3D permission subdivision within one Settlement, using world-aligned 8×8×8 cells; not a sovereign claim or the removed Factory Plot.
-- Target governance vocabulary is Owner / Governor / Citizen / Public; Holder is an independent Parcel relationship and BANNED is a negative Settlement-local override. Existing Manager/Member/Visitor code is legacy awaiting migration, not an alias to retain.
+- Governance vocabulary is Owner / Governor / Citizen / Public; Holder is an independent Parcel relationship and BANNED is a negative Settlement-local override. Legacy role strings are allowed only in migration/historical evidence, not active role aliases.
 - Use `world_definition_id` for a stable configured world role.
 - Use `world_instance_id` for anything tied to blocks, chunks, entities, or coordinates.
 
@@ -45,7 +45,7 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Adding a chunk must preserve contiguity, and unclaiming must not split the Settlement.
 - Ordinary unclaim must not remove the last Settlement chunk. Ending ownership requires explicit confirmed Owner abandonment or an authorized administrative lifecycle operation.
 - Adjacent Settlements remain separate identities and never merge automatically, including when they share an owner.
-- Target claims consume currency on creation/expansion through a marginal price curve increasing with current claimed area. Existing free claims are legacy behavior awaiting migration. The independent configurable chunk cap remains available.
+- Current claiming records a numeric area-based price without charging currency/items or creating a mock wallet. Default price is 100 + 25×current chunks. Real currency integration is deferred until the user's selection; do not add a real debit or fake funding source meanwhile. The independent chunk cap remains.
 - The target has one Owner, zero or more Governors and Citizens, and derived Public users. Store Owner only in `Settlement.owner_uuid`, Governors/Citizens in `SettlementMember`, and never persist Public memberships. No duplicate legacy role names after cutover.
 - Ownership transfer preserves consent/atomicity; the former Owner becomes Citizen. Existing ownership-only governance restrictions remain subject to the canonical Settlement/Parcel rules, not a blanket authorization bypass.
 - Owner/Governor may ban non-administrators locally. Banned players retain movement/informational access but cannot perform Settlement/Parcel-governed interactions; server administrators bypass Settlement bans.
@@ -55,12 +55,14 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Parcel cells must lie inside one Settlement, not overlap, and form a six-face-connected set. Names are unique within a Settlement. Zero/multiple Holders are valid; Public players may hold Parcels without becoming Citizens.
 - Unassigned Parcels are governable by Owner/Governors. Assigned Parcel revocation, Holder removal or boundary changes require governance and all Holders to agree; neither side may reshape unilaterally. Administrators resolve disputes. Rent/contracts are not modeled.
 - Source and destination of protected automation must both authorize the operation; same Settlement does not imply same Parcel policy.
+- Unattributed internal Parcel automation uses HOLDER permission when assigned, OWNER when unassigned. Across distinct protected regions, both sides must explicitly grant PUBLIC AUTOMATION. Do not restore a same-Settlement blanket bypass.
+- Assigned geometry, Holder, policy and naming edits use durable governance+all-current/new-Holder approval; stale/expired proposals cannot apply. Parent unclaim/abandon requires affected Parcels removed through their consent workflow first. Administrator overrides are audited.
 - Commands must cover all operations. Management Book and Parcel Wand are replaceable convenience frontends with no item-owned authority. Wand + named off-hand Name Tag selects aligned 8×8×8 cells; preview then atomically validate/commit. Surface-cell deletion must preserve connectivity.
-- Initial Settlements use stable numeric identity/generated labels; official naming and every rename are administrator-mediated after qualification. Name/ID migration from existing data is an implementation gate, not permission to delete historical names.
+- Settlements retain internal UUID keys plus stable global public numbers. New labels are S#number; existing names are grandfathered. Official naming/renaming requires administrator certification/approval and preserves history.
 - Settlement writes go through the Paper runtime coordinator, which reserves affected territory until committed SQL is published to the main-thread index. Do not add mutation callers that bypass this publication gate.
 - Fatal persistence failures and hot unloading stop the server rather than dropping protection. Use full restarts; no reload command or plugin-manager hot reload.
 - Activity is settlement-local and does not require scheduled writes to every inactive settlement.
-- Migrate Activity authorization to Governor/Citizen/Holder/Public and bans without increasing farming potential. Existing Visitor weights are legacy; Public/Holder weights and their persisted-policy migration still need definition.
+- Activity revalidates exact position/action, governance, bans, Parcel policy and security/ownership/claim revisions. Public actors (including non-Citizen Holders) use small credit and caps; holding alone never grants team credit. Equivalent legacy policy vocabulary migrates without resetting state; arbitrary installed value changes still need explicit migration.
 - Sufficient activity recovery stops further decay without repairing damage or advancing Era; queued mutations must revalidate activity eligibility.
 - MVP Settlements remain owned/protected regardless of inactivity or ruin unless explicitly abandoned or changed by an authorized lifecycle operation. Automatic peripheral release/Civic Capacity belongs to the required post-MVP dynamic-cycle phase; its rules remain unresolved.
 - Reclaim uses normal chunk claiming and the claiming Settlement's team, never restored former permissions. History survives, but the active restoration baseline starts from the inherited structure's current state; reclaim does not repair or advance Era.

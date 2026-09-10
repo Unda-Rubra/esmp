@@ -1,8 +1,16 @@
 package xdu.undarubra.esmp.civilization.settlement;
 
 public enum Role {
-    OWNER, MANAGER, MEMBER, VISITOR;
+    OWNER,
+    GOVERNOR,
+    CITIZEN,
+    PUBLIC;
 
-    public boolean canBuild() { return this != VISITOR; }
-    public boolean canManage() { return this == OWNER || this == MANAGER; }
+    public boolean canBuild() {
+        return this != PUBLIC;
+    }
+
+    public boolean canManage() {
+        return this == OWNER || this == GOVERNOR;
+    }
 }

@@ -4,21 +4,22 @@ Gate-oriented implementation index of `ARCHITECTURE.md` §§7–11 and 25–28. 
 
 ## Implemented baseline versus target
 
-The existing Java 25/Paper 26.2 plugin implements legacy Settlement roles/free claims/player naming, contiguous claims, durable offers/history, protection adapters, GameClock and Activity. Core world schema is 1, Civilization schema 2, config version 3. Governor/Citizen/Public, bans, Parcels, paid claims, official-name administration and management items are target architecture, not implemented behavior.
+The Java 25/Paper 26.2 plugin now implements Governor/Citizen/Public, local bans, Parcel geometry/policy/Holders and durable consent, stable public numbers, administrator naming certification, server-issued book/stick tools, GameClock and Parcel-aware Activity. Core world schema is 1, Civilization schema 3, config 4.
 
-Preserve user-confirmed old Settlement coverage and pending `f8a9f50` checks in [TEST_CHECKLIST.md](TEST_CHECKLIST.md). No new target feature should appear there as completed until its implementation ships. Legacy authorization/Activity checks must be explicitly superseded at migration, not silently renamed now.
+The user explicitly selected numeric-only claim prices: show and record the increasing area price, consume no currency/items, and integrate real currency only after their choice. No wallet or fake balance is introduced. This supersedes the prior immediate real-ledger prerequisite.
 
-## Immediate plan: MVP Settlement/Parcel revision
+Preserve previous acceptance results and record the completed cutover in [TEST_CHECKLIST.md](TEST_CHECKLIST.md). Legacy role/config expectations must be read as historical; the new current checks cover migration, tools, relations, consent and bans.
 
-Follow §§27–28 without expanding the full economy to satisfy the first dependency:
+## Deferred currency integration — waiting for the user's choice
 
-1. **Paid claim transaction and pricing hook.** Define the minimal real ledger/charging contract, payer (wallet/treasury), initial funding, configured marginal area curve, quote/commit consistency, insufficient-funds behavior, retries and atomic debit+claim+history. Define any refund/no-refund behavior before changing unclaim. Existing claims are not retroactively billed without an explicit migration decision. Full markets, Facility production and transport are not prerequisites.
-2. **Governance migration and bans.** Map legacy Manager/Member/Visitor to Governor/Citizen/Public in schema, APIs, commands, cached views, offer workflows and Activity admission. Preserve one Owner and transfer-to-Citizen atomically. Define migration of pending offers, administrator identification/override scope, ban/governance consistency and cache invalidation. Bans deny governed interactions, not movement/information; administrators bypass bans.
-3. **Parcel persistence and geometry.** Implement world-aligned 8×8×8 cells inside one Settlement, no overlap, six-face connectivity, unique local names and zero/multiple Holders. Define bounded geometry/edit budgets, coordinate handling at negative/world-height limits, immutable publication and atomic conflict rejection. A Parcel is not a sovereign claim or Building identity.
-4. **Authorization and complete commands.** Implement administrator → ban → spatial lookup → Parcel/default policy → relation-set resolution for BUILD/INTERACT/CONTAINER/AUTOMATION. Define server default policy, policy-edit authority and source/destination checks for automation. Public can be a Holder; Citizen+Holder is not collapsed to one highest role. Specify durable governance+all-Holder consent, membership/Holder changes during approval, admin dispute handling, and interaction of assigned Parcels with Settlement unclaim/abandonment so governance cannot bypass consent indirectly.
-5. **Management frontends and naming administration.** Management Book/Parcel Wand must call the command/application APIs, not introduce parallel rules. Define issuance/PDC handling, session selections and previews, named off-hand Name Tag matching, cuboid addition of only unparcelled cells, surface removal and atomicity. Assigned geometry still requires consent. Define stable numeric identity alongside/migrated from existing UUIDs, generated labels, qualification/approval, legacy-name treatment, naming charges if enabled, name uniqueness and historical preservation. Do not invent final command grammar from the illustrative §16 examples.
+- Choose the real currency system and payer/funding model only when requested. Then define atomicity or recoverable debit/claim settlement, quote guarantees, insufficient funds, retries and refund policy. Current prices are numeric records with `charged=false`, not financial transactions.
+- Do not retroactively charge existing claims or expand full market/Facility systems merely to replace numeric pricing.
 
-Activity integration is part of the authorization cutover, not a cosmetic enum rename: Public/Holder credit eligibility/weights, bans, policy revisions, persistent actor limits and installed-policy migration need a coherent contract. Keep game-time/freeze/no-downtime semantics and anti-farming bounds. The current installed-policy-change rejection is not a completed migration mechanism.
+## Settlement/Parcel follow-through
+
+- Native 26.2 visual/user acceptance remains in the temporary checklist. The protocol fixture verified actual book opening, stick selection, command/consent workflows and world authorization, but older-protocol particle decoding prevents visual sign-off.
+- Current defaults and consent/identity rules are implemented in §7, not open design: governance plus all current/new Holders for assigned changes; affected Parcels removed before parent release; internal UUID plus public number; grandfathered old names and administrator naming certification.
+- Future configurable safety limits, broader default-policy tuning and installed Activity value-policy migration are refinements, not unimplemented core Parcel features. Public/non-Citizen Holder credit stays small and revalidates Parcel security state.
 
 ## Next MVP slice: Building identity, geometry and evaluation
 
@@ -71,4 +72,4 @@ MVP Settlements remain persistent unless explicitly abandoned or changed through
 
 ## Canonical ambiguities to resolve at the affected implementation gate
 
-The user-authored architecture was not rewritten during this notes synchronization. The specific §§7, 23 and 25–28 govern the MVP: old broad civilization-cycle diagrams and the generic Release glossary should not be read as enabling automatic MVP release. The illustrative `/settlement create <name>` example is not a final naming contract. Numeric Settlement identity versus the existing UUID schema, assigned-Parcel interactions with parent claim release, and exact ban/administrator/policy-edit rules still require implementation decisions; do not silently fill them with legacy behavior.
+Specific §§7, 23 and 25–28 govern the MVP: broad historical civilization-cycle diagrams and the generic Release glossary do not enable automatic MVP release. Numeric/public identity, role/ban checks, policy authority, consent and parent-release constraints are now implemented as described in §7. Real currency integration remains deferred by explicit user choice; future ownership-loss guarantees and policy tuning must not silently bypass current Holder consent.

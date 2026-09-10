@@ -2,6 +2,19 @@
 
 This is a dated rationale log, not a competing specification. The current `ARCHITECTURE.md` takes precedence; older entries describe historical decisions where superseded. In particular, legacy free claims, Manager/Member/Visitor access, player-controlled naming, blanket ownership capabilities and automatic-release scheduling below are not the new MVP target.
 
+## 2026-09-10 — Settlement/Parcel implemented with numeric-only claim pricing
+
+The user explicitly postponed real currency: use numbers now and do not consume currency/items until a currency system is selected. This supersedes the earlier immediate real-ledger requirement. Claim price is configurable base + step×current area (initially 100 + 25×area); committed history records the value and `charged=false`. No mock wallet, funding, deduction or refund is introduced.
+
+- Migrated active roles/schema to Owner/Governor/Citizen/Public while preserving UUIDs, offers, history, scores and caps. Civilization schema is 3, config 4. Added stable public numbers and S#number labels; existing names are grandfathered, new names require administrator naming certification and approval.
+- Implemented local bans, relation-set Parcel policy, world-aligned 8×8×8 cells, six-face connectivity, exclusion/height checks and immutable committed spatial publication. Current bounds: 4096 cells, 128 Parcels/Settlement, 32 Holders and 64 pending proposals/Settlement.
+- Holder is independent from membership. Assigned geometry, Holder, policy and name changes require governance plus all current/new Holders; proposals survive restart, expire at 24000 game ticks and validate Parcel/ownership/chunk/security revisions. Administrator overrides are auditable. Parent claim release cannot bypass Parcel consent.
+- New Parcel defaults grant Owner/Governor/Citizen/Holder all four domains and Public none. Unparcelled Public access remains safe controls. Unattributed internal automation uses Holder grant when assigned or Owner grant otherwise; crossing distinct protected boundaries requires Public automation permission on both sides. Player/container access is separately authorized; bans revoke open protected inventory access.
+- Issued PDC book/stick tools carry no authority. Book pages link current command services. Stick+named off-hand Name Tag or equivalent position commands produces bounded 1200-tick previews, then commits through the same service. Tool issuance is limited to one of each in inventory plus a short game-time cooldown; crafting/anvil/grindstone conversion is blocked.
+- Activity now captures block coordinates/action/security revision and rechecks bans and Parcel relations. Non-Citizen Holder/Public credit remains small (.02, daily cap .25) rather than becoming team credit; existing balances/caps remain intact and equivalent `visitorCredit` policy nomenclature migrates to `publicCredit`.
+
+Reason: implement usable spatial governance and safe consent now without pretending a real economy exists. Preserve the user's currency decision for a later integration. Six new domain regressions and isolated live Paper workflows covered geometry, consent, stale/expired approvals, migrations, real tool interactions, Public Holder access, bans, role/naming persistence and two-sided hopper authorization. Native client visual layout remains a manual acceptance check because the older protocol test client cannot reliably decode current particles.
+
 ## 2026-09-10 — User-authored MVP revision supersedes the previous immediate plan
 
 Source: the user's revised `ARCHITECTURE.md` §§7–11 and 23–28. This synchronization changes plans and notes only; the existing JAR still uses its implemented legacy roles/free claims/naming. Do not advertise an unimplemented migration.

@@ -10,17 +10,19 @@
 
 The runnable plugin consists of four Gradle modules and one deployable Paper JAR under `xdu.undarubra.esmp`.
 
-- `esmp-core` owns world identity, bounded SQLite execution, and the neutral persisted source-delta `GameClock`. Core world schema remains version 1; Civilization schema is version 2.
-- `esmp-civilization` implements Settlement ownership/claims/roles, game-tick offers, history/outbox, and persistent lazy Activity scoring, capped contributions, hysteresis, and production-pause eligibility.
-- `esmp-plugin` supplies `/settlement` commands, main-thread cache publication, action-specific protection, private temporary borders, and post-commit `SettlementCommittedEvent` notifications. `/esmp status` reports actual readiness and Settlement count.
+- `esmp-core` owns world identity, bounded SQLite execution and the neutral persisted `GameClock`. Core world schema remains 1; Civilization schema is 3 and configuration version is 4.
+- `esmp-civilization` implements Owner/Governor/Citizen/Public, local bans, stable Settlement numbers, administrator naming certification, numeric claim pricing, Parcel geometry/policies/Holders, durable mutual-consent proposals, history/outbox and Parcel-aware Activity.
+- `esmp-plugin` supplies complete Settlement/Parcel commands, committed main-thread snapshots, four-domain protection, replaceable Management Book/Parcel Wand tools and bounded temporary particle previews. `/esmp status` reports readiness and game time. Prices are numeric-only: no currency, wallet balance or items are deducted.
 - Configured Main World instances are claimable; Resource worlds remain unclaimable. Removed definitions remain historical only. Existing claims load before gameplay is admitted; persistence failure stops the server rather than leaving claims unprotected.
-- Building discovery, decay/repair, automatic release, Resource resets, Facilities/economy/transport/culture and seasonal presentation remain disabled. Shared game time and Activity are implemented; their eligibility output does not itself mutate buildings or produce goods.
+- Building discovery, decay/repair, Resource resets, Facilities/economy/transport/culture and seasonal presentation remain disabled. Automatic inactivity-driven Settlement release is intentionally outside the MVP and belongs to the required post-MVP dynamic-cycle phase. Shared game time and Activity are implemented; their eligibility output does not itself mutate buildings or produce goods.
 
 The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
 
-Main World Facilities are accepted as bounded Settlement production, not a restoration of the Factory Realm, Plot aggregate, or removed industrial module. The development loop expands to Explore → Settle → Build → Produce → Trade → Develop → Prosper → Decline → Ruin → Reclaim.
+Main World Facilities are accepted as bounded Settlement production, not a restoration of the Factory Realm, Plot aggregate, or removed industrial module. For the MVP, Settlements remain persistent; the longer Explore → Settle → Build → Produce → Trade → Develop → Prosper → Decline → Ruin → Reclaim cycle belongs to the required post-MVP dynamic-Settlement phase.
 
 Legacy configuration migration retains the version-1 Factory retirement/backup and then upgrades to config version 3, backing up to `config-before-game-clock.yml` and converting former offer `*-seconds` values to `*-ticks` at 20 ticks per former second. Civilization migration converts existing absolute deadlines once from their remaining cutover lifetime; expired offers remain expired. It preserves IDs, claims, memberships and history. No physical worlds are deleted.
+
+The Settlement/Parcel migration backs up configuration to `config-before-parcels.yml`, maps legacy Manager/Member to Governor/Citizen, preserves existing UUID keys/offers/history, assigns stable public numbers, and grandfathers existing names as certified official names. It renames equivalent persisted Activity policy vocabulary without resetting scores or caps; arbitrary policy-value changes still require explicit migration.
 
 ---
 
@@ -401,13 +403,14 @@ A settlement may contain many claimed chunks. While owned, its chunks must form 
 
 ## 7.3 Settlement data model
 
-Conceptual model:
+Conceptual MVP model:
 
 ```text
 Settlement
 ├── settlement_id
 ├── world_instance_id
-├── name
+├── generated_label
+├── official_name (optional)
 ├── owner_uuid
 ├── created_at
 └── status
@@ -415,15 +418,38 @@ Settlement
 SettlementMember
 ├── settlement_id
 ├── player_uuid
-├── role = MANAGER | MEMBER
+├── role = GOVERNOR | CITIZEN
 ├── joined_at
 └── left_at (optional)
+
+SettlementBan
+├── settlement_id
+├── player_uuid
+├── banned_by_uuid
+├── created_at
+└── note (optional)
 
 SettlementChunk
 ├── settlement_id
 ├── world_instance_id
 ├── chunk_x
 └── chunk_z
+
+Parcel
+├── parcel_id
+├── settlement_id
+├── name
+└── permission_policy
+
+ParcelHolder
+├── parcel_id
+└── player_uuid
+
+ParcelCell
+├── parcel_id
+├── voxel_x
+├── voxel_y
+└── voxel_z
 ```
 
 The database must enforce exclusive Main World ownership with a unique constraint equivalent to:
@@ -432,188 +458,161 @@ The database must enforce exclusive Main World ownership with a unique constrain
 UNIQUE (world_instance_id, chunk_x, chunk_z)
 ```
 
-`Settlement.owner_uuid` is the single source of truth for the Owner. `SettlementMember` stores only Managers and Members and must be unique by `(settlement_id, player_uuid)`. Visitors are derived and have no membership row.
+`Settlement.owner_uuid` is the single source of truth for the Owner. `SettlementMember` stores only Governors and Citizens and must be unique by `(settlement_id, player_uuid)`. Public users are derived and have no membership row. `BANNED` is a settlement-local negative authorization override, not an ordinary membership role; a player cannot use a ban entry to bypass or replace membership invariants.
 
-Activity, building condition, repair, Era, and history remain separate domain records rather than duplicated mutable fields on `Settlement`.
+Activity, building condition, repair, Era, history, Facility state, and future dynamic-cycle state remain separate domain records rather than duplicated mutable fields on `Settlement`.
 
-## 7.4 Ownership and teams
+## 7.4 Ownership, governance, public access, and bans
 
-A player can:
+A player can own multiple Settlements. A Settlement has one Owner, zero or more Governors, zero or more Citizens, and any number of Public users.
 
-- create and own multiple settlements;
-- own adjacent settlements;
-- invite players to a settlement team;
-- assign team roles;
-- transfer settlement ownership through an auditable operation;
-- leave, abandon, or release a settlement according to settlement rules.
-
-Every player has exactly one effective role relative to a Settlement:
+The effective governance identities are:
 
 ```text
 OWNER
 ├── exactly one while the Settlement is owned
 └── identified by Settlement.owner_uuid
 
-MANAGER
+GOVERNOR
 ├── zero or more
 └── persisted as SettlementMember
 
-MEMBER
+CITIZEN
 ├── zero or more
 └── persisted as SettlementMember
 
-VISITOR
-├── every other player
+PUBLIC
+├── every other non-banned player
 └── derived; never persisted as membership
 ```
 
-These four roles are fixed. Settlements cannot create, rename, delete, or reorder roles. A player may hold different effective roles in different Settlements.
+`BANNED` is separate from this positive-role hierarchy. An Owner or Governor may ban a player from one Settlement unless that player is a server administrator. A banned player may still enter, move through, leave, and receive necessary informational feedback, but all Settlement- and Parcel-governed interactions are denied. Server administrators bypass Settlement bans. Ban and unban operations are auditable governance actions.
 
-The initial capability matrix is:
+The implemented administrator check uses online `esmp.admin` permission and offline operator status. Ban exemption does not itself grant ordinary world-edit access; the existing explicit `/settlement bypass on` controls administrator protection bypass. Bans and Parcel changes refresh committed authorization snapshots and close newly unauthorized world inventories.
 
-| Action | Owner | Manager | Member | Visitor |
-|---|---:|---:|---:|---:|
-| Enter, move through, and observe | Yes | Yes | Yes | Yes |
-| Safe public interaction | Yes | Yes | Yes | Yes |
-| Build and break blocks | Yes | Yes | Yes | No |
-| Full block interaction | Yes | Yes | Yes | No |
-| Use containers and persistent inventory holders | Yes | Yes | Yes | No |
-| Interact with protected entities or machines | Yes | Yes | Yes | No |
-| Start repair work | Yes | Yes | Yes | No |
-| Claim or unclaim chunks | Yes | Yes | No | No |
-| Invite or remove Members | Yes | Yes | No | No |
-| Change ordinary Settlement settings | Yes | Yes | No | No |
-| Promote or demote Managers | Yes | No | No | No |
-| Transfer ownership | Yes | No | No | No |
-| Abandon or release the Settlement | Yes | No | No | No |
-| Voluntarily leave the team | No | Yes | Yes | Not a team member |
+The MVP should not model resident, tenant, worker, merchant, or visitor as additional Settlement roles. A Public player may still use interactions explicitly allowed by the active Settlement or Parcel policy. Parcel ownership/holding is orthogonal to Settlement membership: a Public player can hold a Parcel without becoming a Citizen.
 
-On successful ownership transfer, the former Owner becomes a Member, not a Manager or Visitor. Update `Settlement.owner_uuid`, remove any membership row for the new Owner, and persist the former Owner as `MEMBER` atomically. No intermediate state may expose two Owners or an ownerless owned Settlement.
+On successful ownership transfer, the former Owner becomes a Citizen by default unless a separately approved rule changes this behavior. Update `Settlement.owner_uuid`, remove any membership row for the new Owner, and persist the former Owner as `CITIZEN` atomically. No intermediate state may expose two Owners or an ownerless owned Settlement.
 
-Ownership transfer requires explicit acceptance by the nominated recipient. Initiating a transfer creates a pending offer and changes no ownership or permissions. Acceptance must revalidate that the initiating player is still the Owner and the offer is still valid before committing the atomic transfer. Only the nominated recipient can accept; an unaccepted offer never transfers ownership.
+Ownership transfer, membership invitation, Governor promotion, removal, demotion, and voluntary leave retain the existing durable-offer and atomic-transition principles. Rename the old Manager semantics to Governor and Member semantics to Citizen; do not keep duplicate legacy role names in the new schema. Owners cannot leave without first transferring ownership or abandoning under the applicable rules.
 
-Ownership-transfer offers expire after a configurable **36000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it regardless of cleanup.
+Permissions are settlement-local. A governance role in one Settlement grants nothing in another Settlement owned by the same player.
 
-The nominated recipient must already be a Manager or Member of this Settlement when the offer is created and when it is accepted. Visitors are ineligible; they must join first. Acceptance must revalidate current membership and reject the transfer if the recipient is no longer a Manager or Member.
+## 7.5 Claim protection and authorization
 
-Settlement invitations require explicit acceptance by the invited player before they become a Member. A pending invitation grants no membership or additional permissions; the recipient retains their existing effective role until acceptance commits. Only the invited player may accept. Acceptance must validate that the invitation is still valid and the inviter still has authority to invite Members. It must not overwrite an existing Owner, Manager, or Member role.
-
-Membership invitations expire after a configurable **1728000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it regardless of cleanup.
-
-Cancellation follows current role authority: the Owner or any Manager may cancel any pending membership invitation for their Settlement, regardless of who issued it. Only the current Owner may cancel a pending ownership-transfer offer. The nominated recipient may decline their own invitation or transfer offer. Cancellation and decline grant no access and change no existing ownership or membership. Acceptance, cancellation, and decline must atomically transition the pending offer so only one outcome can commit; cancelled, declined, expired, or already accepted offers cannot be accepted.
-
-Members and Managers may voluntarily leave a Settlement without approval. Leaving ends their active membership and makes them Visitors of that Settlement when the change commits; it does not change claims or other players' roles. A Manager leaving is self-withdrawal, not authority to manage another Manager. Owners cannot use this leave operation: they must first complete an ownership transfer or abandon the Settlement under the applicable release rules. No leave operation may leave an owned Settlement without its Owner.
-
-Managers are operational deputies. They can manage land and ordinary Members but cannot create or remove Managers, transfer ownership, or abandon/release the Settlement.
-
-Authorized removals take effect when the membership change commits, without approval from the removed player. The Owner may remove Members or Managers; Managers may remove ordinary Members only. Removed players become Visitors. Neither role may remove the Owner through membership removal.
-
-Only the Owner may offer Manager promotion to an existing Member. Promotion requires explicit acceptance by that Member; while pending, they retain Member permissions. Acceptance must revalidate the offer, the initiating player's current ownership, and the recipient's current Member role before atomically granting Manager permissions.
-
-Manager promotion offers expire after a configurable **1728000 game ticks** by default. Persist the reckoning-tick deadline in `expires_at`; acceptance rejects at or after it independently of cleanup. Only the current Owner may cancel; only the nominated Member may decline. Acceptance, cancellation and decline compete for one atomic pending-state transition. Resolved/expired offers cannot grant Manager permissions.
-
-The Owner may demote a Manager to Member without that Manager's approval. The change takes effect on commit. Demotion does not remove membership, and Managers cannot demote other Managers.
-
-Members are standard collaborators. They can build, break, interact, use containers, interact with protected entities or machines, and start repair work. They cannot change claims, membership, roles, or settings.
-
-Visitors use an **adventure-like authorization policy**. They may move through the Settlement and use a narrow safe-public-interaction set such as doors, trapdoors, fence gates, buttons, levers, and pressure plates. They cannot build, break, open protected containers, alter persistent inventories, interact with protected entities, or directly operate protected machine interfaces.
-
-ESMP must not implement Visitor behavior by switching the player's actual game mode or cancelling every right-click event. Protection classifies the attempted action and permits the safe subset. An allowed button, lever, or pressure plate may trigger connected redstone as its normal consequence.
-
-Permissions are settlement-local; a role in one Settlement grants nothing in another Settlement owned by the same player.
-
-## 7.5 Claim protection
-
-Claim protection is a required part of the Settlement system, not an optional integration.
-
-All protected actions must pass through one authorization boundary:
+Claim protection remains a required part of the Settlement system. All protected actions pass through one authorization boundary:
 
 ```text
 authorize(actor, action, target, context) → allow | deny
 ```
 
-Protection must account for direct and indirect world changes, including:
+Protection must account for direct and indirect world changes, including block placement/breaking, block and container interaction, entity or vehicle interaction, explosions, fire/fluid spread, pistons, hoppers, dispensing, system-initiated decay/repair, and explicit administrator overrides.
 
-- block placement and breaking;
-- block and container interaction;
-- entity and vehicle interaction or damage;
-- explosions;
-- fire and fluid spread;
-- pistons, hoppers, and other mechanics crossing claim boundaries;
-- system-initiated decay and repair mutations;
-- explicit administrator overrides.
+The MVP authorization resolution order is:
 
-The exact action catalogue may grow, but new mutation paths must not bypass authorization accidentally. Decay and Repair use explicit system actors and must revalidate settlement ownership and building state immediately before changing the world.
+```text
+administrator override
+↓
+Settlement BANNED override
+↓
+world / Settlement lookup
+↓
+Parcel lookup (if any)
+↓
+Parcel policy or fixed Settlement default policy
+↓
+actor relations: OWNER / GOVERNOR / CITIZEN / HOLDER / PUBLIC
+↓
+allow | deny
+```
 
-Authorization is action-specific. Visitors are denied every protected action outside the safe-public-interaction allowlist; Owner, Manager, and Member permissions follow the fixed capability matrix. Public movement and safe interaction must not become a blanket right-click denial.
+A Parcel policy overrides the ordinary Settlement default policy for positions inside that Parcel, but never grants Settlement governance powers. Actor relations are a set, not one highest role; for example a Citizen may also be a Holder. Permission succeeds when at least one applicable actor relation is allowed, unless an earlier negative override such as `BANNED` applies.
+
+The MVP exposes four Parcel permission domains:
+
+```text
+BUILD       direct structural world modification
+INTERACT    ordinary non-inventory interaction
+CONTAINER   persistent world-inventory access
+AUTOMATION  indirect mechanical transfer or mutation
+```
+
+The exact event catalogue remains an adapter concern. The Parcel model does not expose per-block ACLs in the MVP. If finer separation is needed, use another Parcel rather than configuring individual containers.
+
+Unparcelled Settlement space uses one server-defined default policy in the MVP rather than a per-Settlement matrix. Public space should permit safe normal use while preventing strangers from altering structures, persistent inventories, or automation. Exact default action membership is a tunable policy, not a reason to add more roles.
+
+Implemented defaults: unparcelled space grants normal team access and safe Public controls only. New Parcel policies allow OWNER/GOVERNOR/CITIZEN/HOLDER in all four domains and no PUBLIC relations until explicitly configured. Multiple relations combine by OR; ownership is not an implicit Parcel-policy bypass. Unattributed automation inside an assigned Parcel uses its HOLDER automation grant (OWNER for unassigned Parcels). Boundary-crossing unattributed automation requires PUBLIC AUTOMATION on both protected sides; one-sided permission is insufficient.
+
+Cross-Parcel and cross-Settlement automation must not bypass protection. Operations such as hoppers and pistons that affect both a source and a destination must satisfy authorization for every protected side of the transfer or mutation.
 
 ### Implemented protection and publication boundary
 
-The Paper adapter checks permissions from a server-thread spatial index, never synchronous SQL in an event handler. An accepted mutation temporarily locks its affected Settlement and any reserved new chunk; after SQL commits, the server thread publishes the replacement view before announcing success. Obvious unauthorized commands are rejected before reserving territory. Revocation also closes no-longer-authorized container views.
-
-The current event adapters cover direct placement/breaking and multi-block placement, block/item interactions (including buckets and ongoing archaeology brushing), signs/harvest, containers and inventory transfers, protected entities/vehicles/hanging objects, projectile/potion/fire effects, explosions, fluid and piston boundaries, dispensing, growth, and portal construction. Safe public controls remain permitted; personal inventory is not a protected world container.
-
-Cross-region automatic block/item transfers are denied even between adjacent Settlements with one owner, while operations wholly within one Settlement remain usable. Unknown/unattributed destructive effects do not gain player permissions; public controls may still activate machines inside their own Settlement as previously specified.
-
-This is spatial protection, not player invulnerability or permanent ownership of every moving entity: PvP, loose-item pickup, and natural entity movement keep their existing rules. Trusted console commands and other plugins that bypass events need their own authorization/integration. These boundaries must remain explicit in operator documentation.
+The Paper adapter checks permissions from a server-thread spatial index, never synchronous SQL in an event handler. Accepted durable mutations publish replacement views only after their database transaction commits. The current event coverage remains useful, but its role checks must migrate from the legacy fixed Visitor/Member matrix to the Settlement/Parcel authorization model above.
 
 Protection is guarded during startup. Fatal persistence/publication errors and hot unloading trigger a server stop rather than exposing an unprotected Main World. Use full restarts, not plugin reloads.
 
-## 7.6 Claim operations and lookup
+## 7.6 Claim operations, cost, naming, and lookup
 
-The Settlement API must support:
+Settlement claims remain full vertical chunk columns. The minimum claim unit is still one 16×16 chunk from world minimum height through world maximum height. The first chunk establishes the Settlement component; additions must share an edge with the existing component; removals that split the component are rejected; ordinary unclaim cannot remove the final chunk; separate Settlements may remain edge-adjacent without merging.
+
+The current user-approved stage implements **numeric claim pricing only**, with no real currency or item consumption. The configured next-claim price is `claim-base-price + claim-price-step * current claimed chunks`, initially 100 + 25×area. Creation quotes the area-zero price; successful create/claim records the numeric price and `charged=false` in its committed history. `/settlement price [settlement]` exposes the quote. No mock balance or wallet is created and unclaim has no refund because nothing was charged. Real currency integration is deferred until the user chooses a system; its debit/recovery contract will be a later change. Detailed land markets, rent, taxes and geography-sensitive prices remain deferred.
+
+The Settlement API must support complete command-driven administration for creation, claims, unclaims, inspection, membership/governance, bans, Parcel management, permission policy, naming administration, transfer, abandonment, and later lifecycle operations. Commands are the canonical complete interface; convenience tools call the same application services and must not implement separate business rules.
+
+Initial Settlements do not require an official player-chosen name. They use a stable numeric identity and may display a generated geographical label. `official_name` remains null until the Settlement reaches a server-approved certification threshold and an administrator approves the name. Naming and every later rename are administrator-mediated operations and may charge Settlement currency. Naming and rename events are historical facts; previous names are not erased from history.
+
+Implemented identity uses immutable existing UUID keys internally plus a stable global numeric ID accepted by commands; new names display as `S#<number>` until naming approval. `/settlement certify <settlement> true|false` records administrator-reviewed naming eligibility; `/settlement rename` requires that eligibility and administrator authority. It does not claim to implement automatic economic-stage certification.
+
+## 7.7 Parcel model
+
+A Parcel is a lightweight three-dimensional usage and permission subdivision inside exactly one Settlement. It does not create independent territorial sovereignty and it does not replace chunk claims.
+
+Parcel geometry uses a world-aligned **8×8×8 block voxel** as its minimum unit. A Parcel is a set of these cells with the following MVP invariants:
 
 ```text
-Create settlement
-Claim current chunk
-Unclaim a chunk
-Inspect ownership
-Invite / remove member
-Assign role
-Transfer ownership
-Abandon / release
-Reclaim released land
+all cells lie inside the owning Settlement
+cells do not overlap another Parcel
+cells are six-directionally face-connected
+Parcel names are unique within one Settlement
 ```
 
-Claim changes must update durable state atomically before the new permission decision is exposed. Runtime protection lookups should use a bounded cache or spatial index keyed by `(world_instance_id, chunk_x, chunk_z)`, with the database as the durable source of truth.
+A Parcel can have zero, one, or multiple Holders. Holder status is a Parcel relationship rather than a Settlement role. A Holder may be a Citizen or a Public player.
 
-Claim topology must preserve these invariants:
+A Parcel with no Holders is fully governable by the Settlement's Owner/Governors and is suitable for temporary construction zones, municipal buildings, warehouses, or other public subdivisions. Once one or more Holders exist, the governance side may not unilaterally revoke the Parcel, remove Holders, or reshape the assigned Parcel, and Holders may not unilaterally expand or reshape it. Revocation or boundary changes require agreement between the governance side and all current Holders. The server does not model price, rent, contract duration, renewal, debt, or private contractual terms in the MVP. Disputes or inaccessible Holders are handled by server administrators.
 
-- the first claimed chunk establishes the Settlement component;
-- every added chunk must share an edge with that Settlement's existing component;
-- removing a chunk must be rejected if it would split the remaining claimed chunks;
-- ordinary unclaim operations must reject removal of the final chunk, including for the Owner; emptying the Settlement requires the Owner's explicit abandon operation, never an implicit abandon through unclaiming;
-- two different Settlements may occupy edge-adjacent chunks without merging, even when they share an owner;
-- permissions, activity, history, and lifecycle remain independent for adjacent Settlements;
-- a configurable policy may impose `max_chunks_per_settlement`; a claim exceeding an enabled cap must fail atomically.
+Implemented changes to assigned geometry, Holders, policies and names use durable proposals requiring governance and all current/new Holders. Proposer approval is recorded, other participants approve or reject explicitly, and proposals expire after 24000 game ticks. Parcel, ownership, claim and security revisions guard acceptance; changed authorization/geometry requires a fresh proposal. Server administrators can resolve directly with an audited override. Parent unclaim/abandonment cannot circumvent consent: affected Parcels must first be removed through this workflow.
 
-Abandonment requires a separate, explicit confirmation by the Owner. The confirmation must identify the Settlement and clearly warn that its claim protection will be removed. Initiating abandonment or displaying the warning changes no ownership or protection; dismissing it likewise changes nothing. Before applying a confirmed abandonment, revalidate the confirming player's current ownership and the target Settlement. Confirmation does not bypass other applicable abandonment rules.
+The MVP Parcel permission policy controls only `BUILD`, `INTERACT`, `CONTAINER`, and `AUTOMATION` using allowed relation sets drawn from OWNER, GOVERNOR, CITIZEN, HOLDER, and PUBLIC.
 
-Abandonment confirmations expire after a configurable **1200 game ticks** by default. At confirmation, reject at or after the persisted reckoning deadline. Bind the warning to ownership and claimed-chunk revisions; any intervening change invalidates it even if later restored. Expired/invalidated requests require a fresh warning and cannot remove protection. Validate expiry and both revisions atomically with abandonment.
+Initial bounds are 4096 cells per Parcel/selection, 128 Parcels per Settlement, 32 Holders and 64 pending proposals per Settlement. These are safety limits, not a population/economy model.
 
-Claiming Settlement chunks is free in the initial design: no currency or material payment is required. Expansion is constrained by contiguity and `max_chunks_per_settlement`, not by a claim price. The configurable chunk cap is enabled by default, with `max_chunks_per_settlement = 64`, but may be changed or disabled by server policy. This is a per-Settlement limit, not a per-player total. A Settlement at the cap may contain 64 chunks; claiming a 65th chunk must fail while the default cap is enabled.
+## 7.8 Management tools and visualization
 
-Cooldowns, administrator exemptions, and partial release/reclaim behavior remain settlement policy decisions. Any future partial operation must preserve contiguity or explicitly create separate Settlement identities.
+Every Settlement and Parcel operation must have complete command support. Special items are optional convenience frontends so ordinary players do not need to memorize the full command grammar.
 
-## 7.7 Basic visualization
+The MVP uses two convenience tools:
 
-Claim visualization must work with an unmodified vanilla client.
+```text
+Management Book
+→ Settlement status, claims, roles, bans, Parcel ownership and permission management
 
-The initial visualization should:
+Parcel Wand
+→ three-dimensional Parcel geometry selection and editing
+```
 
-- show the current chunk and nearby settlement borders with temporary particles;
-- identify the settlement, owner, and the player's effective role through ActionBar or chat components;
-- appear automatically during claim edits and on an explicit view command;
-- be visible only to the requesting player;
-- avoid permanent marker blocks and full-area scans.
+Tools are server-issued, disposable, and replaceable. Players can request them through commands; issuance may enforce one item of each tool type in inventory plus a short cooldown to prevent litter. Tool identity is marked with plugin-owned persistent item data. Authority belongs to the player using the tool, not to the item; another player picking it up gains no permissions they do not already possess. Tool items should not retain valuable vanilla utility. If a normally useful/damageable item is chosen as a tool, its ordinary gameplay use should be disabled; a plain stick needs no artificial durability model.
 
-Movement-driven ActionBar feedback follows Settlement identity, not chunk identity. Crossing chunks inside the same Settlement, moving within it, or moving between unclaimed areas is silent. Entering a different Settlement reports its information; leaving reports the exit once, including cross-world travel. Teleports and respawns follow the same comparison without a duplicate world-change callback. Explicit view/claim command feedback remains available.
+The Parcel Wand is used with a named Name Tag in the off hand. Two selected aligned voxel positions define a cuboid; every currently unparcelled cell in that cuboid is proposed for addition to the named Parcel. If the name refers to an existing Parcel, the selection extends that Parcel. New cells must yield a valid six-connected result. Conflicts that would produce a disconnected result reject the whole operation rather than partially applying an unpredictable shape.
 
-The exact particle style and command syntax remain provisional.
+Parcel removal is also spatially constrained. A single cell can be removed only when it is on the Parcel surface and the remaining cells stay six-connected. A whole unassigned Parcel may be removed by governance in one operation; assigned Parcels follow the mutual-revocation rule above.
 
-## 7.8 Spatial infrastructure and domain state
+Selection state is transient session state, not item state. Geometry edits preview before commit and apply atomically. Temporary particles provide the primary spatial visualization: current voxel, proposed selection, existing Parcel surface, and conflicts should be visually distinct. ActionBar/chat feedback supplies coordinates, voxel counts, mode, costs, and validation messages. Settlement claim editing similarly uses temporary chunk-border particles and concise text feedback.
 
-Core may supply world/chunk keys and other neutral infrastructure. Settlement owns claim authorization, membership, activity, and lifecycle semantics. Resource worlds remain unclaimed; do not introduce a universal gameplay aggregate controlled by `if world_type == ...` branches.
+The issued items are a PDC-marked written book and plain stick. `/settlement tools book|stick` allows one of each in inventory and a 40-game-tick issuance cooldown. Book pages provide live information and command links; crafting/anvil/grindstone conversion of tools is blocked. Stick left/right clicks select aligned cells with a named off-hand Name Tag; command-based `parcel pos1/pos2` is equivalent. Add/remove previews require `parcel commit`, expire after 1200 game ticks and reject changed snapshots. Session selections carry no authority and are discarded on logout/restart. Current, selected, existing and conflicting cells use cyan, green, blue and red corner particles; the Parcel renderer caps each viewer at 256 particles per update and uses bounded nearby cell lookups without loading chunks.
+
+## 7.9 Spatial infrastructure and domain state
+
+Core may supply world/chunk/voxel keys and neutral infrastructure. Settlement owns claim authorization, governance, bans, Parcel semantics, Activity, and lifecycle semantics. Resource worlds remain unclaimed; do not introduce a universal gameplay aggregate controlled by `if world_type == ...` branches.
 
 ---
 
@@ -639,7 +638,7 @@ Otherwise a player could log in briefly every few weeks and permanently prevent 
 
 Activity credits successful authorized building and meaningful interactions in the actual Settlement. The initial adapters cover block place/break, permitted physical inventory opening, and deliberate right-click use of safe public controls. Login, walking/pressure-plate passage, idle presence and automation grant no credit. Real Repair contributions can be added when Repair exists.
 
-Owner, Manager and Member actions are primary. Visitors receive only very small safe-public-interaction credit, never extra permissions. The SQL service revalidates owned identity, world/chunk and ownership/chunk revisions, plus current membership before credit; released/stale observations are discarded.
+Owner, Governor and Citizen actions are primary. Meaningful authorized Holder/Public interactions may receive smaller bounded credit without granting additional permissions. The SQL service revalidates owned identity, world/chunk and ownership/chunk revisions, plus current governance/authorization context before credit; stale observations are discarded. The exact Public/Holder weights are part of the MVP policy migration and remain tunable.
 
 The score naturally decays over elapsed shared game time (§16A.6), not wall time. Store a value and its game-clock anchor, then evaluate decay lazily when read or credited; inactivity must not require scheduled writes to every Settlement. With `advance_time=false`, no time-driven Activity loss occurs. Server downtime contributes no elapsed game time.
 
@@ -648,7 +647,7 @@ Conceptually:
 ```text
 Activity Score
       ▲
-      │       member builds / maintains / uses
+      │       local meaningful builds / maintains / uses
       │                 │
       │                 ▼
       │             increases
@@ -658,7 +657,7 @@ Activity Score
       └──────────────────────────────► time
 ```
 
-Implemented formula: `score(t) = score(anchor) * 0.5 ^ ((t-anchor)/(halfLifeDays*24000))`, bounded by the configured maximum. Defaults: maximum 100, initial score 30, half-life seven game days, inactive below 20, recover at 30. BUILD credits 1; team INTERACTION 0.25; Visitor INTERACTION 0.02. Persisted per-player/category cooldown is 200 game ticks, player daily cap 5, Settlement daily cap 20; Visitor daily cap is one twentieth of the player cap. Repeated actions remain bounded, not perfectly classified as useful versus farming.
+Implemented formula: `score(t) = score(anchor) * 0.5 ^ ((t-anchor)/(halfLifeDays*24000))`, maximum 100, initial 30, half-life seven game days, inactive below 20 and recovery at 30. Owner/Governor/Citizen BUILD credit is 1 and INTERACTION credit 0.25. Public actors, including non-Citizen Holders, receive 0.02 for authorized contributions and a daily cap of 0.25; holding a Parcel does not confer team credit. Per-player/category cooldown remains 200 game ticks, team player cap 5 and Settlement cap 20. Observations include exact block positions, action domain and security revision; SQL revalidates bans, membership, Parcel relation policy and claim/ownership/security revisions before credit. Existing scores/caps are preserved. The `public-credit` configuration replaces the legacy `visitor-credit` key; equivalent persisted policy text migrates without changing values.
 
 New Settlements anchor at founding game time; legacy Settlements start at migration time. A first visit does not reset their age. Transfers preserve activity, released identities reject new credit, and reclaiming a new identity starts fresh. Pure status reads project state without writing decayed scores. Inactivity begins at the calculated threshold-crossing tick, not the next inspection.
 
@@ -722,23 +721,48 @@ Original terrain
 
 ## 9.2 Hybrid design
 
-The selected direction is a hybrid **C-style approach**:
+The selected direction is a hybrid approach combining player-modification evidence, bounded structure analysis, and rule-based decay.
 
-1. player modification records;
-2. building structure analysis;
-3. rule-based decay.
+Buildings are discovered automatically inside claimed Settlements. Player modification records are strong evidence but are not the definition of a Building; existing construction inside newly claimed land must still be discoverable.
 
-Buildings are discovered automatically by an algorithm operating within player-claimed Settlements. Players do not register buildings or approve candidates before tracking begins. Player modification records and bounded structure analysis supply discovery evidence; modification records alone are not the definition of a Building.
+Each tracked Building has a stable `building_id`, `world_instance_id`, one responsible `settlement_id`, a footprint, and a versioned restoration baseline. The footprint must lie entirely inside one Settlement. Building identity should survive ordinary rediscovery.
 
-Each tracked Building has a stable `building_id`, a `world_instance_id`, one responsible `settlement_id`, a footprint, and a versioned restoration baseline. Its tracked footprint must lie entirely within that Settlement's claimed chunks. A physical structure spanning different Settlements cannot be one tracked Building; tracking must respect their separate permission and activity boundaries.
+Discovery establishes the initial baseline. Authorized player edits revise only the affected active baseline portions. ESMP decay and repair change physical condition, not intended design. Authorized demolition therefore changes the baseline rather than becoming damage that Repair later reverses.
 
-Discovery establishes the initial baseline. Authorized player building edits automatically revise the affected portions of the restoration baseline without a separate approval step. ESMP decay and repair operations change physical condition, not the intended baseline. Updating one edited location must not capture unrelated decay damage as the new repair target.
+The MVP Building geometry model should remain deliberately small but must include enough spatial semantics for safe restoration:
 
-This choice intentionally treats authorized demolition as a baseline change: repair does not undo it. The baseline is a restoration target, not a general rollback backup. Decay and repair jobs reference a baseline revision and must revalidate it before mutation so queued work does not overwrite a later renovation.
+```text
+BuildingGeometry
+├── occupied volume
+├── exterior surface
+├── interior volume
+├── openings
+└── structural components / support relations
+```
 
-Discovery and rediscovery use bounded, localized work triggered by relevant claim or world changes, not periodic scans of every block in every Settlement. Existing construction inside newly claimed land is eligible for discovery; discovery must not require every block to have a placement event recorded by ESMP. Paper world reads remain on the appropriate execution context; expensive analysis may use captured data asynchronously.
+Exterior/interior classification is required because block-level conflict checks alone are insufficient. If a ruined tower is later enclosed by a newly built hall, Repair must not restore obsolete exterior walls through that new interior merely because the exact target blocks are currently air. Localized rediscovery therefore compares baseline geometry with current authorized player geometry and can mark old restoration fragments as conflicted or retired by renovation while preserving their historical record.
 
-Building identity must survive ordinary rediscovery rather than being recreated on every analysis pass. Detection, split/merge identity rules, and reconciliation when claims change remain later design work. Claim changes must not leave an active tracked Building spanning multiple Settlements. Reclaiming establishes a new active restoration baseline from the inherited structure's current state while preserving its historical records; ordinary rediscovery within the same ownership context does not perform this reset.
+The active restoration model conceptually distinguishes:
+
+```text
+ACTIVE baseline fragment
+DAMAGED fragment
+CONFLICTED_BY_RENOVATION
+RETIRED_BY_RENOVATION
+HISTORICAL_ONLY
+```
+
+The exact persistence representation may be simpler than this vocabulary, but Repair must be able to stop targeting obsolete portions without erasing their history.
+
+Decay and Repair jobs reference a baseline revision and revalidate immediately before mutation. A conflicting player edit invalidates/replans only affected work; valid work elsewhere in the Building may continue.
+
+Block entities are a special category. The MVP does not define complex inventory restoration, migration, condemnation, or content-state simulation. Decay/Repair must not treat block entities as ordinary blocks until an explicit safe policy exists.
+
+Wild construction does not receive the full persistent Building model by default. Ordinary wild structures use occasional localized scans and coarse decay planning when naturally loaded and due. Roads, railways, and similar infrastructure may use specialized lightweight linear/segment models. Only structures important enough to justify persistent identity should be promoted to richer tracking.
+
+The first structural-decay implementation should prefer a small material/profile set and a small failure-mode set. Weathering and structural integrity are separate concerns. Initial collapse synthesis may support simple `DROP`, `TOPPLE`, and `CAVE_IN` behavior without attempting full rigid-body physics, finite-element analysis, or complex continuous rotations.
+
+Discovery and rediscovery remain bounded, localized, and event-driven. Do not introduce recurring scans of every block in every Settlement.
 
 ## 9.3 Event-driven architecture
 
@@ -788,25 +812,20 @@ The architecture must never rely on arbitrary asynchronous block mutation.
 
 ---
 
-# 10. Natural World Change
+# 10. Natural World Change and Deferred World Evolution
 
-ESMP should not attempt to continuously simulate the entire natural world.
+Natural-world change remains accepted only at a high architectural level for the MVP: it must be low-frequency, local, event-driven or scheduled, and bounded in workload. ESMP must not continuously simulate the entire world.
 
-Natural change should be:
+A future world-evolution design may preserve significant player-created landforms without recording every changed block. The accepted direction is coarse **Anthropogenic Landform** representation: small surface edits and incidental trenches can be ignored, Buildings remain Building data rather than terrain data, while large excavations, artificial lakes, major fills, artificial hills, canals, and comparable terrain-scale changes can be represented using coarse material/shape voxels. A fixed 8×8×8 voxel is the preferred first implementation candidate; adaptive refinement to 4×4×4 or 2×2×2 is deferred until a demonstrated need exists.
 
-- low frequency;
-- local;
-- event-driven or scheduled;
-- bounded in workload.
+The following are design directions, not current MVP commitments:
 
-Potential future examples include:
+- natural erosion/evolution of those coarse landforms;
+- chunk retirement and regeneration from current historical terrain state;
+- disaster operators/fields, sea-level shifts, global catastrophes, and Epoch transitions;
+- large-scale volcanic, tectonic, glacial, flood, ash, snow, or other world-shaping events.
 
-- vegetation entering abandoned areas;
-- small riverbank changes;
-- gradual sand movement;
-- water accumulation in abandoned structures/mines.
-
-These are architectural examples, not finalized algorithms.
+Natural disasters in particular remain open design. They are not a prerequisite for the next dynamic-cycle phase and must not be assumed to define Settlement ownership or release rules.
 
 ---
 
@@ -847,6 +866,10 @@ Era advances
 ```
 
 Instant restoration is not the preferred model.
+
+The MVP exposes Repair primarily as a whole-Building operation, even if the implementation applies bounded local batches internally. Repair restores only still-valid damage against the current active baseline. Authorized renovations, newly created interior space, and retired baseline fragments are preserved rather than overwritten. More detailed player-facing scopes such as “repair only the east wing” are deferred until needed.
+
+System decay must not create ordinary collectible block drops, and repair/material accounting must be recoverable rather than assuming atomicity between SQLite and Minecraft world state.
 
 ---
 
@@ -1034,16 +1057,16 @@ Use existing Minecraft interaction patterns whenever possible:
 
 ## 16.2 Settlement and claim example
 
-Possible command surface:
+Current primary command surface (complete details in README and in-game help):
 
 ```text
-/settlement create <name>
-/settlement claim
+/settlement create
+/settlement claim <settlement>
 /settlement unclaim
-/settlement invite <player>
-/settlement role <player> <role>
-/settlement view
-/settlement abandon
+/settlement invite <settlement> <player>
+/settlement promote|demote <settlement> <player>
+/settlement view [settlement]
+/settlement abandon <settlement>
 ```
 
 During claim editing, temporary particles can show chunk borders. ActionBar or chat components can show:
@@ -1051,7 +1074,7 @@ During claim editing, temporary particles can show chunk borders. ActionBar or c
 ```text
 Settlement: Oakfall
 Owner: Alex
-Role: Member
+Role: Citizen
 Status: Prosperous
 ```
 
@@ -1107,7 +1130,7 @@ Stable natural biome/terrain profiles give efficiency advantages, not hard avail
 
 Currency is ledger-based with distinct player wallets and Settlement treasuries. Budgeted server purchases and exploration/event rewards create currency. Player trades transfer currency. Teleport and market service fees destroy currency; freight separates operator revenue (transfer) from a disclosed system fee (destruction). No recurring wages or membership taxes are introduced.
 
-Owner controls treasury withdrawals and operating budgets. Managers may make audited operational payments within Owner-approved budgets; Members cannot spend treasury funds. This is bounded delegated trust, not a guarantee against self-dealing, and does not create custom Settlement roles. Budget allocation/replenishment and detailed spending controls remain open.
+Owner controls treasury withdrawals and operating budgets. Governors may make audited operational payments within Owner-approved budgets; Citizens cannot spend treasury funds. This is bounded delegated trust, not a guarantee against self-dealing, and does not create custom Settlement roles. Budget allocation/replenishment and detailed spending controls remain open.
 
 Server Trade is a bounded basic-commodity backstop, including selected simple processed essentials—not an unlimited quest-money shop. It has global Cheap/Normal/Expensive price bands adjusted at coarse configurable intervals from stock and demand, within fixed price bounds. Stock is finite: purchases consume it, eligible sales and controlled replenishment restore it. Temporary shortages are accepted.
 
@@ -1216,7 +1239,7 @@ Coordinate writes through bounded scheduling suited to SQLite's single-writer mo
 
 Use versioned schema migrations. The initial implementation uses SQLite JDBC 3.53.4.0 with small transactional JDBC migrations tracked by `PRAGMA user_version`, rather than adding a migration framework for the initial schema. Repository boundaries support maintainability, not transparent database portability; a future backend change requires explicit migrations and verification.
 
-Civilization maintains `civilization_schema` version 2, including original Settlement tables plus founding/history game ticks and converted offer deadlines. Activity owns its policy, score, actor-limit and pause-interval tables; the shared clock has its own `game_clock` record. Domain changes and their history/outbox facts share a transaction. Released identities/history remain; current claims and membership are removed.
+Civilization schema version 3 retains founding/history game ticks and tick-based offer deadlines, migrates membership role constraints, and adds Settlement details/numbers/bans plus Parcel cells, Holders, policies, proposals and approvals. Activity owns its policy, score, actor-limit and pause-interval tables; `game_clock` remains independent of the Core world schema. Released identity/history remains; affected Parcels must be explicitly removed before parent claim release.
 
 ## 17.3 World identity requirement
 
@@ -1460,8 +1483,10 @@ ESMP
 │
 ├── Civilization Domain (not an owner entity)
 │   ├── Settlement
-│   │   ├── SettlementMember
-│   │   └── SettlementChunk
+│   │   ├── SettlementMember (Governor/Citizen)
+│   │   ├── SettlementBan
+│   │   ├── SettlementChunk
+│   │   └── Parcel / ParcelHolder / ParcelCell
 │   ├── Activity
 │   ├── Building
 │   ├── Decay
@@ -1481,49 +1506,30 @@ The accepted extension adds Facility/progression/cultural state to Civilization 
 
 # 23. Settlement Lifecycle Model
 
-Settlement ownership and physical condition are related but separate state dimensions.
+Settlement ownership and physical condition are separate state dimensions.
 
-## 23.1 Ownership lifecycle
+## 23.1 MVP ownership lifecycle
+
+The MVP does **not** automatically release Settlements because of inactivity, ruin, age, or low Activity. A Settlement remains owned and protected indefinitely unless an authorized explicit lifecycle operation changes that state.
 
 ```text
-                    SettlementFoundedEvent
-                              │
-                              ▼
-                          ┌───────┐
-                          │ OWNED │
-                          └───┬───┘
-                              │ release conditions
-                              ▼
-                        ┌──────────┐
-                        │ RELEASED │
-                        └────┬─────┘
-                             │ new owner claims released land
-                             ▼
-                          ┌───────┐
-                          │ OWNED │
-                          └───────┘
-                    SettlementReclaimedEvent
+SettlementFoundedEvent
+        │
+        ▼
+     OWNED
+        │
+        │ explicit Owner abandonment / approved administrative operation
+        ▼
+    RELEASED
 ```
 
-`Founded` and `Reclaimed` are events, not permanent settlement states. Each ownership change creates an auditable ownership epoch. Reclaiming restores claim protection under the new owner; it does not automatically restore ruined buildings.
+Voluntary abandonment remains an explicit confirmed Owner action. It removes claim protection only when the durable release commits and preserves historical records. Abandonment does not itself damage or restore Buildings.
 
-Release has two distinct entry paths. The Owner may voluntarily abandon an intact or active Settlement through the confirmed abandon operation; inactivity and ruin are not prerequisites for that path. Automatic release requires both inactivity and ruin conditions. Their numerical thresholds remain deferred.
+Released land may later be claimed according to ordinary exclusivity, contiguity, world-instance, size-cap, and claim-cost rules. Historical Settlement/Building records remain independently traceable. If a ruined structure is later brought into a different active Settlement, its current inherited state becomes the basis for any new active restoration baseline; an old intact baseline is not silently revived.
 
-Both paths remove claim protection only when the release commits and preserve historical records. Abandonment does not itself damage or restore buildings. Until release completes, an owned Settlement remains protected.
+Automatic inactivity-driven/peripheral release belongs to the required post-MVP dynamic Settlement-cycle phase in §26.1 and must not be enabled by the MVP Activity/Decay implementation.
 
-### Reclaiming released land
-
-Released land is reclaimed through normal chunk claiming into a new or existing Settlement. Players may claim only part of a former Settlement's footprint; they need not reclaim it as a whole. Ordinary contiguity, exclusivity, world-instance, and configured size-cap rules apply.
-
-The claiming Settlement's current team and permissions govern reclaimed chunks. Former memberships, roles, and settings are not restored. A released Settlement's identity is not automatically revived as the current owning aggregate; historical ownership remains independently traceable.
-
-Reclaiming preserves Building and site history but does not reuse the former intact restoration baseline as the active repair target. Establish a new versioned baseline from the structure's current state in the reclaimed area. This baseline reset changes application state only: reclaiming neither restores blocks nor advances Era. Subsequent authorized edits update the new baseline normally.
-
-Old baseline records, if retained for historical purposes, are not active repair targets. Work queued under the former ownership or baseline must not apply to the reclaimed Building without revalidation against its new ownership context and baseline.
-
-Partial reclaim does not override the one-Settlement-per-Building invariant. Active tracking must respect the claiming Settlement's boundaries while retaining historical links to the former structure; exact split/merge bookkeeping remains deferred.
-
-## 23.2 Activity recovery and physical condition
+## 23.2 Activity and physical condition
 
 ```text
 Activity:
@@ -1534,11 +1540,9 @@ Building condition:
 INTACT ── eligible decay ──► DAMAGED ── eligible decay ──► RUINED
 ```
 
-Activity and physical condition are separate. Activity recovery stops further decay but leaves existing damage unchanged; restoration requires repair. Era advancement remains tied to completed qualifying restoration cycles, not recovered activity.
+Activity and physical condition remain separate. Activity recovery can stop further ordinary decay but leaves existing damage unchanged; restoration requires Repair. A Settlement may therefore contain ruined Buildings while its ownership and protection continue unchanged.
 
-Automatic release evaluates inactivity and ruin together, not a single overloaded status. Exact thresholds and how Building conditions aggregate into Settlement-level ruin remain unresolved.
-
-An owned ruined settlement remains protected until a valid release operation completes.
+The post-MVP dynamic-cycle phase may later use Civic Capacity/maintenance demand and gradual peripheral release to convert prolonged under-maintenance into reusable land, but that lifecycle is intentionally absent from the MVP.
 
 ---
 
@@ -1569,193 +1573,115 @@ This table is a design boundary, not yet a final implementation schema.
 
 # 25. Current Decisions
 
-The following decisions are considered settled enough to serve as architectural constraints:
+The following decisions are settled enough to guide the MVP and immediate implementation planning:
 
-1. Project name: **Evolve: SMP (ESMP)**.
-2. **Civilization** names the overall persistent gameplay environment/domain; it is not a player-owned aggregate.
-3. **Settlement** is the Main World aggregate for ownership, teams, permissions, activity, and claimed chunks.
-4. The Main World is permanent and is the civilization/history world.
-5. Resource Overworld, Nether, and End reset together in one shared cycle. All replacements are generated and pre-generated before closing the old cycle; entry reopens only after all three switch together.
-6. Resource worlds have no settlements or claims.
-7. Claims use Chunk granularity and do not cross physical world instances.
-8. Each owned Settlement is one non-empty, four-directionally contiguous chunk component; diagonal contact alone is insufficient. Ordinary unclaim cannot remove its last chunk; the Owner must explicitly abandon instead.
-9. Separate Settlements may occupy directly adjacent chunks and do not merge automatically, including Settlements with the same owner.
-10. A player may own multiple settlements.
-11. Settlement chunk claiming is initially free. The configurable per-Settlement maximum is enabled by default at 64 chunks and may be changed or disabled by server policy.
-12. Settlements use exactly four fixed effective roles: one Owner, zero or more Managers, zero or more Members, and every other player as a derived Visitor; custom roles are not supported.
-13. Managers are operational deputies: they may change claims, manage ordinary Members and settings, build, interact, and repair, but may not manage Managers, transfer ownership, or abandon/release the Settlement.
-14. Members are standard collaborators: they may build, interact, use containers, use protected entities or machines, and repair, but may not change claims, membership, roles, or settings.
-15. Visitors use action-specific, adventure-like protection: movement and safe public controls are allowed, while building, containers, protected entities, and direct machine interfaces are denied.
-16. Claims protect their blocks and relevant interactions against unauthorized direct and indirect changes.
-17. Protection must classify actions rather than switch Visitor game mode or cancel every right-click event.
-18. Settlement claims have basic vanilla-client visualization using temporary particles and text UI.
-19. Stable `WorldDefinition` identity is separate from physical `WorldInstance` identity.
-20. Player inventory, equipment, Ender Chest, experience, and normal player state are shared across realms.
-21. ESMP does not create per-realm inventories or item-transfer restrictions.
-22. Settlement activity is more than last-login time and is evaluated per settlement.
-23. Activity uses a decaying score driven primarily by team participation. Meaningful Visitor interactions contribute very little; passersby contribute nothing.
-24. Elapsed-game-time Activity decay uses the shared reckoning clock and must not require periodic writes to every Settlement.
-25. Automation should not provide unlimited activity credit.
-26. Decay preserves building shape and turns abandoned construction into ruins.
-27. Buildings are automatically discovered within claimed Settlements, with one Settlement per tracked Building. Authorized player building edits automatically revise restoration baselines; ESMP decay and repair do not redefine them.
-28. Decay and Repair use durable, budgeted jobs and wait for naturally loaded chunks. Conflicting edits trigger replanning of affected work without overwriting player changes or stopping otherwise valid work.
-29. Natural-world change is low-frequency and localized.
-30. Buildings can be repaired before complete ruin.
-31. Repair is a process rather than an instant operation, and villagers/artisans may perform it.
-32. A completed qualifying repair advances a building's Era once.
-33. Era represents historical restoration cycles.
-34. History survives reclaim, but former team permissions and active repair targets do not. Reclaimed chunks use the claiming Settlement's team and normal claim rules; inherited structures receive a baseline from their current state without restoration or Era advancement.
-35. Ownership, activity, and physical condition are separate. Recovered activity stops further decay without repairing damage or advancing Era. Voluntary abandonment may release intact Settlements; automatic release requires inactivity and ruin.
-36. `Founded` and `Reclaimed` are events rather than durable settlement states.
-37. The initial target is Minecraft Java Edition/Paper 26.2, with Java plugin source, JDK 25, and Gradle Kotlin DSL build configuration. Vanilla client compatibility remains a core goal.
-38. Folia is a possible future scale target, not the initial platform.
-39. ESMP should not initially implement its own fake-player/chunk-loader system.
-40. Minecraft world data and ESMP database data are migrated independently.
-41. Initial application persistence uses embedded SQLite with versioned migrations, module-owned repositories, short coordinated writes, and off-world-thread database I/O.
-42. Application APIs enforce synchronous decisions. Durable domain events use a transactional outbox with at-least-once delivery and idempotent consumers; world mutations use recoverable jobs, not a cross-store atomicity assumption.
-43. ESMP deploys as one modular Paper plugin JAR with one bootstrap and coordinated lifecycle. Core remains gameplay-agnostic.
-44. The first UI favors commands, ActionBar, BossBar, chat, containers, books/signs, native dialogs, and temporary particles over large custom GUIs.
-45. Main World Facility production, economic stages, culture, ledger currency/markets, freight/teleport, and seasons are accepted scope under §16A, not yet implemented; the Factory Realm remains removed.
-46. Economic stages are Settlement/Village/Town/City; culture is parallel and does not raise production capacity or redefine Era. Vanilla crafting remains unrestricted.
-47. Facilities use functional automatic basics and reviewed higher certification, shared Settlement capacity, bounded offline ledger accrual, physical depots, and an Activity-based pause without catch-up output or lost stocks. Production never grants Activity.
-48. Currency sources are budgeted; player trades transfer funds and disclosed service fees destroy them. Owner budgets Manager spending. Server Trade has global bounded bands, finite replenished stock, and separate buy/sell lists; initial player markets are physical stalls.
-49. Freight reserves ledger cargo/throughput over reviewed physical routes; disruption stops new departures, not existing shipments. Village or certified-landmark status qualifies for basic teleport. Shared-storage bypasses remain accepted soft incentives.
-50. Natural regional profiles modify efficiency separately from seasons. Calendar days equal Minecraft days, with 365/366-day years starting at 0 A.D.; clock reconciliation remains gated. Native bounded seasonal effects come first; full seasonal palette support is deferred.
-51. Shared game timing and Activity are implemented. MAIN supplies all forward deltas including sleep/commands; backwards changes re-anchor. `advance_time=false` freezes timed progression; no downtime catch-up. Existing offer/border/throttle timers use game ticks. Seasonal calendar presentation and coordinated restore remain gated.
+1. **Civilization** is the persistent Main World gameplay domain, not an owner aggregate. **Settlement** is the Main World ownership/governance/Activity/claim aggregate.
+2. Main World Settlement claims use full vertical 16×16 chunks, remain four-directionally contiguous, and do not cross world instances. Separate Settlements may be adjacent and one player may own multiple Settlements.
+3. The user selected numeric-only claim pricing for the current stage: record the increasing configured area price, but do not deduct currency/items or invent balances. Real currency charging is deferred until the user selects the system. Detailed land markets, rent, taxes and geography pricing remain deferred.
+4. MVP Settlement governance identities are one Owner, zero or more Governors, zero or more Citizens, and derived Public users. Legacy Manager/Member/Visitor naming is replaced by Governor/Citizen/Public in the target model.
+5. `BANNED` is a Settlement-local negative authorization override, not a positive membership role. Owner/Governor governance may ban non-administrator players from Settlement/Parcel interactions; server administrators bypass Settlement bans.
+6. Public users are not forced into an adventure-like spectator relationship. They may use interactions allowed by the applicable Settlement or Parcel policy while unauthorized building, inventories, and automation remain protected.
+7. Parcel is a lightweight 3D subdivision inside one Settlement using world-aligned 8×8×8 cells. Parcel cells cannot overlap another Parcel, must remain six-directionally connected, and must stay within the owning Settlement.
+8. A Parcel may have zero, one, or multiple Holders. Holder is orthogonal to Settlement membership. Unassigned Parcels are governable by Owner/Governors; assigned Parcels cannot be unilaterally revoked or reshaped by either side. Governance plus all Holders must agree, otherwise a server administrator resolves the dispute.
+9. The MVP does not model Parcel rent, contract duration, renewal, debt, or private agreement terms.
+10. Parcel permissions expose only `BUILD`, `INTERACT`, `CONTAINER`, and `AUTOMATION`, evaluated against OWNER/GOVERNOR/CITIZEN/HOLDER/PUBLIC relations. Per-block/container ACLs are deferred; finer separation should normally use a separate Parcel.
+11. Every Settlement/Parcel operation has complete command support. A replaceable Management Book provides convenience governance access and a replaceable Parcel Wand provides spatial editing. Tools contain identification only; authority belongs to the user, not the item.
+12. Parcel Wand geometry editing uses a named off-hand Name Tag plus two selected 8×8×8 voxel endpoints. Proposed cuboids add only unparcelled cells, must leave the Parcel connected, and preview through particles/text before atomic commit. Cell deletion is allowed only from the surface and only if the remainder stays connected.
+13. Initial Settlements need no official player-chosen name. They use a stable number and optionally a generated geographic label. Official naming and all later renaming require administrator approval and may charge Settlement currency; rename history is preserved.
+14. Activity remains Settlement-local and based on meaningful participation rather than login time. Public/Holder participation may contribute under bounded anti-abuse rules; exact weights remain tunable.
+15. Buildings are automatically discovered within claimed Settlements and have stable identity plus versioned restoration baselines. Authorized player edits update intended design; decay/repair do not redefine it.
+16. Building geometry must include enough exterior/interior and support information to avoid restoring obsolete external structures through newly created player interiors. Renovation may retire only affected restoration fragments while preserving history.
+17. Block entities are special and do not receive a complex inventory-decay/restoration design in the MVP. Unsafe ordinary-block treatment is prohibited until a dedicated policy is defined.
+18. Decay/Repair use durable, budgeted jobs, natural chunk loading, expected-state revalidation, and affected-work replanning. System decay does not create ordinary collectible block drops.
+19. Initial structural decay should use coarse material profiles plus simple weathering/integrity and a limited collapse set such as DROP, TOPPLE, and CAVE_IN rather than full physics.
+20. Ordinary wild structures use coarse, occasional localized decay analysis rather than persistent full structural graphs. Roads/railways and similar infrastructure may use specialized lightweight segment models.
+21. Facility implementation starts simple: a bounded set of Facility types, basic automatic functional checks, and administrator certification for higher tiers. Avoid detailed social/workforce simulation in the MVP.
+22. Significant player terrain modification may later be represented as coarse Anthropogenic Landforms, initially favoring fixed 8×8×8 material/shape voxels. This direction is accepted, but advanced natural-evolution behavior is not part of the MVP.
+23. Resource worlds remain separate renewable worlds without Settlements/claims, and the Main World remains the persistent civilization/history world.
+24. Performance remains a first-class constraint: no recurring full-world/full-Settlement block scans; candidate generation, persistent queues, bounded processing, and correct world-thread mutation remain required.
+25. The MVP intentionally does **not** implement dynamic Settlement cycles. MVP Settlements are persistent unless explicitly abandoned or changed by administrative/approved lifecycle operations.
 
 ---
 
-# 26. Intentionally Unresolved
+# 26. Deferred and Open Design
 
-The major domain boundaries are settled enough to plan implementation. The remaining items below are not all prerequisites for starting the project.
+## 26.1 Next phase: dynamic Settlement cycles — required after MVP
 
-| Gate | Required decisions or evidence |
-|---|---|
-| Runnable foundation (implemented) | Pinned wrapper and dependencies, Java 25 compilation, single-JAR packaging, SQLite world registry, status command, and actual Paper boot/restart verification. |
-| Playable Settlements (implemented) | Transactional owning tables, contiguous claims, fixed-role workflows, committed cache publication, history/outbox, Paper protection adapters, and private visualization; verify the target server and other-plugin integrations before production use. |
-| Before enabling decay, repair, or automatic release | Define Building split/merge and historical linkage, block-entity/inventory restoration safety, journal/checkpoint recovery, material accounting, and configured activity/ruin eligibility. |
-| Before enabling Resource resets | Finish evacuation/retired-location handling and coordinated cutover/backup/restore checks. |
-| Before enabling Activity-dependent production | Consume implemented inactivity/grace and persisted pause intervals; define in-progress job/input/output accounting so paused intervals never yield catch-up production. |
-| Before enabling progression / Facilities / culture | Resolve upgrade/cultural criteria, Building/Facility linkage, workforce validation, certificate scope/rechecks, shared-capacity units/allocation authority, and ownership-change behavior. |
-| Before enabling currency / stock / markets | Define audited ledger operations, issuance/operating budgets, item deposit/withdrawal recovery, access rules, quotes/spreads/catalogues, finite replenishment, and crash-safe stock/payment settlement. |
-| Before enabling freight / public teleport | Resolve bulk/throughput rates, physical-corridor invalidation/permissions, recipient and endpoint changes, bounded held cargo, reservations/payment recovery, safe destinations, and carried-cargo fees. |
-| Shared clock / Activity (implemented) | MAIN source, all-forward-jump counting, rewind re-anchoring, freeze/no-downtime behavior, legacy timer migration, scoring/caps/status and recovery intervals are implemented. Seasonal calendar presentation and coordinated world/database restoration remain separate gates. |
+Dynamic cycles are not an optional someday feature; they are the required major design/implementation phase immediately after the MVP is stable. The MVP nevertheless treats Settlements as persistent so the permission, Parcel, Building, Activity, and recovery foundations can be proven first.
 
-Weights, probabilities, generation appearance, UI polish, and optional features may remain deferred until their implementation slice. This does not permit enabling unsafe or incomplete behavior: satisfy each gate before exposing its feature, rather than blocking all work on every unresolved detail.
+The next phase must solve how long-running active players are encouraged to found and develop new Settlements while older cities can gradually lose maintained territory without a blunt wipe. Current candidate concepts include:
 
-The following areas are explicitly **not finalized yet**:
+- a **Civic Capacity / maintenance capacity** derived from meaningful local Activity and possibly Settlement stage;
+- maintenance demand that grows with claimed area, Buildings, Facilities, and infrastructure;
+- selective preservation rather than “high Activity makes every Building immune”;
+- mature/legacy-city incentives that make new Settlement development attractive without making old cities worthless;
+- gradual peripheral claim decay/release rather than sudden full-Settlement deletion;
+- rules that allow old cores, landmarks, and history to survive while under-maintained outskirts return to reusable land.
 
-### Settlement
+Exact formulas, UI, ownership guarantees, release timing, reclaim behavior, and interactions with Parcel Holders remain unresolved and must be designed before enabling this phase.
 
-- remaining creation, expansion, and cooldown rules; chunk claiming is initially free;
-- administrator exemptions from the default-enabled, configurable 64-chunk cap;
-- exact version-specific catalogue of blocks and events classified as safe Visitor interaction;
-- alliance relationships between settlements;
-- balance tuning of the implemented Activity policy and an explicit installed-policy migration mechanism; the initial formula/caps/hysteresis are settled in §8;
-- exact settlement condition thresholds;
-- automatic release thresholds, Settlement-level ruin aggregation, and partial-reclaim behavior while preserving contiguity; voluntary abandonment does not require inactivity or ruin;
+## 26.2 Natural disasters / Epoch transitions — continue discussion
 
-### Building / Decay
+Large-scale disasters, forced global cycle transitions, pre/post-disaster ownership, sea-level changes, Disaster Operators/Fields, and RPG-style world catastrophes remain intentionally open. They may later enrich world history but are not currently required to make dynamic Settlement cycles work.
 
-- discovery and rediscovery algorithms, Building split/merge identity, and claim-change reconciliation; reclaimed structures use their current state as the new active baseline while retaining history;
-- exact decay stages;
-- block-level selection and probabilities;
-- material-specific and structural dependency rules;
-- vegetation/weathering rules;
-- decay scheduling frequency and prioritization;
-- journal/checkpoint implementation and reconciliation of world-save versus database durability; durable recovery, expected-state validation, and affected-work replanning are settled.
+## 26.3 World evolution / Anthropogenic Landforms — continue discussion
 
-### Repair
+The coarse Anthropogenic Landform direction is accepted, but exact significance scoring, material categories, simulation frequency, erosion rules, adaptive voxel refinement, and interaction with Buildings/infrastructure remain open.
 
-- exact repair station implementation;
-- material valuation;
-- villager job implementation;
-- repair speed and failure model;
-- exact relationship between repair and building state;
-- qualification threshold for advancing Era.
+Chunk retirement/regeneration is deferred due to its cross-cutting risk across Building, Parcel, entities, POI, infrastructure, history, and player terrain changes.
 
-### History / Era
+## 26.4 Building / Decay / Repair remaining gates
 
-- exact historical record and ownership-epoch schema;
-- Era naming;
-- historical UI;
-- public rankings/statistics.
+Before enabling physical decay/repair, resolve and verify Building split/merge/history linkage, safe baseline representation, block-entity policy, journal/checkpoint recovery, material accounting, deterministic conflict preservation, and loaded-chunk scheduling. Exact decay probabilities, material values, weathering palettes, repair speed, villager implementation, and Era advancement thresholds remain tunable.
 
-### Resource
+## 26.5 Economy / Facilities / Transport / Resource remaining gates
 
-- reset interval;
-- generation seeds and pre-generation radius;
-- archival policy;
-- exact player evacuation behavior;
-- exact cycle management schema;
-- portal routing and travel-access rules.
-
-### Gameplay extension
-
-- Feature-specific unresolved criteria and accounting are listed in §16A and the gate table above; accepted high-level selections must not be reopened as undecided designs.
-- Precise seasonal/regional mappings, production recipes and mined-input eligibility, stage budgets, market catalogues/prices/replenishment, and route weights/rates remain tunable.
-- Workforce sharing with Repair, stock access, certification reactivation, and Activity-pause effects on in-progress jobs require explicit safe contracts; no automatic earned-stage/culture loss is selected.
-- Full seasonal palette techniques and compatibility are deferred beyond native effects; no client requirement is added.
-
-### Runtime / Persistence
-
-- future dependency upgrades and owning-domain SQLite schema migrations; current tooling, JDBC driver, and foundation schema are implemented;
-- transactional outbox storage and retry scheduling; post-commit at-least-once delivery and idempotent consumers are settled;
-- coordinated world/database backup procedure;
-
-### UI
-
-- final command syntax;
-- final Dialog designs;
-- exact ActionBar/BossBar information;
-- exact particle visualization style;
-- localization structure.
-
-Resolve these at the relevant implementation gate. Default to established technical conventions where choices do not change accepted gameplay; ask the user in batches only for material tradeoffs.
+Keep the existing accounting/recovery gates for physical stock, currency, markets, transport, production, Facility certification, resource-world cutover, and coordinated backup/restore. Avoid expanding these systems merely to support the MVP permission/Parcel work.
 
 ---
 
 # 27. Recommended Development Order
 
-Accepted scope is staged by dependencies; implementation status is explicit:
-
-| Slice | Prerequisites and deliverable |
+| Phase | Prerequisites and deliverable |
 |---|---|
-| 1. Runtime / world identity — implemented | Four modules, one JAR, world registry, bounded SQLite execution, migrations, and actual startup/restart verification. |
-| 2. Playable Settlements — implemented | Claims/protection, fixed roles, offers/ownership, private borders, and committed history/outbox. Preserve user-confirmed in-game coverage; chat polish remains deferred. |
-| 3. Shared game clock and Activity — implemented | Persisted source-delta reckoning, forward sleep/command jumps, freeze/rewind/restart handling; game-time offers/borders/throttling; lazy capped score, hysteresis, pause intervals, authorized observations and player status. |
-| 4. Building identity / Facility qualification | Building discovery/baselines/split-merge linkage, workforce/functional checks, reviewed certification, shared-capacity allocation, progression and cultural qualification. Persist historical facts from first state changes; resolve gates before awarding capabilities. |
-| 5. Ledger / physical stock / production | Audited wallets/treasuries/budgets and recoverable physical depots; then bounded production using Activity and qualification, with inputs/output capacity and pause accounting. Basic production does not require seasonal visuals. |
-| 6. Markets and specialization | Commodity/input lists, finite Server Trade, physical stalls, price quotes and item/payment recovery. Stable regional modifiers first; seasonal modifiers require resolved calendar policy. |
-| 7. Transport | Reviewed physical routes, bulk capacity, recipient-safe timed shipments and payment recovery; public teleport with Village-or-cultural access, cargo pricing and safe destinations. Depends on qualification and ledger/stock, not finished seasonal visuals. |
-| 8. Decay / repair / continuity | After Building/Activity plus durable world-mutation/material recovery: decay/ruin, automatic release/current-baseline reclaim, repair/artisan integration, qualifying Era advancement, history presentation/rankings. This branch may proceed after slice 4 independently of markets/transport; workforce/material integration must remain consistent. |
-| 9. Seasonal presentation | After calendar policy and safe world-mutation infrastructure: bounded native weather/particles and reversible loaded-area snow/vegetation, preserving builds and baselines. Full palettes are a deferred future feature. |
-| 10. Resource lifecycle | Shared-cycle preparation, evacuation, safe reset/routing, backup/restore. Can proceed independently of economy after world identity and operational recovery are ready; reconcile calendar source before cutover. |
+| 1. Runtime / world identity — implemented | Existing modular runtime, world registry, SQLite execution, migrations, startup/restart verification. |
+| 2. Settlement foundation / GameClock / Activity — implemented | Preserve claim topology, durable offers/history, game-time semantics and bounded Activity while evolving policy. |
+| 3. **Settlement/Parcel revision — implemented with numeric-only prices** | Governor/Citizen/Public+BANNED, Parcel geometry/authorization/Holders and consent, complete commands, Management Book/Parcel Wand and official-name administration. Currency selection/charging remains explicitly deferred; no funds/items consumed. |
+| 4. **MVP Building identity and geometry** | Discovery, stable ID/baseline, split-merge linkage, exterior/interior spatial semantics, localized player-edit reconciliation; simple Facility linkage/qualification may begin here. |
+| 5. **MVP durable world mutation / Decay / Repair** | Recoverable material/world operations, special block-entity safety gate, simple weathering/integrity, limited structural failure modes, Repair respecting renovation conflicts, coarse wild-structure decay. |
+| 6. Economy / Facilities / production / markets / transport | Implement accepted gameplay extensions in bounded slices with their existing accounting and recovery gates; keep Facility qualification initially simple. |
+| 7. Resource lifecycle / seasonal presentation | Proceed independently when evacuation, backup/restore, calendar, and safe mutation gates are ready. |
+| 8. **Dynamic Settlement cycles — required next major phase after MVP** | Design and implement Civic Capacity/maintenance demand or equivalent, mature/new-city incentives, and safe gradual peripheral decline/release while protecting history and avoiding abrupt wipes. |
+| 9. Further world evolution | Anthropogenic Landforms, richer natural change, possible chunk retirement/regeneration after explicit safety design. |
+| 10. Natural disasters / Epoch systems | Optional later world-history/RPG layer; design remains open and must not be assumed by earlier phases. |
 
-This is a dependency-aware roadmap, not permission to expose unfinished systems or a requirement to wait for every earlier-numbered independent branch. Ownership, financial, certification, and shipment facts are recorded from their first committed changes; later UI does not reconstruct missing history. Each feature satisfies §26 before enablement.
+This order is dependency-aware rather than strictly serial. The key product boundary is that the MVP stops before automatic dynamic Settlement decline, while Phase 8 is a committed next-stage requirement rather than an indefinitely deferred idea.
 
 ---
 
-# 28. Next Architecture Work
+# 28. Immediate Architecture Work
 
-The architecture baseline is ready for implementation planning, not a claim that the full plugin specification or implementation is complete.
+The Settlement/Parcel slice is implemented with user-approved numeric-only prices. Next define and evaluate Building identity and geometry, preserving the new authorization/Parcel boundaries. Real currency integration remains deferred to the user's currency choice rather than blocking this slice.
 
-## Immediate next action
+Completed foundation and next dependencies:
 
-Shared game time and Activity are implemented and verified through build/regressions and live Paper scenarios. Next define automatic Building discovery and stable identity across split/merge and claim changes, before implementing discovery. Do not enable decay/repair or production merely because Activity eligibility now exists.
+```text
+numeric-only claim pricing (implemented; real charging deferred)
+↓
+Governor/Citizen/Public + Settlement bans (implemented)
+↓
+Parcel geometry, policies, Holder consent and command API (implemented)
+↓
+Management Book / Parcel Wand / naming administration (implemented)
+↓
+Building geometry evaluation and identity design (next)
+↓
+Building identity + exterior/interior geometry
+↓
+durable Decay/Repair safety gates
+```
 
-## First functional slice
-
-Settlements, shared game clock, migrated gameplay timers and Activity now run. Building discovery/qualification is the next slice. Durable world-mutation recovery and material accounting still precede decay/repair and seasonal block enablement; physical stock/payment recovery precedes economic item exchange. Full seasonal palettes and chat ergonomics remain deferred.
-
-## Later feature gates
-
-- Building discovery must resolve split/merge historical linkage and safe baseline representation before mutation depends on it.
-- Decay/Repair must prove idempotent recovery, edit-conflict preservation, material accounting, and loaded-chunk scheduling before enablement.
-- Resource cutover must prove evacuation, backup/restore safety, and restart-safe routing before use.
-- Facility/certification, ledger/stock/market, transport, and calendar gates in §26 must be met before their features are enabled; architecture approval is not approval of unspecified thresholds or unsafe recovery defaults.
-
-Detailed scoring, decay probabilities, particle styles, and generator aesthetics belong to those implementation slices. They are not reasons to continue a broad yes/no architecture questionnaire.
+Do not implement automatic Settlement decay/release in the MVP. Record the required dynamic-cycle phase and its open questions, then return to it after the MVP foundations are stable.
 
 ---
 
@@ -1785,7 +1711,7 @@ Detailed scoring, decay probabilities, particle styles, and generator aesthetics
 | Cultural standing | Independent public/landmark capability track, without production-capacity increases |
 | Facility | Main World functional production/service site with Settlement qualification and villager workforce |
 | Depot stock | Bounded ledger inventory exchanged for physical items at a real Facility interface |
-| Treasury | Settlement currency account with Owner-controlled budgets and audited Manager operations |
+| Treasury | Settlement currency account with Owner-controlled budgets and audited Governor operations |
 | Trade Route / Shipment | Qualified physical connection / recipient-bound timed ledger cargo movement |
 | Calendar / reckoning clock | Shared gameplay ticks/days; 365/366-day calendar years from 0 A.D.; freezes with `advance_time=false`, with no real-time or downtime progression |
 
