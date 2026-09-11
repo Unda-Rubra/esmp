@@ -10,6 +10,8 @@ Sections 1–5 preserve the `f8a9f50` clock/Activity baseline checks and their p
 
 Tool command routing is updated by `7aaccd6`: current examples use `/esmp tools parcel_wand` and `/esmp tools management_book`. The underlying `d14bb63` tools/Parcel behavior and stored item identities remain unchanged; old issuance commands are not retained as aliases.
 
+Current text and Parcel visuals are updated by `f675a15` and `e823189`. Use the blue preview/target, green existing-border and red invalid-selection expectations below; they supersede the earlier corner-only palette.
+
 Inactivity-driven automatic release remains outside MVP. Existing pending checks are retained rather than marked passed or silently rewritten. Real currency integration is deliberately absent: current prices are numbers, not deductions or mock balances.
 
 ## Completed implementation awaiting user acceptance
@@ -24,6 +26,8 @@ Inactivity-driven automatic release remains outside MVP. Existing pending checks
 | Parcel geometry, policies and Holder consent | `d14bb63` | Six new domain regressions; live Public Holder access, mutual deletion and two-sided hopper checks | Pending |
 | Management book/stick and naming administration | `d14bb63` | Real book-open packet, named-stick selection/preview/commit, admin naming and restart; native visual appearance still pending | Pending |
 | Semantic `/esmp tools` routing | `7aaccd6` | Live non-OP issuance/completion, status permission gate, invalid/legacy route rejection, existing-item compatibility and updated book link | Pending |
+| Short action text and refreshed tool descriptions | `f675a15` | Build and live refreshed-lore/confirmation checks | Pending |
+| Live Parcel targets, surfaces and wire borders | `e823189` | Six geometry/ray regressions; live particle colors/positions, block/air clicks, invalid previews and boundary cases | Pending |
 
 Earlier Settlement claiming/protection/team functionality was already user-confirmed. Its existing [README checklist](../README.md#两名玩家的验证清单) remains available for optional regressions; do not reopen it as untested work.
 
@@ -86,7 +90,7 @@ Use disposable copied data and a native 26.2 client. Keep ordinary governance te
 
 - [ ] `/esmp tools management_book` opens useful current command links. `/esmp tools parcel_wand` supplies the marked stick; a named off-hand Name Tag plus left/right clicks selects a named Parcel. Passing either item to another player does not grant governance. Duplicate issuance and crafting/anvil/grindstone conversion are blocked as documented.
 - [ ] Preview and commit an 8×8×8-aligned Parcel, including negative coordinates. Face-connected extensions succeed; diagonal-only/disconnected/outside-Settlement selections fail atomically. Existing other-Parcels' cells are skipped only when the resulting shape stays valid. Surface removal must not split the remainder.
-- [ ] Compare cyan current, green selected, blue existing and red conflict/removal corner particles in the native client. `parcel commit` requires a current preview; expiry, state change, logout and restart do not permit replaying an old selection. Position commands work without owning tools.
+- [ ] Compare the dense blue target surface, blue preview borders, green existing-Parcel borders and red invalid/excluded selections in the native client. `parcel commit` requires a valid current preview; expiry, state change, logout and restart require a fresh selection. Position commands work without owning tools.
 
 ### Holder consent and parent protection
 
@@ -99,8 +103,14 @@ Use disposable copied data and a native 26.2 client. Keep ordinary governance te
 - [ ] A hopper crossing two different Parcels is blocked by default. Grant PUBLIC AUTOMATION only on one side: still blocked. Grant it on both protected sides: items move. Confirm the corresponding desired piston/fluid boundaries on the native server too; do not assume every adapter from the hopper result alone.
 - [ ] Upgrade a disposable old database/config and restart: roles become Governor/Citizen, UUIDs/offers/history/Activity stay intact, stable numbers and grandfathered names appear, and config 4/Civilization schema 3 are present. Parcel cells, policies, Holders and proposals persist across another restart; session previews do not.
 
-Native visual caveat: the automated older-protocol client opened the book and exercised real stick actions but produced particle decoding warnings. It did not verify how pages or colored previews look in the target desktop client.
+Visual verification now includes decoded live particle positions/colors. The fixture uses a process-local packed-RGB dust decoder correction; desktop appearance and comfort remain player acceptance checks.
 
 ## 7. Semantic tool commands — `7aaccd6`
 
 - [ ] As a non-OP player, tab-complete and request `/esmp tools parcel_wand` and `/esmp tools management_book`. `/esmp status` must remain denied without administrator permission. Singular `tool`, old material-name arguments and the former Settlement issuance route must not issue items. Existing tools must still work and prevent duplicate issuance; the book's Parcel Wand link must use the new command.
+
+## 8. Clear text and live Parcel visuals — `f675a15` / `e823189`
+
+- [ ] Existing and newly issued tools show short purpose/instruction text. Check claim/Parcel confirmations and Activity information for concise, readable wording. Old tool descriptions refresh when joining, changing the held item or using it.
+- [ ] Aim at a reachable block: the blue surface encloses its voxel. Aim into air or beyond block reach: the target is the first voxel in your facing direction outside your occupied camera/body cells. Check up/down, negative coordinates and standing exactly on voxel boundaries. Left/right air clicks and no-coordinate position commands select the highlighted cell.
+- [ ] Set a first corner and turn: the blue preview follows promptly. Valid selections stay blue; invalid/outside/disconnected selections remain visibly red and reject confirmation. Existing Parcel outlines stay green. Right-click completion plus its swing animation must preserve the first corner. Check responsiveness with frozen calendar time, confirmation cleanup, and readability of larger selections.

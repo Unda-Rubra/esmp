@@ -2,44 +2,46 @@
 
 ## State
 
-- Current command cutover: `7aaccd6`, on the Settlement/Parcel implementation `d14bb63`.
-- Tool requests are `/esmp tools parcel_wand` and `/esmp tools management_book`. The user corrected the requested spelling to plural `tools`; no singular or old material-name/Settlement issuance aliases are retained.
-- Root command registration permits ordinary players to reach tools; issuance checks `esmp.settlement` and readiness. `/esmp status` remains administrator-only. Console cannot receive tools.
-- Existing PDC tool tags deliberately remain unchanged, preserving issued items and duplicate detection. No database/config-version migration or gameplay policy change: Core schema 1, Civilization schema 3, config 4; prices remain numeric-only with no real currency/items consumed.
-- User development server/data were untouched. The isolated Parcel fixture was used for validation. The temporary acceptance checklist now has 27 pending user checks; no automated result was marked as user acceptance.
+- Current UI fixes: `f675a15` (short player text and live Parcel overlays), followed by `e823189` (precise cardinal targeting at voxel boundaries).
+- Tools remain `/esmp tools parcel_wand` and `/esmp tools management_book`. Existing item identities, governance/consent and numeric-only pricing are preserved. Core schema 1, Civilization schema 3 and config 4 remain current.
+- Parcel targets use dense blue surfaces; previews have blue wire borders, existing Parcels green exposed edges, and invalid/excluded selections red borders. Aim and clicks share the same resolver, including air.
+- Player tooltips and confirmations use short purpose/action text. Existing tool descriptions refresh on join, hotbar change and use. Detailed audit facts remain stored separately.
+- The user development server was left intact. Verification used the isolated Parcel fixture. The temporary acceptance checklist now contains 30 pending user checks, with all previous outcomes preserved.
 
 ## Completed
 
-- Moved issuance into the native `/esmp` handler before the administrator-only status branch, with semantic tool names and player/permission/readiness checks.
-- Removed the command-level admin gate from the shared root descriptor while keeping status authorization explicit.
-- Updated root/tool-name tab completion, removed legacy Settlement completion/dispatch, and updated help and the management-book Parcel Wand link.
-- Updated canonical architecture, Chinese README, decision rationale and the running acceptance checklist. Tool behavior, cooldowns and item persistence remain unchanged.
+- Replaced corner-only outlines with sampled wireframes and a 386-point target surface. Cached nearby geometry and draft validation use committed publication/selection state. Each overlay frame is capped at 1536 particles per viewer.
+- Sample aim every two server ticks and refresh stable overlays every four ticks. A first-corner selection follows aim until the second corner is chosen; invalid selections remain visible, confirmation requires validity, and completed selections clear.
+- Reachable blocks select their containing voxel. Air/out-of-reach rays select beyond occupied camera/body cells. Negative coordinates, vertical directions, exact grid boundaries and head/body straddling are handled; tracing clips before unavailable chunks.
+- Corrected two concrete input/geometry edge cases: right-click swing packets also causing left-air input, and tiny trigonometric components selecting a sideways voxel during cardinal aiming on exact boundaries. The latter was reproduced with a failing regression before correction.
+- Shortened tool lore, book introduction, claim/Parcel confirmations and Activity/Settlement summaries. Kept useful failure reasons, permissions and durable history unchanged.
 
 ## Changed files
 
-- `esmp-plugin/.../EsmpPlugin.java` — root tools dispatch and permission-aware completion.
-- `esmp-plugin/.../settlement/SettlementCommands.java` — removed old issuance branch/help entry.
-- `esmp-plugin/.../settlement/ManagementTools.java` — semantic name mapping over existing item identities and updated book link.
-- `esmp-plugin/src/main/resources/plugin.yml` — shared root availability and usage text.
-- `ARCHITECTURE.md`, `README.md`, `.agent/DECISIONS.md` — accepted interface and permission boundaries.
-- `.agent/TEST_CHECKLIST.md`, `.agent/HANDOFF.md` — commit reference, updated commands and pending acceptance.
+- `esmp-plugin/.../settlement/ManagementTools.java` — shared targeting, live drafts, air input, metadata refresh, dense/cached overlays and concise text.
+- New `ParcelAim.java`, `ParcelDraft.java`, `ParcelOverlayGeometry.java` — pure ray/validation/particle geometry helpers.
+- `SettlementRuntime.java` — committed publication version for renderer cache invalidation.
+- `SettlementCommands.java`, `EsmpPlugin.java`, and Civilization `SettlementService.java` / `ParcelService.java` — concise player output.
+- New `ParcelOverlayTest.java`, plugin test dependencies and lockfile — six deterministic geometry/ray/preview regressions using existing JUnit versions.
+- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md`, `.agent/TEST_CHECKLIST.md`, `.agent/HANDOFF.md` — current controls, colors, text convention and verification.
 
 ## Verification
 
-- `./gradlew build --no-daemon --console=plain` with the existing JDK 25 toolchain passed.
-- Live Paper fixture `esmp-parcel-smoke` on loopback 25584/25585: non-OP root completion exposed tools, tool completion returned management_book/parcel_wand, and both semantic requests issued the correct items.
-- Verified non-admin status denial, admin status success after temporary OP, console tool rejection, invalid/singular/legacy route non-issuance and duplicate prevention.
-- An already-issued ParcelOwner wand was recognized for duplicate prevention; its existing book opened successfully and the outgoing book contents contained `/esmp tools parcel_wand`.
-- The first smoke observer failed on an empty protocol packet while serializing it. The test observer was corrected to handle empty packets/BigInt; no production change was made to hide the observer error. Successful retry output is retained in ignored `.run/parcel-smoke/native-tools-retry.log`.
-- No native desktop page/particle visual verification is claimed; this change alters routing/text, not rendering. Previous Parcel/gameplay evidence remains in prior handoffs and the checklist.
-- Fixture shutdown confirmed exit 0. Current command references, local documentation links/anchors and fenced blocks passed checks; 27 pending player checks remain. Temporary smoke client and fixture translator JARs were removed; ignored logs/data remain.
+- Final `./gradlew build --no-daemon --console=plain` with the existing JDK 25 toolchain passed. Initial test dependency resolution used `--write-locks`.
+- Six `ParcelOverlayTest` cases cover air/camera/body targeting, unloaded-chunk clipping, cardinal precision, surface density/edge budgets, concave Parcel edges, and invalid/clipped draft geometry. The cardinal-boundary regression failed on the pre-fix code and passed after correction.
+- Live Paper fixture `esmp-parcel-smoke` on loopback 25584/25585 passed actual block target, out-of-reach fallback, left/right air clicks, first-corner live preview, frozen-calendar responsiveness, exact-grid vertical aim, negative coordinates, body/camera boundary straddling, visible red invalid selection with rejected confirmation, and successful blue preview confirmation.
+- Decoded real particle packets contained 386 unique blue target-surface positions, intermediate green edge positions and red invalid-border positions. Final smoke output: `.run/parcel-smoke/overlay-smoke-cardinal.log`; packet sample: `.run/parcel-smoke/overlay-particles.json`.
+- The fixture's old Minecraft-data dust schema expected float RGB, while the received payload used packed RGB plus scale. A process-local decoder correction enabled zero-error particle inspection; installed client libraries were not edited. Native desktop appearance/comfort remains in the user checklist.
+- A broad `/data get` lore query was truncated; checking the specific first lore element confirmed the refreshed text. An Eval string-rewriting issue was reported and corrected with anchored edits. These tooling errors did not change production semantics.
+- Touched Java files were formatted with temporary google-java-format 1.36.1, four-space AOSP mode. Documentation link/fence checks passed before final checklist/handoff verification.
+- Final report/checklist checks passed: six overlay regressions, 30 pending player checks, valid local links/anchors and balanced fences. Fixture shutdown was confirmed with exit 0; temporary smoke client, formatter and fixture translator JARs were removed. Ignored logs and packet samples remain.
 
 ## Next action
 
-Use a full restart to load the new command registration when the user is ready to test; then continue the bounded Building geometry/evaluation slice. Keep real currency integration deferred to the user's selection.
+Ask the user to try the updated wand visuals and text in the target client, following checklist section 8. Continue Building geometry/evaluation after feedback; keep real currency integration deferred to the user's choice.
 
 ## Risks or blockers
 
-- Do not restore the old root-wide admin permission: that would hide tool requests from ordinary players.
-- Semantic CLI names are not persisted item-tag names; renaming stored tags would require an explicit item-data migration and is not part of this command cutover.
-- Existing native visual acceptance and installed Activity policy-migration gates remain unchanged. No further blocker was found for these command routes.
+- Particle position/color and interaction behavior are verified through the live protocol fixture; native-client visual acceptance remains pending.
+- Rendering is bounded and cached; larger selections adapt border sampling and rotate through nearby existing edges. Tune from real client feedback rather than restoring global scans or per-frame full-Parcel analysis.
+- Keep input deduplication shared across air-interact and swing events, and preserve cardinal-component cleanup in both ray clipping and the native block trace.
