@@ -17,7 +17,7 @@ Preserve previous acceptance results and record the completed cutover in [TEST_C
 
 ## Settlement/Parcel follow-through
 
-- Native 26.2 visual/user acceptance remains in the temporary checklist. The protocol fixture verified actual book opening, stick selection, command/consent workflows and world authorization, but older-protocol particle decoding prevents visual sign-off.
+- Native 26.2 visual/user acceptance remains in the temporary checklist. Live particle-packet checks now cover dense blue targets, blue/green/red borders, block/air targeting, air clicks and invalid previews. The fixture decoder was corrected in-process for packed RGB dust; desktop appearance and comfort are still player checks.
 - Current defaults and consent/identity rules are implemented in §7, not open design: governance plus all current/new Holders for assigned changes; affected Parcels removed before parent release; internal UUID plus public number; grandfathered old names and administrator naming certification.
 - Future configurable safety limits, broader default-policy tuning and installed Activity value-policy migration are refinements, not unimplemented core Parcel features. Public/non-Citizen Holder credit stays small and revalidates Parcel security state.
 

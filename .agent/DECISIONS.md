@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The current `ARCHITECTURE.md` takes precedence; older entries describe historical decisions where superseded. In particular, legacy free claims, Manager/Member/Visitor access, player-controlled naming, blanket ownership capabilities and automatic-release scheduling below are not the new MVP target.
 
+## 2026-09-11 — Concise player text and responsive Parcel overlays
+
+The user rejected developer-style disclaimers in player text and requested clear blue/green/red Parcel visuals with a facing-direction air target.
+
+- Replaced verbose tool lore, claim/Parcel confirmations and Activity summaries with short action/purpose text. Existing tool metadata refreshes on join, hotbar change and use; stored tool identity and audit data are preserved.
+- Reachable block hits select the containing 8×8×8 cell. Air/out-of-reach targeting follows the camera ray beyond camera/body occupied cells, including negative coordinates, vertical directions and voxel-boundary straddling. Trace reach stops before unavailable chunks. Rendering and click handling use the same resolver.
+- Blue dense target surface and preview wireframes, green existing Parcel edges, red invalid/excluded selections. Invalid geometry remains visible but uncommittable; live preview follows aim after the first corner and confirmation clears the selection.
+- Poll at two server ticks; redraw changed targets/drafts immediately and otherwise refresh every four ticks. Bound each overlay frame to 1536 particles; use cached publication/selection-dependent validation and nearby exposed edges. This is UI refresh, independent of paused calendar progression.
+- Actual air-click testing exposed a right-click swing also generating left-air input. Deduplicate that input so completing a selection preserves its first corner.
+
+Reason: make the wand's target and selection outcome obvious without filling the player's current view with an air-target cube or mixing developer status into gameplay feedback. Geometry/ray regression tests and a live particle-packet fixture verify the implementation; native desktop appearance remains a user acceptance check.
+
 ## 2026-09-10 — Semantic tool requests under the ESMP root command
 
 The user corrected the desired spelling to plural `/esmp tools`. Use `parcel_wand` and `management_book`, not material names. Remove the prior Settlement issuance route; do not add singular or material-name aliases. Update root/subcommand completion, help and management-book links together.

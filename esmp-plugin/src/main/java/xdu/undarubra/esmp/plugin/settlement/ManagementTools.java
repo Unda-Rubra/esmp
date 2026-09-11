@@ -11,7 +11,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.block.*;
 import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -26,18 +30,49 @@ import java.util.*;
  * Session-only selection and disposable item frontends over the same command/application services.
  */
 public final class ManagementTools implements Listener, AutoCloseable {
-    private record Selection(UUID world, ParcelCell first, ParcelCell second) {}
+    private record Selection(UUID world, ParcelCell first, ParcelCell second, String name) {}
+
+    private record Aim(ParcelCell cell, boolean hitBlock) {}
 
     private record Preview(
+            UUID world,
             UUID settlement,
             String name,
             UUID parcel,
+            ParcelCell first,
+            ParcelCell last,
             Set<ParcelCell> cells,
+            Set<ParcelCell> blocked,
             ParcelCell removal,
             LandSnapshot.Land expectedLand,
             long ownership,
             long chunks,
-            long expires) {}
+            long expires,
+            String error) {}
+
+    private record DraftKey(
+            UUID world,
+            UUID settlement,
+            ParcelCell first,
+            ParcelCell last,
+            String name,
+            long publication,
+            boolean admin) {}
+
+    private record DraftCache(DraftKey key, ParcelDraft.Result result) {}
+
+    private record View(UUID world, UUID settlement, UUID parcel) {}
+
+    private record EdgeKey(
+            UUID world,
+            ParcelCell center,
+            long publication,
+            UUID parcel,
+            ParcelCell invalidFirst,
+            ParcelCell invalidLast,
+            Set<ParcelCell> blocked) {}
+
+    private record EdgeCache(EdgeKey key, List<ParcelOverlayGeometry.Edge> edges) {}
 
     private final JavaPlugin plugin;
     private final SettlementRuntime runtime;
@@ -47,10 +82,18 @@ public final class ManagementTools implements Listener, AutoCloseable {
     private final Map<UUID, Long> lastIssue = new HashMap<>();
     private final Map<UUID, Long> renderUntil = new HashMap<>();
     private BukkitTask renderTask;
-    private static final Particle.DustOptions CURRENT = new Particle.DustOptions(Color.AQUA, 0.8f);
-    private static final Particle.DustOptions SELECTED = new Particle.DustOptions(Color.LIME, 0.8f);
-    private static final Particle.DustOptions EXISTING = new Particle.DustOptions(Color.BLUE, 0.8f);
-    private static final Particle.DustOptions CONFLICT = new Particle.DustOptions(Color.RED, 0.8f);
+    private static final int PARTICLE_BUDGET = 1536;
+    private static final Particle.DustOptions BLUE =
+            new Particle.DustOptions(Color.fromRGB(64, 144, 255), 0.55f);
+    private static final Particle.DustOptions GREEN = new Particle.DustOptions(Color.LIME, 0.7f);
+    private static final Particle.DustOptions RED = new Particle.DustOptions(Color.RED, 0.7f);
+    private final Map<UUID, DraftCache> drafts = new HashMap<>();
+    private final Map<UUID, EdgeCache> edgeCaches = new HashMap<>();
+    private final Map<UUID, View> views = new HashMap<>();
+    private final Map<UUID, String> hints = new HashMap<>();
+    private final Map<UUID, ParcelCell> lastTargets = new HashMap<>();
+    private final Map<UUID, Integer> rightClicks = new HashMap<>();
+    private long frame;
 
     public ManagementTools(JavaPlugin plugin, SettlementRuntime runtime) {
         this.plugin = plugin;
@@ -60,7 +103,8 @@ public final class ManagementTools implements Listener, AutoCloseable {
 
     public void start() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        renderTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::render, 1, 10);
+        renderTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::render, 1, 2);
+        for (var player : plugin.getServer().getOnlinePlayers()) refreshInventory(player);
     }
 
     public void forget(UUID player) {
@@ -68,54 +112,44 @@ public final class ManagementTools implements Listener, AutoCloseable {
         previews.remove(player);
         lastIssue.remove(player);
         renderUntil.remove(player);
+        drafts.remove(player);
+        edgeCaches.remove(player);
+        views.remove(player);
+        hints.remove(player);
+        lastTargets.remove(player);
+        rightClicks.remove(player);
     }
 
     public static final List<String> TOOL_NAMES = List.of("parcel_wand", "management_book");
 
     public void issue(Player player, String toolName) {
-        String kind = switch (toolName.toLowerCase(Locale.ROOT)) {
-            case "parcel_wand" -> "stick";
-            case "management_book" -> "book";
-            default -> throw new SettlementException(
-                    "Usage: /esmp tools <parcel_wand|management_book>");
-        };
+        String kind =
+                switch (toolName.toLowerCase(Locale.ROOT)) {
+                    case "parcel_wand" -> "stick";
+                    case "management_book" -> "book";
+                    default ->
+                            throw new SettlementException(
+                                    "Usage: /esmp tools <parcel_wand|management_book>");
+                };
         for (var item : player.getInventory().getContents())
             if (kind.equals(kind(item)))
                 throw new SettlementException("You already have this tool");
         long now = runtime.clock().ticks();
         Long last = lastIssue.get(player.getUniqueId());
         if (last != null && now - last < 40)
-            throw new SettlementException("Wait 40 advancing game ticks between tool requests");
+            throw new SettlementException("Try again in a moment.");
         if (player.getInventory().firstEmpty() < 0)
             throw new SettlementException("Free one inventory slot first");
         var item = new ItemStack(kind.equals("book") ? Material.WRITTEN_BOOK : Material.STICK);
         var meta = item.getItemMeta();
         meta.getPersistentDataContainer().set(identity, PersistentDataType.STRING, kind);
-        meta.displayName(
-                Component.text(
-                        kind.equals("book") ? "Settlement Management" : "Parcel Wand",
-                        NamedTextColor.AQUA));
-        meta.lore(
-                List.of(
-                        Component.text("Server tool; permissions belong to its user"),
-                        Component.text(
-                                kind.equals("stick")
-                                        ? "Named Name Tag offhand; left/right select; preview then"
-                                              + " commit"
-                                        : "Right-click for current management actions")));
-        if (meta instanceof BookMeta book) {
-            book.title(Component.text("Settlement Management"));
-            book.author(Component.text("ESMP"));
-            book.addPages(
-                    Component.text(
-                            "Right-click this server tool to open current management actions."));
-        }
         item.setItemMeta(meta);
+        refreshItem(item);
         player.getInventory().addItem(item);
         lastIssue.put(player.getUniqueId(), now);
         player.sendMessage(
-                Component.text("Issued " + toolName.toLowerCase(Locale.ROOT)
-                        + "; replaceable, no transferable authority."));
+                Component.text(
+                        kind.equals("book") ? "Management book added." : "Parcel wand added."));
     }
 
     private String kind(ItemStack item) {
@@ -130,42 +164,145 @@ public final class ManagementTools implements Listener, AutoCloseable {
         return kind(item) != null;
     }
 
+    private boolean refreshItem(ItemStack item) {
+        String type = kind(item);
+        if (!"book".equals(type) && !"stick".equals(type)) return false;
+        var meta = item.getItemMeta();
+        var title =
+                Component.text(
+                        type.equals("book") ? "Management Book" : "Parcel Wand",
+                        NamedTextColor.AQUA);
+        var lore =
+                type.equals("book")
+                        ? List.of(
+                                Component.text("Manage your settlement."),
+                                Component.text("Right-click to open."))
+                        : List.of(
+                                Component.text("Select land for a parcel."),
+                                Component.text("Left: first corner. Right: second."),
+                                Component.text("Hold a named tag in your off hand."));
+        boolean changed =
+                !Objects.equals(meta.displayName(), title) || !Objects.equals(meta.lore(), lore);
+        meta.displayName(title);
+        meta.lore(lore);
+        if (meta instanceof BookMeta book) {
+            List<Component> pages =
+                    List.of(Component.text("Right-click to manage your settlement."));
+            changed |= !book.pages().equals(pages);
+            book.title(Component.text("Management"));
+            book.author(Component.text("ESMP"));
+            book.pages(pages);
+        }
+        if (changed) item.setItemMeta(meta);
+        return changed;
+    }
+
+    private void refreshInventory(Player player) {
+        var inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            var item = inventory.getItem(slot);
+            if (refreshItem(item)) inventory.setItem(slot, item);
+        }
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        refreshInventory(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHeld(PlayerItemHeldEvent event) {
+        var inventory = event.getPlayer().getInventory();
+        var item = inventory.getItem(event.getNewSlot());
+        if (refreshItem(item)) inventory.setItem(event.getNewSlot(), item);
+    }
+
+    private String tagName(Player player) {
+        var tag = player.getInventory().getItemInOffHand();
+        if (tag.getType() != Material.NAME_TAG
+                || !tag.hasItemMeta()
+                || !tag.getItemMeta().hasDisplayName()) return "";
+        return PlainTextComponentSerializer.plainText().serialize(tag.getItemMeta().displayName());
+    }
+
+    private Aim aim(Player player) {
+        var eye = player.getEyeLocation();
+        var direction = eye.getDirection();
+        var attribute = player.getAttribute(org.bukkit.attribute.Attribute.BLOCK_INTERACTION_RANGE);
+        double reach = attribute == null ? 4.5 : attribute.getValue();
+        double safe =
+                ParcelAim.loadedReach(
+                        eye.getX(),
+                        eye.getZ(),
+                        direction.getX(),
+                        direction.getZ(),
+                        reach,
+                        player.getWorld()::isChunkLoaded);
+        var hit = safe > 0 ? player.rayTraceBlocks(safe, FluidCollisionMode.NEVER) : null;
+        if (hit != null && hit.getHitBlock() != null) {
+            var block = hit.getHitBlock();
+            return new Aim(ParcelCell.atBlock(block.getX(), block.getY(), block.getZ()), true);
+        }
+        return new Aim(
+                ParcelAim.outsidePlayer(
+                        eye.getX(),
+                        eye.getY(),
+                        eye.getZ(),
+                        direction.getX(),
+                        direction.getY(),
+                        direction.getZ(),
+                        ParcelCell.atBlock(
+                                (int) Math.floor(player.getX()),
+                                (int) Math.floor(player.getY()),
+                                (int) Math.floor(player.getZ()))),
+                false);
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void use(PlayerInteractEvent event) {
-        String kind = kind(event.getItem());
-        if (kind == null) return;
+        String type = kind(event.getItem());
+        if (type == null) return;
         event.setCancelled(true);
         event.setUseInteractedBlock(Event.Result.DENY);
         event.setUseItemInHand(Event.Result.DENY);
         if (event.getHand() != EquipmentSlot.HAND || !runtime.ready()) return;
         Player player = event.getPlayer();
-        try {
-            if (kind.equals("book")) {
-                if (event.getAction() == Action.RIGHT_CLICK_AIR
-                        || event.getAction() == Action.RIGHT_CLICK_BLOCK) open(player);
-                return;
-            }
-            if (event.getClickedBlock() == null) return;
-            if (event.getAction() != Action.LEFT_CLICK_BLOCK
-                    && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-            ItemStack tag = player.getInventory().getItemInOffHand();
-            if (tag.getType() != Material.NAME_TAG
-                    || !tag.hasItemMeta()
-                    || !tag.getItemMeta().hasDisplayName())
-                throw new SettlementException("Hold a named Name Tag in your off hand");
-            String name =
-                    PlainTextComponentSerializer.plainText()
-                            .serialize(tag.getItemMeta().displayName());
-            Location location = event.getClickedBlock().getLocation();
-            select(player, event.getAction() == Action.LEFT_CLICK_BLOCK, location);
-            if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                var settlement = runtime.at(location);
-                if (settlement == null) throw new SettlementException("Select within a Settlement");
-                previewAdd(player, settlement, name);
-            }
-        } catch (IllegalArgumentException | SettlementException rejected) {
-            player.sendMessage(Component.text(rejected.getMessage()));
+        refreshInventory(player);
+        boolean right =
+                event.getAction() == Action.RIGHT_CLICK_AIR
+                        || event.getAction() == Action.RIGHT_CLICK_BLOCK;
+        boolean left =
+                event.getAction() == Action.LEFT_CLICK_AIR
+                        || event.getAction() == Action.LEFT_CLICK_BLOCK;
+        if (type.equals("book")) {
+            if (right) open(player);
+            return;
         }
+        if (!left && !right) return;
+        if (event.getAction() == Action.LEFT_CLICK_AIR
+                && Bukkit.getCurrentTick() - rightClicks.getOrDefault(player.getUniqueId(), -100)
+                        <= 1) return;
+        if (right) rightClicks.put(player.getUniqueId(), Bukkit.getCurrentTick());
+        try {
+            var target = aim(player).cell();
+            String name = tagName(player);
+            selectCell(player, left, target, name);
+            if (right) previewAdd(player, settlementAt(player, target), name);
+        } catch (IllegalArgumentException | SettlementException rejected) {
+            player.sendMessage(Component.text(rejected.getMessage(), NamedTextColor.RED));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void swing(PlayerAnimationEvent event) {
+        var player = event.getPlayer();
+        if (event.getAnimationType() != PlayerAnimationType.ARM_SWING
+                || !"stick".equals(kind(player.getInventory().getItemInMainHand()))
+                || !runtime.ready()) return;
+        if (Bukkit.getCurrentTick() - rightClicks.getOrDefault(player.getUniqueId(), -100) <= 1)
+            return;
+        var target = aim(player);
+        if (!target.hitBlock()) selectCell(player, true, target.cell(), tagName(player));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -202,9 +339,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
     public void open(Player player) {
         var settlement = runtime.at(player.getLocation());
         Component front =
-                Component.text(
-                                "ESMP Management\nNumeric prices only; nothing charged.\n",
-                                NamedTextColor.BLACK)
+                Component.text("Settlement Management\n", NamedTextColor.BLACK)
                         .append(link("Create here", "/settlement create", false))
                         .append(link("My Settlements", "/settlement list", false))
                         .append(link("First claim price", "/settlement price", false))
@@ -217,9 +352,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                             .pages(
                                     front.append(
                                             Component.text(
-                                                    "\n"
-                                                        + "Stand in a Settlement for its management"
-                                                        + " pages.")))
+                                                    "\nStand in a settlement to manage it.")))
                             .build());
             return;
         }
@@ -231,7 +364,8 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                         + " (#"
                                         + land.number()
                                         + ")\nRole: "
-                                        + settlement.role(player.getUniqueId())
+                                        + SettlementCommands.roleName(
+                                                settlement.role(player.getUniqueId()))
                                         + "\n")
                         .append(link("Status", "/settlement info " + ref, false))
                         .append(link("Activity", "/settlement activity " + ref, false))
@@ -329,102 +463,160 @@ public final class ManagementTools implements Listener, AutoCloseable {
         return cached.getUniqueId();
     }
 
-    private void select(Player player, boolean first, Location location) {
-        if (runtime.mainInstance(location.getWorld()) == null)
-            throw new SettlementException("Selections require the registered Main World");
-        var cell =
-                ParcelCell.atBlock(
-                        location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        var previous = selections.get(player.getUniqueId());
-        if (previous == null || !previous.world().equals(location.getWorld().getUID()))
-            previous = new Selection(location.getWorld().getUID(), null, null);
-        selections.put(
-                player.getUniqueId(),
-                first
-                        ? new Selection(previous.world(), cell, previous.second())
-                        : new Selection(previous.world(), previous.first(), cell));
-        previews.remove(player.getUniqueId());
-        renderUntil.put(player.getUniqueId(), Math.addExact(runtime.clock().ticks(), 1200));
-        player.sendMessage(
-                Component.text(
-                        (first ? "First" : "Second")
-                                + " cell="
-                                + cell
-                                + "; 8x8x8 aligned. Preview before commit."));
+    private SettlementView settlementAt(Player player, ParcelCell cell) {
+        var world = runtime.mainInstance(player.getWorld());
+        return world == null ? null : runtime.index().at(world, cell.chunk().x(), cell.chunk().z());
     }
 
-    private void previewAdd(Player player, SettlementView s, String name) {
+    private void select(Player player, boolean first, Location location) {
+        selectCell(
+                player,
+                first,
+                ParcelCell.atBlock(
+                        location.getBlockX(), location.getBlockY(), location.getBlockZ()),
+                tagName(player));
+    }
+
+    private void selectCell(Player player, boolean first, ParcelCell cell, String name) {
+        UUID actor = player.getUniqueId();
+        UUID world = player.getWorld().getUID();
+        var previous = selections.get(actor);
+        if (previous == null || !previous.world().equals(world))
+            previous = new Selection(world, null, null, name);
+        if (first
+                && cell.equals(previous.first())
+                && previous.second() == null
+                && name.equals(previous.name())) return;
+        selections.put(
+                actor,
+                first
+                        ? new Selection(world, cell, null, name)
+                        : new Selection(world, previous.first(), cell, name));
+        previews.remove(actor);
+        drafts.remove(actor);
+        views.remove(actor);
+        renderUntil.put(actor, Math.addExact(runtime.clock().ticks(), 1200));
+        player.sendMessage(
+                Component.text((first ? "First" : "Second") + " corner: " + coordinates(cell)));
+    }
+
+    private static String coordinates(ParcelCell cell) {
+        return (long) cell.x() * 8 + " " + (long) cell.y() * 8 + " " + (long) cell.z() * 8;
+    }
+
+    private ParcelDraft.Result draft(
+            Player player,
+            SettlementView settlement,
+            String name,
+            ParcelCell first,
+            ParcelCell last) {
+        boolean admin = runtime.administrator(player.getUniqueId());
+        var key =
+                new DraftKey(
+                        player.getWorld().getUID(),
+                        settlement == null ? null : settlement.id(),
+                        first,
+                        last,
+                        name,
+                        runtime.publicationVersion(),
+                        admin);
+        var cached = drafts.get(player.getUniqueId());
+        if (cached != null && cached.key().equals(key)) return cached.result();
+        var result =
+                ParcelDraft.add(
+                        settlement,
+                        settlement == null ? null : runtime.land(settlement.id()),
+                        player.getUniqueId(),
+                        admin,
+                        name,
+                        first,
+                        last,
+                        player.getWorld().getMinHeight(),
+                        player.getWorld().getMaxHeight());
+        drafts.put(player.getUniqueId(), new DraftCache(key, result));
+        return result;
+    }
+
+    private void previewAdd(Player player, SettlementView settlement, String name) {
         var selection = selections.get(player.getUniqueId());
         if (selection == null || selection.first() == null || selection.second() == null)
-            throw new SettlementException("Select both positions first");
-        if (!selection.world().equals(player.getWorld().getUID())
-                || !s.worldInstanceId().equals(runtime.mainInstance(player.getWorld())))
-            throw new SettlementException("Selection/Settlement world mismatch");
-        var cells = ParcelCell.cuboid(selection.first(), selection.second());
-        var land = runtime.land(s.id());
-        var combined = new HashSet<ParcelCell>();
-        ParcelView existing = null;
-        for (var p : land.parcels().values())
-            if (p.name().equalsIgnoreCase(name)) {
-                existing = p;
-                combined.addAll(p.cells());
-            }
-        int conflicts = 0;
-        for (var cell : cells) {
-            if (!s.chunks().contains(cell.chunk()))
-                throw new SettlementException("Selection leaves the Settlement");
-            if (land.cells().containsKey(cell)) conflicts++;
-            else combined.add(cell);
-        }
-        if (!ParcelCell.connected(combined) || combined.size() > ParcelCell.LIMIT)
-            throw new SettlementException(
-                    "Unparcelled selection must produce a nonempty connected Parcel <=4096 cells");
-        previews.put(
-                player.getUniqueId(),
+            throw new SettlementException("Set both corners first.");
+        if (!selection.world().equals(player.getWorld().getUID()))
+            throw new SettlementException("Return to your selection's world.");
+        var result = draft(player, settlement, name, selection.first(), selection.second());
+        var land = settlement == null ? null : runtime.land(settlement.id());
+        var preview =
                 new Preview(
-                        s.id(),
+                        player.getWorld().getUID(),
+                        settlement == null ? null : settlement.id(),
                         name,
-                        existing == null ? null : existing.id(),
-                        cells,
+                        result.parcel(),
+                        selection.first(),
+                        selection.second(),
+                        result.cells(),
+                        result.blocked(),
                         null,
                         land,
-                        s.ownershipRevision(),
-                        s.chunkRevision(),
-                        Math.addExact(runtime.clock().ticks(), 1200)));
+                        settlement == null ? 0 : settlement.ownershipRevision(),
+                        settlement == null ? 0 : settlement.chunkRevision(),
+                        Math.addExact(runtime.clock().ticks(), 1200),
+                        result.error());
+        previews.put(player.getUniqueId(), preview);
+        selections.put(
+                player.getUniqueId(),
+                new Selection(selection.world(), selection.first(), selection.second(), name));
+        if (!result.valid()) {
+            player.sendMessage(Component.text(result.error(), NamedTextColor.RED));
+            return;
+        }
         player.sendMessage(
                 Component.text(
-                        "Preview "
-                                + name
-                                + ": "
-                                + (cells.size() - conflicts)
-                                + " new cells; "
-                                + conflicts
-                                + " already parcelled cells skipped. /settlement parcel commit"
-                                + " (1200 game ticks)"));
+                                name
+                                        + " · "
+                                        + result.added()
+                                        + (result.added() == 1 ? " cell " : " cells "))
+                        .append(
+                                Component.text("[Confirm]", NamedTextColor.BLUE)
+                                        .clickEvent(
+                                                ClickEvent.runCommand(
+                                                        "/settlement parcel commit"))));
+    }
+
+    private String previewError(Player player, Preview preview) {
+        if (preview.error() != null) return preview.error();
+        var settlement =
+                preview.settlement() == null ? null : runtime.index().byId(preview.settlement());
+        if (!preview.world().equals(player.getWorld().getUID()))
+            return "Return to your selection's world.";
+        if (settlement == null
+                || runtime.clock().ticks() >= preview.expires()
+                || runtime.land(settlement.id()) != preview.expectedLand()
+                || settlement.ownershipRevision() != preview.ownership()
+                || settlement.chunkRevision() != preview.chunks())
+            return "Selection changed. Preview it again.";
+        return null;
     }
 
     private void commit(Player player) {
-        var preview = previews.remove(player.getUniqueId());
-        if (preview == null) throw new SettlementException("Create a preview first");
-        var s = runtime.index().byId(preview.settlement());
-        if (s == null
-                || runtime.clock().ticks() >= preview.expires()
-                || runtime.land(s.id()) != preview.expectedLand()
-                || s.ownershipRevision() != preview.ownership()
-                || s.chunkRevision() != preview.chunks())
-            throw new SettlementException("Preview expired or state changed; preview again");
-        if (!s.worldInstanceId().equals(runtime.mainInstance(player.getWorld())))
-            throw new SettlementException("Return to the selection world");
+        var preview = previews.get(player.getUniqueId());
+        if (preview == null) throw new SettlementException("Preview a selection first.");
+        String error = previewError(player, preview);
+        if (error != null) throw new SettlementException(error);
+        previews.remove(player.getUniqueId());
+        selections.remove(player.getUniqueId());
+        drafts.remove(player.getUniqueId());
+        renderUntil.remove(player.getUniqueId());
+        var settlement = runtime.index().byId(preview.settlement());
         runtime.mutate(
                 player,
-                s.id(),
+                settlement.id(),
                 null,
                 () ->
                         preview.removal() == null
                                 ? runtime.parcels()
                                         .add(
                                                 player.getUniqueId(),
-                                                s.id(),
+                                                settlement.id(),
                                                 preview.name(),
                                                 preview.cells(),
                                                 player.getWorld().getMinHeight(),
@@ -432,7 +624,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                 : runtime.parcels()
                                         .removeCell(
                                                 player.getUniqueId(),
-                                                s.id(),
+                                                settlement.id(),
                                                 preview.parcel(),
                                                 preview.removal()));
     }
@@ -449,7 +641,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                 throw new SettlementException("parcel pos1|pos2 [blockX blockY blockZ]");
             Location p =
                     args.length == 2
-                            ? player.getLocation()
+                            ? targetLocation(player, aim(player).cell())
                             : new Location(
                                     player.getWorld(),
                                     Integer.parseInt(args[2]),
@@ -468,6 +660,10 @@ public final class ManagementTools implements Listener, AutoCloseable {
             selections.remove(actor);
             previews.remove(actor);
             renderUntil.remove(actor);
+            drafts.remove(actor);
+            edgeCaches.remove(actor);
+            views.remove(actor);
+            hints.remove(actor);
             player.sendMessage(Component.text("Selection cleared"));
             return;
         }
@@ -508,15 +704,9 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                         + " | policy="
                                         + p.policy()));
                 if (verb.equals("view")) {
-                    selections.put(
-                            actor,
-                            new Selection(
-                                    player.getWorld().getUID(),
-                                    ParcelCell.atBlock(
-                                            player.getLocation().getBlockX(),
-                                            player.getLocation().getBlockY(),
-                                            player.getLocation().getBlockZ()),
-                                    null));
+                    if (!s.worldInstanceId().equals(runtime.mainInstance(player.getWorld())))
+                        throw new SettlementException("Go to this parcel's world.");
+                    views.put(actor, new View(player.getWorld().getUID(), s.id(), p.id()));
                     renderUntil.put(actor, Math.addExact(runtime.clock().ticks(), 1200));
                 }
             }
@@ -532,28 +722,46 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                 Integer.parseInt(args[4]),
                                 Integer.parseInt(args[5]),
                                 Integer.parseInt(args[6]));
+                String error = null;
                 if (!p.cells().contains(cell)
                         || cell.neighbors().stream().allMatch(p.cells()::contains))
-                    throw new SettlementException("Select a Parcel surface cell");
+                    error = "Choose a surface cell.";
                 var remaining = new HashSet<>(p.cells());
                 remaining.remove(cell);
-                if (!ParcelCell.connected(remaining))
-                    throw new SettlementException(
-                            "Removal disconnects/empties Parcel; use delete for whole Parcel");
+                if (error == null && !ParcelCell.connected(remaining))
+                    error = "Keep the remaining cells connected.";
+                boolean admin = runtime.administrator(actor);
+                if (!admin && (!s.role(actor).canManage() && !p.holders().contains(actor)))
+                    error = "Ask an owner or holder to edit this parcel.";
+                if (!admin && runtime.land(s.id()).bans().contains(actor))
+                    error = "You are banned here.";
                 previews.put(
                         actor,
                         new Preview(
+                                player.getWorld().getUID(),
                                 s.id(),
                                 p.name(),
                                 p.id(),
+                                cell,
+                                cell,
                                 Set.of(cell),
+                                Set.of(),
                                 cell,
                                 runtime.land(s.id()),
                                 s.ownershipRevision(),
                                 s.chunkRevision(),
-                                Math.addExact(runtime.clock().ticks(), 1200)));
+                                Math.addExact(runtime.clock().ticks(), 1200),
+                                error));
                 player.sendMessage(
-                        Component.text("Removal preview ready; /settlement parcel commit"));
+                        error == null
+                                ? Component.text("Remove this cell ")
+                                        .append(
+                                                Component.text("[Confirm]", NamedTextColor.BLUE)
+                                                        .clickEvent(
+                                                                ClickEvent.runCommand(
+                                                                        "/settlement parcel"
+                                                                            + " commit")))
+                                : Component.text(error, NamedTextColor.RED));
             }
             case "delete" -> {
                 exact(args, 4, "parcel delete <settlement> <parcel>");
@@ -581,7 +789,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         args,
                         6,
                         "parcel policy <settlement> <parcel> <BUILD|INTERACT|CONTAINER|AUTOMATION>"
-                            + " <relations,comma|none>");
+                                + " <relations,comma|none>");
                 var p = parcel(s, args[3]);
                 var action = ParcelAction.valueOf(args[4].toUpperCase(Locale.ROOT));
                 var relations = EnumSet.noneOf(ParcelRelation.class);
@@ -651,88 +859,247 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         "/settlement parcel add <settlement> <name> | commit",
                         "/settlement parcel list <settlement> | info|view <settlement> <parcel>",
                         "/settlement parcel remove <settlement> <parcel> <blockX blockY blockZ> |"
-                            + " commit",
+                                + " commit",
                         "/settlement parcel holders <settlement> <parcel> <player,player|none>",
                         "/settlement parcel policy <settlement> <parcel> <action>"
-                            + " <OWNER,GOVERNOR,CITIZEN,HOLDER,PUBLIC|none>",
+                                + " <OWNER,GOVERNOR,CITIZEN,HOLDER,PUBLIC|none>",
                         "/settlement parcel rename <settlement> <parcel> <name> | delete"
-                            + " <settlement> <parcel>",
+                                + " <settlement> <parcel>",
                         "/settlement parcel requests <settlement> | approve|reject <settlement>"
-                            + " <requestUUID>"))
-            player.sendMessage(Component.text(line));
+                                + " <requestUUID>")) player.sendMessage(Component.text(line));
+    }
+
+    private static Location targetLocation(Player player, ParcelCell cell) {
+        return new Location(player.getWorld(), cell.x() * 8.0, cell.y() * 8.0, cell.z() * 8.0);
+    }
+
+    private List<ParcelOverlayGeometry.Edge> existingEdges(
+            Player player,
+            ParcelCell center,
+            View view,
+            ParcelCell invalidFirst,
+            ParcelCell invalidLast,
+            Set<ParcelCell> blocked) {
+        var key =
+                new EdgeKey(
+                        player.getWorld().getUID(),
+                        center,
+                        runtime.publicationVersion(),
+                        view == null ? null : view.parcel(),
+                        invalidFirst,
+                        invalidLast,
+                        blocked);
+        var cached = edgeCaches.get(player.getUniqueId());
+        if (cached != null && cached.key().equals(key)) return cached.edges();
+        var edges = new LinkedHashSet<ParcelOverlayGeometry.Edge>();
+        var instance = runtime.mainInstance(player.getWorld());
+        if (instance != null) {
+            for (int x = center.x() - 3; x <= center.x() + 3; x++)
+                for (int y = center.y() - 3; y <= center.y() + 3; y++)
+                    for (int z = center.z() - 3; z <= center.z() + 3; z++) {
+                        var cell = new ParcelCell(x, y, z);
+                        var settlement =
+                                runtime.index().at(instance, cell.chunk().x(), cell.chunk().z());
+                        if (settlement == null) continue;
+                        var land = runtime.land(settlement.id());
+                        var parcel = land.cells().get(cell);
+                        if (parcel != null && (view == null || view.parcel().equals(parcel.id())))
+                            ParcelOverlayGeometry.exposedEdges(cell, parcel.cells(), edges);
+                    }
+        }
+        edges.removeIf(edge -> hiddenEdge(edge, invalidFirst, invalidLast, blocked));
+        var ordered = new ArrayList<>(edges);
+        var eye = player.getEyeLocation();
+        ordered.sort(
+                Comparator.comparingDouble(
+                        edge -> {
+                            double x = edge.x() - eye.getX(),
+                                    y = edge.y() - eye.getY(),
+                                    z = edge.z() - eye.getZ();
+                            return x * x + y * y + z * z;
+                        }));
+        var result = List.copyOf(ordered);
+        edgeCaches.put(player.getUniqueId(), new EdgeCache(key, result));
+        return result;
+    }
+
+    private static boolean hiddenEdge(
+            ParcelOverlayGeometry.Edge edge,
+            ParcelCell first,
+            ParcelCell last,
+            Set<ParcelCell> blocked) {
+        if (first != null && last != null) {
+            double maxX = (Math.max(first.x(), last.x()) + 1.0) * 8,
+                    maxY = (Math.max(first.y(), last.y()) + 1.0) * 8,
+                    maxZ = (Math.max(first.z(), last.z()) + 1.0) * 8;
+            if (edge.x() >= Math.min(first.x(), last.x()) * 8.0
+                    && edge.y() >= Math.min(first.y(), last.y()) * 8.0
+                    && edge.z() >= Math.min(first.z(), last.z()) * 8.0
+                    && edge.x() + (edge.axis() == 0 ? 8 : 0) <= maxX
+                    && edge.y() + (edge.axis() == 1 ? 8 : 0) <= maxY
+                    && edge.z() + (edge.axis() == 2 ? 8 : 0) <= maxZ) return true;
+        }
+        if (blocked.isEmpty()) return false;
+        int x = (int) Math.floorDiv(edge.x(), 8),
+                y = (int) Math.floorDiv(edge.y(), 8),
+                z = (int) Math.floorDiv(edge.z(), 8);
+        for (int i = 0; i <= 1; i++)
+            for (int j = 0; j <= 1; j++) {
+                var cell =
+                        edge.axis() == 0
+                                ? new ParcelCell(x, y - i, z - j)
+                                : edge.axis() == 1
+                                        ? new ParcelCell(x - i, y, z - j)
+                                        : new ParcelCell(x - i, y - j, z);
+                if (blocked.contains(cell)) return true;
+            }
+        return false;
     }
 
     private void render() {
+        if (!runtime.ready()) return;
+        frame++;
         for (var player : plugin.getServer().getOnlinePlayers()) {
             UUID actor = player.getUniqueId();
+            boolean wand = "stick".equals(kind(player.getInventory().getItemInMainHand()));
             var preview = previews.get(actor);
             var selection = selections.get(actor);
+            var view = views.get(actor);
             if (preview != null && runtime.clock().ticks() >= preview.expires()) {
                 previews.remove(actor);
                 preview = null;
             }
-            if (preview == null
-                    && (selection == null
-                            || runtime.clock().ticks() >= renderUntil.getOrDefault(actor, 0L)))
+            if (view != null
+                    && (runtime.clock().ticks() >= renderUntil.getOrDefault(actor, 0L)
+                            || !view.world().equals(player.getWorld().getUID()))) {
+                views.remove(actor);
+                view = null;
+            }
+            boolean selected =
+                    selection != null
+                            && selection.world().equals(player.getWorld().getUID())
+                            && runtime.clock().ticks() < renderUntil.getOrDefault(actor, 0L);
+            if (!wand && preview == null && view == null && !selected) {
+                lastTargets.remove(actor);
+                drafts.remove(actor);
+                edgeCaches.remove(actor);
                 continue;
-            if (selection != null && !selection.world().equals(player.getWorld().getUID()))
-                continue;
-            int budget = 256;
-            Location location = player.getLocation();
-            var current =
-                    ParcelCell.atBlock(
-                            location.getBlockX(), location.getBlockY(), location.getBlockZ());
-            budget = draw(player, current, CURRENT, budget);
+            }
+            if (preview != null && !preview.world().equals(player.getWorld().getUID()))
+                preview = null;
+            var target = wand ? aim(player).cell() : null;
+            var oldDraft = drafts.get(actor);
+            ParcelCell first = null, last = null;
+            Set<ParcelCell> blocked = Set.of();
+            String error = null;
+            String hint = "";
             if (preview != null) {
-                for (var cell : preview.cells()) {
-                    if (budget <= 128) break;
-                    boolean conflict =
-                            preview.removal() != null
-                                    || preview.expectedLand().cells().containsKey(cell);
-                    budget = draw(player, cell, conflict ? CONFLICT : SELECTED, budget);
+                first = preview.first();
+                last = preview.last();
+                blocked = preview.blocked();
+                error = previewError(player, preview);
+                hint = error == null ? preview.name() + " · Confirm in chat" : error;
+            } else if (selected && selection.first() != null) {
+                first = selection.first();
+                last = selected && selection.second() != null ? selection.second() : target;
+                if (first != null && last != null) {
+                    String name =
+                            selected && selection.second() != null
+                                    ? selection.name()
+                                    : tagName(player);
+                    var result = draft(player, settlementAt(player, first), name, first, last);
+                    blocked = result.blocked();
+                    error = result.error();
+                    hint =
+                            error == null
+                                    ? (selected && selection.first() != null
+                                            ? "Right-click: second corner"
+                                            : "Left-click: first corner")
+                                    : error;
                 }
-            } else if (selection != null) {
-                if (selection.first() != null)
-                    budget = draw(player, selection.first(), SELECTED, budget);
-                if (selection.second() != null)
-                    budget = draw(player, selection.second(), SELECTED, budget);
             }
-            var settlement = runtime.at(location);
-            if (settlement != null) {
-                var land = runtime.land(settlement.id());
-                // Bounded spatial lookup, never iterate every Parcel/cell for every viewer.
-                for (int x = current.x() - 4; x <= current.x() + 4 && budget > 0; x++)
-                    for (int y = current.y() - 4; y <= current.y() + 4 && budget > 0; y++)
-                        for (int z = current.z() - 4; z <= current.z() + 4 && budget > 0; z++) {
-                            var cell = new ParcelCell(x, y, z);
-                            var parcel = land.cells().get(cell);
-                            if (parcel != null
-                                    && cell.neighbors().stream()
-                                            .anyMatch(n -> !parcel.cells().contains(n)))
-                                budget = draw(player, cell, EXISTING, budget);
-                        }
+            if (wand && hint.isEmpty())
+                hint =
+                        tagName(player).isEmpty()
+                                ? "Hold a named tag in your off hand."
+                                : "Left-click: first corner";
+            if (wand && target != null) hint = coordinates(target) + " · " + hint;
+            boolean changed =
+                    !Objects.equals(lastTargets.put(actor, target), target)
+                            || oldDraft != drafts.get(actor)
+                            || !Objects.equals(hints.get(actor), hint);
+            if (!hint.isEmpty() && (changed || frame % 10 == 0)) {
+                player.sendActionBar(
+                        Component.text(
+                                hint, error == null ? NamedTextColor.BLUE : NamedTextColor.RED));
+                hints.put(actor, hint);
             }
+            if (!changed && frame % 2 != 0) continue;
+            int budget = PARTICLE_BUDGET;
+            if (target != null)
+                budget -=
+                        ParcelOverlayGeometry.surface(
+                                target,
+                                Math.min(512, budget),
+                                (x, y, z) -> particle(player, BLUE, x, y, z));
+            if (first != null && last != null) {
+                var color = error == null ? BLUE : RED;
+                budget -=
+                        ParcelOverlayGeometry.border(
+                                first,
+                                last,
+                                Math.min(384, budget),
+                                (x, y, z) -> particle(player, color, x, y, z));
+            }
+            if (error == null && !blocked.isEmpty()) {
+                var cells = new ArrayList<>(blocked);
+                var eye = player.getEyeLocation();
+                cells.sort(
+                        Comparator.comparingDouble(
+                                c -> {
+                                    double x = c.x() * 8 - eye.getX(),
+                                            y = c.y() * 8 - eye.getY(),
+                                            z = c.z() * 8 - eye.getZ();
+                                    return x * x + y * y + z * z;
+                                }));
+                int remaining = Math.min(192, budget);
+                for (var cell : cells) {
+                    if (remaining < 24) break;
+                    int used =
+                            ParcelOverlayGeometry.border(
+                                    cell,
+                                    cell,
+                                    Math.min(96, remaining),
+                                    (x, y, z) -> particle(player, RED, x, y, z));
+                    remaining -= used;
+                    budget -= used;
+                }
+            }
+            var eye = player.getEyeLocation();
+            var center = ParcelCell.atBlock(eye.getBlockX(), eye.getBlockY(), eye.getBlockZ());
+            var edges =
+                    existingEdges(
+                            player,
+                            center,
+                            view,
+                            error == null ? null : first,
+                            error == null ? null : last,
+                            blocked);
+            ParcelOverlayGeometry.edges(
+                    edges,
+                    (int) ((frame / 2) * 64 % Math.max(1, edges.size())),
+                    Math.min(640, budget),
+                    (x, y, z) -> particle(player, GREEN, x, y, z));
         }
     }
 
-    private static int draw(
-            Player player, ParcelCell cell, Particle.DustOptions color, int budget) {
-        double x = (double) cell.x() * 8, y = (double) cell.y() * 8, z = (double) cell.z() * 8;
-        if (budget <= 0
-                || Math.abs(player.getX() - x) > 64
-                || Math.abs(player.getY() - y) > 64
-                || Math.abs(player.getZ() - z) > 64
-                || !player.getWorld()
-                        .isChunkLoaded(Math.floorDiv(cell.x(), 2), Math.floorDiv(cell.z(), 2)))
-            return budget;
-        for (int dx = 0; dx <= 8 && budget > 0; dx += 8)
-            for (int dy = 0; dy <= 8 && budget > 0; dy += 8)
-                for (int dz = 0; dz <= 8 && budget > 0; dz += 8) {
-                    player.spawnParticle(
-                            Particle.DUST, x + dx, y + dy, z + dz, 1, 0, 0, 0, 0, color);
-                    budget--;
-                }
-        return budget;
+    private static void particle(
+            Player player, Particle.DustOptions color, double x, double y, double z) {
+        double dx = x - player.getX(),
+                dy = y - player.getY() - player.getEyeHeight(),
+                dz = z - player.getZ();
+        if (dx * dx + dy * dy + dz * dz <= 72 * 72)
+            player.spawnParticle(Particle.DUST, x, y, z, 1, 0, 0, 0, 0, color);
     }
 
     @Override
@@ -742,5 +1109,11 @@ public final class ManagementTools implements Listener, AutoCloseable {
         previews.clear();
         lastIssue.clear();
         renderUntil.clear();
+        drafts.clear();
+        edgeCaches.clear();
+        views.clear();
+        hints.clear();
+        lastTargets.clear();
+        rightClicks.clear();
     }
 }

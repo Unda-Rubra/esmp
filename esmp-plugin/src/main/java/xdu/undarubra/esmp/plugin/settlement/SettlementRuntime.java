@@ -43,6 +43,7 @@ public final class SettlementRuntime implements AutoCloseable {
     private final SettlementService service;
     private final ParcelService parcels;
     private LandSnapshot land = LandSnapshot.EMPTY;
+    private long publicationVersion;
     private final Set<UUID> administrators = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private record Publication(SettlementChange change, LandSnapshot.Land land) {}
@@ -119,6 +120,10 @@ public final class SettlementRuntime implements AutoCloseable {
 
     public LandSnapshot.Land land(UUID id) {
         return land.settlements().get(id);
+    }
+
+    public long publicationVersion() {
+        return publicationVersion;
     }
 
     public ManagementTools tools() {
@@ -356,6 +361,7 @@ public final class SettlementRuntime implements AutoCloseable {
                                                                 change.settlementId(),
                                                                 publication.land());
                                                     land = new LandSnapshot(updated);
+                                                    publicationVersion++;
                                                     index.replace(
                                                             change.settlementId(),
                                                             change.current());

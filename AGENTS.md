@@ -96,6 +96,7 @@ For code changes:
 4. Put synchronous invariant enforcement behind application APIs; publish domain events only after owning state commits.
 5. Treat DB-to-world mutation as recoverable, idempotent work because SQL and Minecraft world state cannot share one transaction.
 6. Run the narrow behavioral test or actual server scenario that exercises the change.
+7. Keep player-facing tooltips and confirmations short and natural: describe the action or purpose, not implementation status or omitted features. Preserve actionable rejection reasons and audit data. Parcel overlays use blue previews/target surfaces, green existing borders and red invalid selections; clicks and rendering must share targeting logic.
 
 ## Git workflow
 

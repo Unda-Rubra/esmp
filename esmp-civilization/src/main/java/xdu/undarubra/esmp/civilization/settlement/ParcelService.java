@@ -408,13 +408,7 @@ public final class ParcelService {
         if (next != null) required.addAll(next.holders());
         if (administrator.test(actor) || (required.isEmpty() && s.role(actor).canManage())) {
             apply(c, actor, s, old, next, kind);
-            return change(
-                    c,
-                    s.id(),
-                    "Parcel "
-                            + kind
-                            + " committed"
-                            + (administrator.test(actor) ? " (administrator override)" : ""));
+            return change(c, s.id(), parcelMessage(kind, old, next));
         }
         sql(
                 c,
@@ -450,13 +444,7 @@ public final class ParcelService {
         return change(
                 c,
                 s.id(),
-                "Proposal "
-                        + request
-                        + " requires governance and all current/new Holders; use /settlement parcel"
-                        + " approve "
-                        + s.name()
-                        + " "
-                        + request);
+                "Approval requested. /settlement parcel approve " + s.name() + " " + request);
     }
 
     public CompletableFuture<List<Request>> requests(UUID settlement) {
@@ -573,21 +561,22 @@ public final class ParcelService {
                                     "UPDATE parcel_requests SET state='APPLIED' WHERE request_id=?",
                                     id);
                             apply(c, actor, s, old, next, r.operation());
-                            return change(
-                                    c,
-                                    settlement,
-                                    "Proposal applied"
-                                            + (administrator.test(actor)
-                                                    ? " (administrator override)"
-                                                    : ""));
+                            return change(c, settlement, "Changes approved.");
                         }
                         event(c, settlement, actor, "PARCEL_APPROVED", id.toString());
-                        return change(
-                                c,
-                                settlement,
-                                "Approval recorded; awaiting governance/all Holders");
+                        return change(c, settlement, "Approval saved. Waiting for the others.");
                     }
                 });
+    }
+
+    private static String parcelMessage(String kind, ParcelView old, ParcelView next) {
+        return switch (kind) {
+            case "DELETE" -> "Deleted " + old.name() + ".";
+            case "HOLDERS" -> "Holders updated.";
+            case "POLICY" -> "Permissions updated.";
+            case "RENAME" -> "Renamed to " + next.name() + ".";
+            default -> (old == null ? "Created " : "Updated ") + next.name() + ".";
+        };
     }
 
     private void apply(

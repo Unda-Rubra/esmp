@@ -60,7 +60,7 @@ public final class SettlementService {
                             var rows =
                                     q.executeQuery(
                                             "SELECT coalesce(max(number),0)+1 FROM"
-                                                + " settlement_details")) {
+                                                    + " settlement_details")) {
                         rows.next();
                         number = rows.getLong(1);
                     }
@@ -107,11 +107,7 @@ public final class SettlementService {
                             connection,
                             id,
                             null,
-                            "Created "
-                                    + name
-                                    + "; numeric claim price "
-                                    + claimPrice(0)
-                                    + " (not charged).");
+                            "Created " + name + ". Claim price: " + claimPrice(0) + ".");
                 });
     }
 
@@ -139,7 +135,7 @@ public final class SettlementService {
                     execute(
                             connection,
                             "UPDATE settlements SET chunk_revision=chunk_revision+1 WHERE"
-                                + " settlement_id=?",
+                                    + " settlement_id=?",
                             id);
                     long price = claimPrice(settlement.chunks().size());
                     event(
@@ -157,11 +153,7 @@ public final class SettlementService {
                             connection,
                             id,
                             null,
-                            "Claimed chunk for "
-                                    + settlement.name()
-                                    + "; numeric price "
-                                    + price
-                                    + " (not charged).");
+                            "Claimed chunk for " + settlement.name() + ". Price: " + price + ".");
                 });
     }
 
@@ -189,7 +181,7 @@ public final class SettlementService {
                                     Math.floorDiv(rows.getInt(1), 2) != chunk.x()
                                             || Math.floorDiv(rows.getInt(2), 2) != chunk.z(),
                                     "Remove affected Parcels through their consent workflow before"
-                                        + " unclaiming");
+                                            + " unclaiming");
                     }
                     Set<ChunkPosition> remaining = new HashSet<>(settlement.chunks());
                     remaining.remove(chunk);
@@ -199,14 +191,14 @@ public final class SettlementService {
                     execute(
                             connection,
                             "DELETE FROM settlement_chunks WHERE settlement_id=? AND chunk_x=? AND"
-                                + " chunk_z=?",
+                                    + " chunk_z=?",
                             id,
                             chunk.x(),
                             chunk.z());
                     execute(
                             connection,
                             "UPDATE settlements SET chunk_revision=chunk_revision+1 WHERE"
-                                + " settlement_id=?",
+                                    + " settlement_id=?",
                             id);
                     event(connection, id, actor, "CHUNK_UNCLAIMED", chunk.x() + "," + chunk.z());
                     return changed(
@@ -229,7 +221,7 @@ public final class SettlementService {
                                     prepare(
                                             connection,
                                             "SELECT certified FROM settlement_details WHERE"
-                                                + " settlement_id=?",
+                                                    + " settlement_id=?",
                                             id);
                             var rows = q.executeQuery()) {
                         require(
@@ -293,28 +285,21 @@ public final class SettlementService {
                         execute(
                                 c,
                                 "DELETE FROM settlement_bans WHERE settlement_id=? AND"
-                                    + " player_uuid=?",
+                                        + " player_uuid=?",
                                 id,
                                 target);
                     execute(
                             c,
                             "UPDATE settlement_details SET security_revision=security_revision+1"
-                                + " WHERE settlement_id=?",
+                                    + " WHERE settlement_id=?",
                             id);
                     execute(
                             c,
                             "UPDATE parcel_requests SET state='STALE' WHERE settlement_id=? AND"
-                                + " state='PENDING'",
+                                    + " state='PENDING'",
                             id);
                     event(c, id, actor, banned ? "BANNED" : "UNBANNED", target.toString());
-                    return changed(
-                            c,
-                            id,
-                            null,
-                            banned
-                                    ? "Player banned from governed interactions; movement remains"
-                                          + " allowed"
-                                    : "Ban removed");
+                    return changed(c, id, null, banned ? "Player banned." : "Ban removed.");
                 });
     }
 
@@ -355,14 +340,14 @@ public final class SettlementService {
                     execute(
                             connection,
                             "UPDATE settlement_offers SET state='EXPIRED' WHERE settlement_id=? AND"
-                                + " state='PENDING' AND expires_at<=?",
+                                    + " state='PENDING' AND expires_at<=?",
                             id,
                             clock.ticks());
                     if (type == SettlementOffer.Type.ABANDON) {
                         execute(
                                 connection,
                                 "UPDATE settlement_offers SET state='CANCELLED' WHERE"
-                                    + " settlement_id=? AND type='ABANDON' AND state='PENDING'",
+                                        + " settlement_id=? AND type='ABANDON' AND state='PENDING'",
                                 id);
                     }
                     try (PreparedStatement query =
@@ -433,7 +418,7 @@ public final class SettlementService {
                             (offer.type() == SettlementOffer.Type.ABANDON)
                                     == abandonmentConfirmation,
                             "Use /settlement confirm for abandonment, and /settlement accept for"
-                                + " other offers.");
+                                    + " other offers.");
                     SettlementView settlement = owned(connection, offer.settlementId(), actor);
                     require(
                             administrator.test(offer.issuer())
@@ -463,7 +448,7 @@ public final class SettlementService {
                             execute(
                                     connection,
                                     "UPDATE settlement_members SET role='GOVERNOR' WHERE"
-                                        + " settlement_id=? AND player_uuid=?",
+                                            + " settlement_id=? AND player_uuid=?",
                                     settlement.id(),
                                     actor);
                         }
@@ -474,7 +459,7 @@ public final class SettlementService {
                             execute(
                                     connection,
                                     "DELETE FROM settlement_members WHERE settlement_id=? AND"
-                                        + " player_uuid=?",
+                                            + " player_uuid=?",
                                     settlement.id(),
                                     actor);
                             execute(
@@ -492,7 +477,7 @@ public final class SettlementService {
                                     targetRole == Role.OWNER
                                             && settlement.chunkRevision() == offer.chunkRevision(),
                                     "Ownership or claims changed; request a fresh abandonment"
-                                        + " warning.");
+                                            + " warning.");
                             try (var q =
                                             prepare(
                                                     connection,
@@ -502,7 +487,7 @@ public final class SettlementService {
                                 require(
                                         !rows.next(),
                                         "Remove Parcels through their consent workflow before"
-                                            + " abandoning");
+                                                + " abandoning");
                             }
                             execute(
                                     connection,
@@ -523,14 +508,14 @@ public final class SettlementService {
                     execute(
                             connection,
                             "UPDATE settlement_offers SET state='ACCEPTED' WHERE offer_id=? AND"
-                                + " state='PENDING'",
+                                    + " state='PENDING'",
                             offerId);
                     if (offer.type() == SettlementOffer.Type.TRANSFER
                             || offer.type() == SettlementOffer.Type.ABANDON) {
                         execute(
                                 connection,
                                 "UPDATE settlement_offers SET state='CANCELLED' WHERE"
-                                    + " settlement_id=? AND state='PENDING'",
+                                        + " settlement_id=? AND state='PENDING'",
                                 settlement.id());
                     }
                     String eventType =
@@ -608,7 +593,7 @@ public final class SettlementService {
                     require(
                             targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
                             "Only Citizens or Governors can be removed; an Owner must transfer or"
-                                + " abandon.");
+                                    + " abandon.");
                     if (voluntary) {
                         require(actor.equals(target), "You may only leave for yourself.");
                     } else {
@@ -621,7 +606,7 @@ public final class SettlementService {
                     execute(
                             connection,
                             "DELETE FROM settlement_members WHERE settlement_id=? AND"
-                                + " player_uuid=?",
+                                    + " player_uuid=?",
                             id,
                             target);
                     execute(
@@ -658,13 +643,13 @@ public final class SettlementService {
                     execute(
                             connection,
                             "UPDATE settlement_members SET role='CITIZEN' WHERE settlement_id=? AND"
-                                + " player_uuid=?",
+                                    + " player_uuid=?",
                             id,
                             target);
                     execute(
                             connection,
                             "UPDATE settlement_offers SET state='CANCELLED' WHERE settlement_id=?"
-                                + " AND issuer_uuid=? AND state='PENDING'",
+                                    + " AND issuer_uuid=? AND state='PENDING'",
                             id,
                             target);
                     event(connection, id, actor, "GOVERNOR_DEMOTED", target.toString());
@@ -711,7 +696,7 @@ public final class SettlementService {
                         events(
                                 connection,
                                 "SELECT * FROM settlement_events WHERE settlement_id=? ORDER BY"
-                                    + " occurred_at DESC,rowid DESC LIMIT 50",
+                                        + " occurred_at DESC,rowid DESC LIMIT 50",
                                 settlementId));
     }
 
@@ -721,7 +706,7 @@ public final class SettlementService {
                         events(
                                 connection,
                                 "SELECT * FROM settlement_events WHERE delivered=0 ORDER BY rowid"
-                                    + " LIMIT 128"));
+                                        + " LIMIT 128"));
     }
 
     public CompletableFuture<Void> acknowledgeEvents(List<UUID> ids) {
@@ -785,7 +770,7 @@ public final class SettlementService {
                         prepare(
                                 connection,
                                 "SELECT * FROM settlement_offers WHERE offer_id=? AND"
-                                    + " state='PENDING'",
+                                        + " state='PENDING'",
                                 id);
                 ResultSet result = query.executeQuery()) {
             require(result.next(), "Offer not found or already resolved.");
@@ -828,7 +813,7 @@ public final class SettlementService {
                         prepare(
                                 connection,
                                 "SELECT 1 FROM world_instances WHERE world_instance_id=? AND"
-                                    + " world_definition_id='MAIN'",
+                                        + " world_definition_id='MAIN'",
                                 world);
                 ResultSet rows = query.executeQuery()) {
             require(rows.next(), "Settlements may only claim registered Main World instances.");
@@ -841,7 +826,7 @@ public final class SettlementService {
                         prepare(
                                 connection,
                                 "SELECT 1 FROM settlement_chunks WHERE world_instance_id=? AND"
-                                    + " chunk_x=? AND chunk_z=?",
+                                        + " chunk_x=? AND chunk_z=?",
                                 world,
                                 chunk.x(),
                                 chunk.z());
@@ -856,7 +841,7 @@ public final class SettlementService {
                         prepare(
                                 connection,
                                 "SELECT settlement_id FROM settlements WHERE name_key=? AND"
-                                    + " status='OWNED'",
+                                        + " status='OWNED'",
                                 key(name));
                 ResultSet rows = query.executeQuery()) {
             require(
@@ -948,7 +933,7 @@ public final class SettlementService {
                         prepare(
                                 connection,
                                 "SELECT * FROM settlements WHERE settlement_id=? AND"
-                                    + " status='OWNED'",
+                                        + " status='OWNED'",
                                 id);
                 ResultSet row = query.executeQuery()) {
             if (!row.next()) {
@@ -972,7 +957,7 @@ public final class SettlementService {
                             prepare(
                                     connection,
                                     "SELECT chunk_x,chunk_z FROM settlement_chunks WHERE"
-                                        + " settlement_id=?",
+                                            + " settlement_id=?",
                                     id);
                     ResultSet rows = c.executeQuery()) {
                 while (rows.next()) {
@@ -1011,7 +996,7 @@ public final class SettlementService {
                 ResultSet rows =
                         query.executeQuery(
                                 "SELECT * FROM settlements WHERE status='OWNED' ORDER BY"
-                                    + " name_key")) {
+                                        + " name_key")) {
             while (rows.next()) {
                 UUID id = UUID.fromString(rows.getString("settlement_id"));
                 Set<ChunkPosition> claimed = chunks.getOrDefault(id, Set.of());
@@ -1047,7 +1032,7 @@ public final class SettlementService {
                 var tables =
                         q.executeQuery(
                                 "SELECT 1 FROM sqlite_master WHERE type='table' AND"
-                                    + " name='civilization_schema'")) {
+                                        + " name='civilization_schema'")) {
             if (tables.next())
                 try (var s = connection.createStatement();
                         var r =
@@ -1060,18 +1045,18 @@ public final class SettlementService {
         execute(
                 connection,
                 "CREATE TABLE settlement_details(settlement_id TEXT PRIMARY KEY REFERENCES"
-                    + " settlements(settlement_id),number INTEGER NOT NULL UNIQUE,official_name"
-                    + " TEXT,certified INTEGER NOT NULL,security_revision INTEGER NOT NULL)");
+                        + " settlements(settlement_id),number INTEGER NOT NULL UNIQUE,official_name"
+                        + " TEXT,certified INTEGER NOT NULL,security_revision INTEGER NOT NULL)");
         execute(
                 connection,
                 "INSERT INTO settlement_details SELECT settlement_id,row_number() OVER(ORDER BY"
-                    + " rowid),name,1,0 FROM settlements");
+                        + " rowid),name,1,0 FROM settlements");
         execute(
                 connection,
                 "CREATE TABLE settlement_members_new(settlement_id TEXT NOT NULL REFERENCES"
-                    + " settlements(settlement_id),player_uuid TEXT NOT NULL,role TEXT NOT NULL"
-                    + " CHECK(role IN ('GOVERNOR','CITIZEN')),PRIMARY"
-                    + " KEY(settlement_id,player_uuid))");
+                        + " settlements(settlement_id),player_uuid TEXT NOT NULL,role TEXT NOT NULL"
+                        + " CHECK(role IN ('GOVERNOR','CITIZEN')),PRIMARY"
+                        + " KEY(settlement_id,player_uuid))");
         execute(
                 connection,
                 "INSERT INTO settlement_members_new SELECT settlement_id,player_uuid,CASE role WHEN"
@@ -1088,7 +1073,7 @@ public final class SettlementService {
                 var tables =
                         statement.executeQuery(
                                 "SELECT 1 FROM sqlite_master WHERE type='table' AND"
-                                    + " name='civilization_schema'")) {
+                                        + " name='civilization_schema'")) {
             if (tables.next()) {
                 try (var query = connection.createStatement();
                         var version =
@@ -1131,7 +1116,7 @@ public final class SettlementService {
         execute(
                 connection,
                 "CREATE TABLE IF NOT EXISTS civilization_schema (id INTEGER PRIMARY KEY"
-                    + " CHECK(id=1), version INTEGER NOT NULL)");
+                        + " CHECK(id=1), version INTEGER NOT NULL)");
         int version = 0;
         try (Statement query = connection.createStatement();
                 ResultSet rows =
@@ -1161,7 +1146,7 @@ public final class SettlementService {
         execute(
                 connection,
                 "CREATE UNIQUE INDEX settlements_owned_names ON settlements(name_key) WHERE"
-                    + " status='OWNED'");
+                        + " status='OWNED'");
         execute(
                 connection,
                 """
@@ -1196,8 +1181,8 @@ public final class SettlementService {
         execute(
                 connection,
                 "CREATE UNIQUE INDEX settlement_pending_offer ON"
-                    + " settlement_offers(settlement_id,type,recipient_uuid) WHERE"
-                    + " state='PENDING'");
+                        + " settlement_offers(settlement_id,type,recipient_uuid) WHERE"
+                        + " state='PENDING'");
         execute(
                 connection,
                 """
@@ -1210,7 +1195,7 @@ public final class SettlementService {
         execute(
                 connection,
                 "CREATE INDEX settlement_events_history ON"
-                    + " settlement_events(settlement_id,occurred_at)");
+                        + " settlement_events(settlement_id,occurred_at)");
         execute(
                 connection,
                 "CREATE INDEX settlement_events_outbox ON settlement_events(delivered)");

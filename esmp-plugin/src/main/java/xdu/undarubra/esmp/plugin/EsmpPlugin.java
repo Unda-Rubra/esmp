@@ -15,8 +15,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import xdu.undarubra.esmp.civilization.CivilizationWorlds;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
-import xdu.undarubra.esmp.civilization.settlement.SettlementPolicy;
 import xdu.undarubra.esmp.civilization.settlement.SettlementException;
+import xdu.undarubra.esmp.civilization.settlement.SettlementPolicy;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.core.world.StoreSnapshot;
@@ -111,7 +111,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                                                 if (failure != null) {
                                                     fail(
                                                             "SQLite/Settlement initialization"
-                                                                + " failed",
+                                                                    + " failed",
                                                             failure);
                                                     return;
                                                 }
@@ -174,7 +174,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getLogger()
                     .info(
                             "Migrated configuration to version 2; former Factory world mapping"
-                                + " retired. World data is untouched.");
+                                    + " retired. World data is untouched.");
         }
         if (number < 3) {
             try {
@@ -390,7 +390,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         getLogger()
                 .severe(
                         "Stopping the server rather than exposing Main World without reliable claim"
-                            + " protection.");
+                                + " protection.");
         getServer().shutdown();
     }
 
@@ -403,7 +403,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                 getLogger()
                         .severe(
                                 "Disabling ESMP protection requires a server stop; hot reload is"
-                                    + " unsupported.");
+                                        + " unsupported.");
                 getServer().shutdown();
             }
             settlements.close();
@@ -436,11 +436,13 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             if (!player.hasPermission("esmp.settlement")) {
-                player.sendMessage(Component.text("You do not have permission to request ESMP tools."));
+                player.sendMessage(
+                        Component.text("You do not have permission to request ESMP tools."));
                 return true;
             }
             if (args.length != 2) {
-                player.sendMessage(Component.text("Usage: /esmp tools <parcel_wand|management_book>"));
+                player.sendMessage(
+                        Component.text("Usage: /esmp tools <parcel_wand|management_book>"));
                 return true;
             }
             if (settlements == null || !settlements.ready()) {
@@ -455,8 +457,10 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length != 1 || !args[0].equalsIgnoreCase("status")) {
-            sender.sendMessage(Component.text(
-                    "Usage: /esmp tools <parcel_wand|management_book> | /esmp status (admin)"));
+            sender.sendMessage(
+                    Component.text(
+                            "Usage: /esmp tools <parcel_wand|management_book> | /esmp status"
+                                + " (admin)"));
             return true;
         }
         if (!sender.hasPermission("esmp.admin")) {
@@ -520,10 +524,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                                 + (gameClock == null ? 0 : gameClock.ticks())
                                 + " | advancing="
                                 + (gameClock != null && gameClock.advancing())));
-        sender.sendMessage(
-                Component.text(
-                        "Implemented: claims, game-time offers, Activity, history, borders. Decay,"
-                            + " repair, and Resource resets remain disabled."));
+        sender.sendMessage(Component.text("Claims · Parcels · Activity · History"));
         return true;
     }
 
@@ -541,7 +542,8 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         if (toolsAllowed && args.length == 2 && args[0].equalsIgnoreCase("tools")) {
             String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
             return ManagementTools.TOOL_NAMES.stream()
-                    .filter(name -> name.startsWith(prefix)).toList();
+                    .filter(name -> name.startsWith(prefix))
+                    .toList();
         }
         return List.of();
     }

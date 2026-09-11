@@ -101,10 +101,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     optionalName(args, "price");
                     int area = args.length == 2 ? named(args[1]).chunks().size() : 0;
                     player.sendMessage(
-                            Component.text(
-                                    "Numeric next-claim price="
-                                            + runtime.service().claimPrice(area)
-                                            + " | pricing only; no currency/items charged"));
+                            Component.text("Next claim: " + runtime.service().claimPrice(area)));
                 }
                 case "ban", "unban" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
@@ -177,24 +174,16 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "info", "members" -> {
                     optionalName(args, args[0]);
                     SettlementView settlement = args.length == 2 ? named(args[1]) : here(player);
-                    player.sendMessage(
-                            Component.text(
-                                    settlement.name()
-                                            + " | "
-                                            + settlement.id()
-                                            + " | "
-                                            + settlement.chunks().size()
-                                            + " chunks | Your role: "
-                                            + settlement.role(actor)));
                     var land = runtime.land(settlement.id());
+                    String displayLabel =
+                            land.officialName() == null
+                                    ? settlement.name()
+                                    : settlement.name() + " (#" + land.number() + ")";
+                    int count = settlement.chunks().size();
                     player.sendMessage(
                             Component.text(
-                                    "Number: #"
-                                            + land.number()
-                                            + " | official="
-                                            + land.officialName()
-                                            + " | naming certified="
-                                            + land.certified()));
+                                    displayLabel + " · " + count + (count == 1 ? " chunk" : " chunks")));
+                    player.sendMessage(Component.text("Role: " + roleName(settlement.role(actor))));
                     player.sendMessage(Component.text("Owner: " + playerName(settlement.owner())));
                     settlement.members().entrySet().stream()
                             .sorted(Comparator.comparing(e -> e.getKey().toString()))
@@ -203,7 +192,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                     e ->
                                             player.sendMessage(
                                                     Component.text(
-                                                            e.getValue()
+                                                            roleName(e.getValue())
                                                                     + ": "
                                                                     + playerName(e.getKey()))));
                     if (args[0].equalsIgnoreCase("info")) {
@@ -253,7 +242,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     player.sendMessage(
                             Component.text(
                                     "Nearby borders for 200 game ticks: white=current chunk,"
-                                        + " green=team, red=Public."));
+                                            + " green=team, red=Public."));
                 }
                 case "invite", "promote", "transfer" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
@@ -405,7 +394,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             || settlement.role(actor) == Role.PUBLIC) {
                         throw new SettlementException(
                                 "Only Citizens and Governors can leave; Owners must transfer or"
-                                    + " abandon.");
+                                        + " abandon.");
                     }
                     runtime.mutate(
                             player,
@@ -442,7 +431,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                                         Component.text(
                                                                 (event.gameTick() == null
                                                                                 ? "Legacy timestamp"
-                                                                                      + " "
+                                                                                        + " "
                                                                                         + event
                                                                                                 .occurredAt()
                                                                                 : "Game tick "
@@ -473,38 +462,48 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    static String roleName(Role role) {
+        return switch (role) {
+            case OWNER -> "Owner";
+            case GOVERNOR -> "Governor";
+            case CITIZEN -> "Citizen";
+            case PUBLIC -> "Public";
+        };
+    }
+
     private void showActivity(Player player, SettlementView settlement) {
         runtime.query(
                 player,
                 () -> runtime.activity().status(settlement.id()),
                 status -> {
+                    String state =
+                            status.state()
+                                            == xdu.undarubra.esmp.civilization.activity
+                                                    .ActivityStatus.State.ACTIVE
+                                    ? "Active"
+                                    : "Inactive";
                     player.sendMessage(
                             Component.text(
                                     String.format(
                                             Locale.ROOT,
-                                            "%s Activity: %.2f | %s | credited today %.2f | game"
-                                                + " tick %d",
+                                            "%s · Activity %.1f · %s",
                                             settlement.name(),
                                             status.score(),
-                                            status.state(),
-                                            status.creditedToday(),
-                                            status.measuredAtTick())));
+                                            state)));
                     player.sendMessage(
                             Component.text(
                                     String.format(
                                             Locale.ROOT,
-                                            "Recovery needed: %.2f | inactive since: %s |"
-                                                + " production eligibility paused: %s",
-                                            status.recoveryNeeded(),
-                                            status.inactiveSinceTick(),
-                                            status.productionPaused())));
-                    player.sendMessage(
-                            Component.text(
-                                    "Last credited: "
-                                            + status.lastCategory()
-                                            + " at tick "
-                                            + status.lastContributionTick()
-                                            + ". Decay/production are not enabled."));
+                                            "Today: %.2f points",
+                                            status.creditedToday())));
+                    if (status.recoveryNeeded() > 0) {
+                        player.sendMessage(
+                                Component.text(
+                                        String.format(
+                                                Locale.ROOT,
+                                                "%.1f points to recover.",
+                                                status.recoveryNeeded())));
+                    }
                 });
     }
 
@@ -602,13 +601,13 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         for (String line :
                 List.of(
                         "/settlement create | price [settlement] | claim <settlement> | unclaim |"
-                            + " view [name]",
+                                + " view [name]",
                         "/settlement info [name] | activity [name] | list | members [name] |"
-                            + " history <name|uuid>",
+                                + " history <name|uuid>",
                         "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",
                         "/settlement offers | accept|decline|cancel <offer-id> | leave <name>",
                         "/settlement rename <settlement> <official-name> | certify <settlement>"
-                            + " <true|false> (admin)",
+                                + " <true|false> (admin)",
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
                         "/esmp tools <parcel_wand|management_book>",
                         "/settlement parcel help | abandon <settlement> | confirm <offer-id>")) {
