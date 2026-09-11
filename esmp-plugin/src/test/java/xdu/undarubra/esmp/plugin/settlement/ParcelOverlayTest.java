@@ -41,6 +41,12 @@ class ParcelOverlayTest {
     }
 
     @Test
+    void cardinalAimIgnoresTrigonometricNoiseAtCellBoundaries() {
+        assertEquals(new ParcelCell(0, 1, 0), ParcelAim.adjacent(0, 4, 4, -6.123e-17, 1, 0));
+        assertEquals(5, ParcelAim.loadedReach(1, 0, 1, -6.123e-17, 5, (x, z) -> z == 0));
+    }
+
+    @Test
     void targetSurfaceCoversFacesAndWireframesCoverAllEdgesWithinBudget() {
         var cell = new ParcelCell(1, -1, 0);
         var surface = new HashSet<Point>();
@@ -55,8 +61,12 @@ class ParcelOverlayTest {
                 surface.stream()
                         .allMatch(
                                 p ->
-                                        p.x() == 8 || p.x() == 16 || p.y() == -8 || p.y() == 0
-                                                || p.z() == 0 || p.z() == 8));
+                                        p.x() == 8
+                                                || p.x() == 16
+                                                || p.y() == -8
+                                                || p.y() == 0
+                                                || p.z() == 0
+                                                || p.z() == 8));
         var border = new HashSet<Point>();
         int count =
                 ParcelOverlayGeometry.border(

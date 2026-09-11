@@ -228,6 +228,10 @@ public final class ManagementTools implements Listener, AutoCloseable {
     private Aim aim(Player player) {
         var eye = player.getEyeLocation();
         var direction = eye.getDirection();
+        direction.setX(ParcelAim.cardinal(direction.getX()));
+        direction.setY(ParcelAim.cardinal(direction.getY()));
+        direction.setZ(ParcelAim.cardinal(direction.getZ()));
+        direction.normalize();
         var attribute = player.getAttribute(org.bukkit.attribute.Attribute.BLOCK_INTERACTION_RANGE);
         double reach = attribute == null ? 4.5 : attribute.getValue();
         double safe =
@@ -238,7 +242,12 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         direction.getZ(),
                         reach,
                         player.getWorld()::isChunkLoaded);
-        var hit = safe > 0 ? player.rayTraceBlocks(safe, FluidCollisionMode.NEVER) : null;
+        var hit =
+                safe > 0
+                        ? player.getWorld()
+                                .rayTraceBlocks(
+                                        eye, direction, safe, FluidCollisionMode.NEVER, false)
+                        : null;
         if (hit != null && hit.getHitBlock() != null) {
             var block = hit.getHitBlock();
             return new Aim(ParcelCell.atBlock(block.getX(), block.getY(), block.getZ()), true);
@@ -760,7 +769,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                                         .clickEvent(
                                                                 ClickEvent.runCommand(
                                                                         "/settlement parcel"
-                                                                            + " commit")))
+                                                                                + " commit")))
                                 : Component.text(error, NamedTextColor.RED));
             }
             case "delete" -> {

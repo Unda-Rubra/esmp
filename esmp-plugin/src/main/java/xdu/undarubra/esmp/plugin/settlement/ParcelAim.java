@@ -27,8 +27,16 @@ public final class ParcelAim {
         return next.equals(body) ? after(body, x, y, z, dx, dy, dz) : next;
     }
 
+    static double cardinal(double component) {
+        return Math.abs(component) < 1e-12 ? 0 : component;
+    }
+
     private static ParcelCell after(
             ParcelCell cell, double x, double y, double z, double dx, double dy, double dz) {
+        double scale = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        dx = cardinal(dx / scale);
+        dy = cardinal(dy / scale);
+        dz = cardinal(dz / scale);
         double tx = exit(x, dx, cell.x(), 8);
         double ty = exit(y, dy, cell.y(), 8);
         double tz = exit(z, dz, cell.z(), 8);
@@ -49,6 +57,8 @@ public final class ParcelAim {
                 || !Double.isFinite(z)
                 || !Double.isFinite(dx)
                 || !Double.isFinite(dz)) return 0;
+        dx = cardinal(dx);
+        dz = cardinal(dz);
         double limit = Math.min(MAX_REACH, reach);
         int cx = Math.floorDiv((int) Math.floor(x), 16);
         int cz = Math.floorDiv((int) Math.floor(z), 16);
