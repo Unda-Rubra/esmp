@@ -14,6 +14,8 @@ Current text and Parcel visuals are updated by `f675a15` and `e823189`. Use the 
 
 Inactivity-driven automatic release remains outside MVP. Existing pending checks are retained rather than marked passed or silently rewritten. Real currency integration is deliberately absent: current prices are numbers, not deductions or mock balances.
 
+**Economy addendum — planning boundary:** the target now includes a real integer ledger, starting funds, immutable land valuation, first-ever founding price 25, UNVERIFIED/VERIFIED applications and administrator-approved acquisition fees. These are accepted design changes, not current runtime behavior. The existing 30 checks retain their implementation-version scope, including numeric-only quotes, direct naming toggles and two-party transfer. Add or explicitly supersede checks when the corresponding implementation ships; no new gameplay milestone is completed by this document merge.
+
 ## Completed implementation awaiting user acceptance
 
 | Milestone | Commit | Agent verification | User acceptance |

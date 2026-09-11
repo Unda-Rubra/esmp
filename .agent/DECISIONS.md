@@ -2,6 +2,46 @@
 
 This is a dated rationale log, not a competing specification. The current `ARCHITECTURE.md` takes precedence; older entries describe historical decisions where superseded. In particular, legacy free claims, Manager/Member/Visitor access, player-controlled naming, blanket ownership capabilities and automatic-release scheduling below are not the new MVP target.
 
+## 2026-09-11 — Accepted economy addendum and razor review merged
+
+Source: the user-supplied `ARCHITECTURE_ADDENDUM.md`. Its final §§21–23 supersede earlier provisional variants. Accepted rules now live in `ARCHITECTURE.md`; the source file is not a second maintained architecture.
+
+- Currency is selected: one scarce integer ledger unit, Wallet/Treasury accounts, non-negative balances, stable transaction IDs and TRANSFER/ISSUANCE/SINK distinctions. Every issuance channel is budgeted, including approximately 100 starting funds. Peer transfers conserve supply; no jobs minting, passive tax, negative-balance debt or hard wealth cap.
+- LandValueProfile is minimal, immutable/versioned and captured at first Main chunk generation. Claim prices combine natural base value, personal portfolio, Settlement size, light Activity and personal early subsidies; same-owner proximity applies only to separate founding. First-ever founding costs 25; subsidy history never resets or transfers.
+- UNVERIFIED/VERIFIED certification replaces the removed four-level economic ladder. Activity/development eligibility permits application, administrators approve, then official names/public named listings become eligible. Denial retains ordinary Claims/governance.
+- Incoming ownership acquisition requires recipient acceptance, simple land-based fee and administrator approval. No historic-price/subsidy anchoring or Building/labor appraisal; private bargains remain social and treasury remains Settlement property. Complex acquisition automation and receiving-capacity tiers are deferred.
+- Core reduction: obvious Building identity or retire/rediscover with lightweight links; station/material/time Repair; DROP/CAVE_IN; lightweight Era/history. Villagers, TOPPLE, cultural ranks, production capacity/offline/workforce/depot simulation, freight, teleport and gameplay seasons are deferred.
+- Server Trade follows the core Dynamic Settlement Cycle: finite normalized categories/lots, quotas/budget admission, periodic discrete bands/spread and observational monitoring. Continuous formulas, hysteresis and automatic policy require later evidence. Resource operations may start with safe operator procedures before automation.
+
+Execution: integer transaction/account/budget foundation → starting funds and balance feedback → generation-time valuation/legacy backfill → paid Claims and personal subsidies → certification/admin acquisition → Building → durable Decay/Repair/History → required Dynamic Settlement Cycle → Server Trade/lightweight recognition → reset automation → optional advanced systems.
+
+Reason: support scarce meaningful exchange and land expansion without placing a broad simulation economy in front of ESMP's defining persistent settlement/ruin/reclaim loop. Global budget enforcement is placed with first issuance, not postponed until the later Server Trade phase.
+
+All 18 source merge requirements are reflected in the canonical document:
+
+| Source checklist item | Canonical destination |
+|---|---|
+| 1. Replace area-only Claim pricing | §§7.6, 16A.3–16A.4 |
+| 2. Two-state certification and naming | §§7.3, 7.6 |
+| 3. Remove economic stages | §§16A.10, 25 |
+| 4. Defer Cultural Standing | §§16A.10, 26.5 |
+| 5. Lightweight Facility first | §§16A.10, 26.4 |
+| 6. Optional villagers for Repair | §§11–12 |
+| 7. Best-effort Building lineage | §§9.2, 26.3 |
+| 8. DROP/CAVE_IN before TOPPLE | §§9.2, 25 |
+| 9. Defer freight/public teleport | §§16A.10, 27 |
+| 10. Retain clock, defer gameplay seasons | §16A.6 |
+| 11. Operator Resource lifecycle first | §15 |
+| 12. Defer peer receiving capacity | §16A.5 |
+| 13. Admin-approved acquisition and simple fee | §§7.4, 16A.5 |
+| 14. Periodic discrete Server Trade bands | §16A.8 |
+| 15. Observational economic monitoring | §16A.9 |
+| 16. Minimal immutable valuation fields | §16A.3 |
+| 17. Outbox without speculative classes | §19 |
+| 18. Dynamic cycle immediately after core | §§26.1, 27–28 |
+
+Runtime distinction: this is architecture/planning acceptance only. Existing numeric quotes, direct naming toggle and two-party transfer remain implemented behavior until their migrations ship. Preserve prior acceptance results; do not mark any new ledger/grant/fee/certification behavior implemented by this merge.
+
 ## 2026-09-11 — Concise player text and responsive Parcel overlays
 
 The user rejected developer-style disclaimers in player text and requested clear blue/green/red Parcel visuals with a facing-direction air target.

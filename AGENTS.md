@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The plugin implements Settlement/Parcel governance, Governor/Citizen/Public, local bans, durable Holder consent, numeric claim pricing, naming administration, book/stick tools, GameClock and Parcel-aware Activity on Paper 26.2. Prices are numbers only by explicit user instruction: no currency/items are consumed until a currency system is chosen. Core world schema is 1, Civilization schema 3, config 4. Building discovery, decay/repair, Resource resets and the actual economy remain disabled. Automatic release stays outside MVP; dynamic cycles are required after stable MVP.
+The plugin implements Settlement/Parcel governance, numeric-only area quotes, naming toggles, two-party ownership transfer, tools, GameClock and Activity. Core world schema is 1, Civilization schema 3, config 4. The accepted economy addendum now selects a scarce integer ledger currency, immutable LandValueProfiles, paid Claims, UNVERIFIED/VERIFIED certification and admin-approved acquisition; these target changes are not yet implemented. Core MVP then proceeds to Building and durable Decay/Repair/History, immediately followed by required Dynamic Settlement Cycles.
 
 Deployment is one modular Paper plugin JAR with a coordinated bootstrap/lifecycle. Initial application persistence is embedded SQLite with versioned migrations and module-owned repositories. Coordinate short writes and keep database I/O off the world execution context. Do not introduce separate plugin artifacts or promise transparent database portability.
 
@@ -17,7 +17,7 @@ Use Java source under `xdu.undarubra.esmp`, JDK 25, and Gradle Kotlin DSL. Pins:
 Before non-trivial work, read:
 
 1. `README.md` for the human entry point.
-2. `ARCHITECTURE.md`, especially Current Decisions, Deferred and Open Design, Recommended Development Order, and Immediate Architecture Work.
+2. `ARCHITECTURE.md`, especially Current Decisions, Deferred and Open Design, Recommended Development Order, and Immediate Architecture and Execution Plan.
 3. `.agent/DECISIONS.md` for rationale.
 4. `.agent/OPEN_QUESTIONS.md` for unresolved designs.
 5. `.agent/HANDOFF.md` for the current state.
@@ -38,14 +38,17 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 
 - The Main World is permanent.
 - Resource world resets create new physical world instances.
-- Resource Overworld, Nether, and End share one reset cycle. Prepare all replacements before closing the old cycle, and reopen only after evacuation and a coordinated switch; never expose mixed cycles.
+- Resource dimensions retain a shared cycle and fresh physical identities. Initial resets may use operator-triggered commands or a verified maintenance procedure; preserve evacuation/no-mixed-cycle/restore safety without requiring full automation before core gameplay ships.
 - Player inventory, equipment, Ender Chest, experience, and normal state are shared across realms.
 - Settlement claims protect direct and indirect world changes.
 - Each owned Settlement is one four-directionally contiguous chunk component; diagonal contact alone does not connect chunks.
 - Adding a chunk must preserve contiguity, and unclaiming must not split the Settlement.
 - Ordinary unclaim must not remove the last Settlement chunk. Ending ownership requires explicit confirmed Owner abandonment or an authorized administrative lifecycle operation.
 - Adjacent Settlements remain separate identities and never merge automatically, including when they share an owner.
-- Current claiming records a numeric area-based price without charging currency/items or creating a mock wallet. Default price is 100 + 25×current chunks. Real currency integration is deferred until the user's selection; do not add a real debit or fake funding source meanwhile. The independent chunk cap remains.
+- Target economy is one server-wide ledger currency with integer units, non-negative wallets/treasuries, stable transaction IDs and distinct TRANSFER/ISSUANCE/SINK semantics. Budget every issuance channel, including starting funds; peer transfers conserve supply. Current runtime still records numeric-only area quotes until the tested economic cutover.
+- LandValueProfile is created at first Main chunk generation and stays immutable/versioned: world instance, chunk coordinates, valuation version, base value and optional class. Player edits cannot change price basis; legacy backfill/revaluation needs explicit policy.
+- Target Claim cost combines base land, assessed-player portfolio, Settlement size, light Activity and personal early subsidies; own-nearby proximity applies only to separate founding. First-ever founding costs 25. Subsidy usage never resets or transfers through ownership changes.
+- Initial target ownership acquisition requires recipient acceptance, a simple land-based fee paid by the incoming Owner, and administrator approval before atomic transfer. Preserve treasury identity/history; never appraise Buildings/labor or reuse predecessor subsidies/historical cheap prices.
 - The target has one Owner, zero or more Governors and Citizens, and derived Public users. Store Owner only in `Settlement.owner_uuid`, Governors/Citizens in `SettlementMember`, and never persist Public memberships. No duplicate legacy role names after cutover.
 - Ownership transfer preserves consent/atomicity; the former Owner becomes Citizen. Existing ownership-only governance restrictions remain subject to the canonical Settlement/Parcel rules, not a blanket authorization bypass.
 - Owner/Governor may ban non-administrators locally. Banned players retain movement/informational access but cannot perform Settlement/Parcel-governed interactions; server administrators bypass Settlement bans.
@@ -58,7 +61,7 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Unattributed internal Parcel automation uses HOLDER permission when assigned, OWNER when unassigned. Across distinct protected regions, both sides must explicitly grant PUBLIC AUTOMATION. Do not restore a same-Settlement blanket bypass.
 - Assigned geometry, Holder, policy and naming edits use durable governance+all-current/new-Holder approval; stale/expired proposals cannot apply. Parent unclaim/abandon requires affected Parcels removed through their consent workflow first. Administrator overrides are audited.
 - Commands must cover all operations. Management Book and Parcel Wand are replaceable convenience frontends with no item-owned authority. Wand + named off-hand Name Tag selects aligned 8×8×8 cells; preview then atomically validate/commit. Surface-cell deletion must preserve connectivity.
-- Settlements retain internal UUID keys plus stable global public numbers. New labels are S#number; existing names are grandfathered. Official naming/renaming requires administrator certification/approval and preserves history.
+- Settlements retain internal UUID keys and stable public numbers. Target certification is UNVERIFIED/VERIFIED only: configurable Activity/development eligibility → application → administrator review → official-name/publication eligibility. Denial preserves normal Claims/governance. Migrate legacy naming flags/names explicitly.
 - Settlement writes go through the Paper runtime coordinator, which reserves affected territory until committed SQL is published to the main-thread index. Do not add mutation callers that bypass this publication gate.
 - Fatal persistence failures and hot unloading stop the server rather than dropping protection. Use full restarts; no reload command or plugin-manager hot reload.
 - Activity is settlement-local and does not require scheduled writes to every inactive settlement.
@@ -74,6 +77,10 @@ Do not reintroduce `Territory` as an alias for `Settlement`. Cleanly migrate eve
 - Durable events use a transactional outbox with at-least-once delivery and idempotent consumer effects. Reconcile world-save and DB progress independently rather than assuming exactly-once mutation.
 - Building geometry must represent occupied/interior/exterior regions, openings and structural/support relationships. Renovation may conflict/retire old restoration fragments; expected-air checks alone cannot justify restoring obsolete walls through a new interior.
 - Block entities require a dedicated safe policy; system decay creates no ordinary collectible drops. Start structural decay with bounded material profiles/failure modes, not full physics; wild structures/infrastructure use coarse localized/lightweight models.
+- Keep obvious Building identity through ordinary edits; major reinterpretation may retire/rediscover with lightweight predecessor links. Preserve history rather than requiring a perfect split/merge or graph-matching solver.
+- MVP collapse uses DROP and CAVE_IN; TOPPLE is deferred. Repair requires station + materials + shared game time, not live villagers/artisans. Era stays a lightweight restoration/history counter.
+- Economic stages are removed. Facility starts as recognized identity/type/region/enabled-certified state; Cultural Standing, workforce/production/depot simulation, freight, public teleport and gameplay seasons are deferred.
+- Required Dynamic Settlement Cycles follow the core MVP before Server Trade, Facility recognition and reset automation. Do not reintroduce those optional systems as dependencies. Receiving-capacity models, continuous trade pricing, hysteresis and automatic monetary policy require later evidence.
 - All gameplay timing uses shared game time. Freeze with `advance_time=false`; count forward sleep/command jumps, re-anchor rewinds, and never accrue downtime.
 
 ## How to change architecture

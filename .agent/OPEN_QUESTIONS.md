@@ -1,75 +1,71 @@
 # ESMP Open Questions
 
-Gate-oriented implementation index of `ARCHITECTURE.md` §§7–11 and 25–28. The user-authored 2026-09-10 MVP revision supersedes the earlier Building-detector-first plan. Accepted boundaries are not open questions merely because code is unfinished.
+Implementation gates for the current `ARCHITECTURE.md`, especially §§7, 9–16A and 26–28. The accepted economy addendum's final razor review supersedes earlier economic-stage/production/freight/season dependencies. Selected rules are not reopened because implementation is pending.
 
-## Implemented baseline versus target
+## Implemented baseline and accepted target
 
-The Java 25/Paper 26.2 plugin now implements Governor/Citizen/Public, local bans, Parcel geometry/policy/Holders and durable consent, stable public numbers, administrator naming certification, server-issued book/stick tools, GameClock and Parcel-aware Activity. Core world schema is 1, Civilization schema 3, config 4.
+The current JAR implements Settlement/Parcel governance, tools, shared GameClock and Activity. It still uses numeric-only area quotes, a direct administrator naming toggle and two-party ownership transfer. Core schema 1, Civilization schema 3 and config 4 are unchanged by the architecture merge.
 
-The user explicitly selected numeric-only claim prices: show and record the increasing area price, consume no currency/items, and integrate real currency only after their choice. No wallet or fake balance is introduced. This supersedes the prior immediate real-ledger prerequisite.
+The target currency is now selected: one scarce integer ledger currency, non-negative Player Wallet/Settlement Treasury, typed idempotent movements and budgeted issuance. LandValueProfile-based paid Claims, personal subsidies, UNVERIFIED/VERIFIED certification and administrator-approved acquisition are accepted but not implemented. Preserve all 30 pending implementation checks in [TEST_CHECKLIST.md](TEST_CHECKLIST.md); add new checks only when those features ship.
 
-Preserve previous acceptance results and record the completed cutover in [TEST_CHECKLIST.md](TEST_CHECKLIST.md). Legacy role/config expectations must be read as historical; the new current checks cover migration, tools, relations, consent and bans.
+## Immediate execution: economic land foundations
 
-## Deferred currency integration — waiting for the user's choice
+1. **Currency and transaction boundary.** Define stable currency/account identity, display-only names/symbol/format, integer amount and checked arithmetic rules, transaction IDs/reasons, account authorization and atomic movement/audit semantics. Separate TRANSFER, ISSUANCE and SINK; reject overdraw and duplicate commits. Minimal Wallet/Treasury access should not become an appropriation-law or credit system.
+2. **First issuance and usable feedback.** Define game-time monetary periods, budget tiers based on genuine activity, carry-over/missed-period/forward-clock-jump handling, reservation/reversal rules and one-time starting-grant eligibility for existing versus new players. Budget enforcement must precede the first grant. Implement starting funds around 100, balance/transaction feedback and basic peer/treasury transfers; any simple per-pay/new-account controls must not become permanent wealth caps.
+3. **LandValueProfile.** Capture natural value at first Main chunk generation using the correct execution context, with recoverable persistence. Store only world instance/chunk/valuation version/base value and optional class. Define a credible legacy-chunk backfill policy, missing-profile handling and explicit revaluation rules; do not silently price edited terrain as pristine. Operator diagnostics may justify extra provenance, not an unconditional feature dump.
+4. **Actual Claim charging.** Configure portfolio and Settlement-size tiers, a light Activity/development factor, founding-only own-nearby surcharge and diminishing early discounts. First-ever founding costs 25. Define distance metric, integer rounding/minimums, payer versus assessed-player identity when Governors act, quote revision/expiry and atomic debit+Claim+history+subsidy usage. Reconstruct personal subsidy history without reset/transfer loopholes or retroactive billing of current numeric-only Claims.
+5. **Certification and public naming.** Implement Activity/meaningful-development eligibility, application authority, administrator review/provenance and UNVERIFIED/VERIFIED status. Define legacy boolean/name migration, revalidation at approval and any later revocation rule. Denial preserves Claims/governance. Public named listing and official names require approval; a website/map implementation is not a prerequisite for storing/enforcing certification state.
+6. **Ownership acquisition.** Migrate current pending transfers to recipient acceptance, a simple current land-based fee quote and administrator approval before atomic ownership/fee commit. Define fee coefficient/rounding, recipient funding, quote invalidation, history and treasury authorization. No predecessor subsidy or original-purchase-price anchoring; no Building/labor valuation or private sale-price enforcement. Full autonomous recipient portfolio/proximity revaluation is deferred.
 
-- Choose the real currency system and payer/funding model only when requested. Then define atomicity or recoverable debit/claim settlement, quote guarantees, insufficient funds, retries and refund policy. Current prices are numeric records with `charged=false`, not financial transactions.
-- Do not retroactively charge existing claims or expand full market/Facility systems merely to replace numeric pricing.
+The next implementation task is the integer transaction/account/budget foundation, not another currency-selection questionnaire. Coefficients and presentation names are configuration decisions; preserve hard economic invariants while keeping the first slice bounded.
 
-## Settlement/Parcel follow-through
+## Core MVP: Building identity / baseline / geometry
 
-- Native 26.2 visual/user acceptance remains in the temporary checklist. Live particle-packet checks now cover dense blue targets, blue/green/red borders, block/air targeting, air clicks and invalid previews. The fixture decoder was corrected in-process for packed RGB dust; desktop appearance and comfort are still player checks.
-- Current defaults and consent/identity rules are implemented in §7, not open design: governance plus all current/new Holders for assigned changes; affected Parcels removed before parent release; internal UUID plus public number; grandfathered old names and administrator naming certification.
-- Future configurable safety limits, broader default-policy tuning and installed Activity value-policy migration are refinements, not unimplemented core Parcel features. Public/non-Citizen Holder credit stays small and revalidates Parcel security state.
+Keep automatic bounded discovery and renovation-safe geometry. Obvious expansion/contraction preserves identity; major reinterpretation can retire the old Building and discover new ones, retaining lightweight predecessor links where obvious. General graph matching or perfect split/merge identity continuity is not a gate for shipping the ruin/repair loop. Old historical records must remain traceable.
 
-## Next MVP slice: Building identity, geometry and evaluation
+Resolve the minimum occupied/exterior/interior/opening/support representation. A ruined tower enclosed by a new hall must not be restored through the new interior merely because target cells are air. Retire/conflict affected baseline fragments without deleting history. Block entities need explicit safe policy before ordinary-block mutation applies.
 
-After Settlement/Parcel revision, define discovery and stable identity across splits/merges/claim changes. The geometry contract now explicitly needs occupied volume, exterior surface, interior volume, openings and structural components/support relations. Recognition and persistent identity remain distinct from Parcel usage permissions.
+### Detection/evaluation research retained as tooling leads
 
-The evaluation corpus must cover the new renovation invariant: a ruined tower enclosed by a new hall must not have obsolete exterior walls repaired through the new interior merely because target cells are air. Label active/damaged/conflicted/retired/historical-only fragments or an equivalent representation; preserve historical evidence while preventing obsolete restoration. Unknown/unloaded data is not air. Block entities require separate policy before any ordinary-block mutation treatment.
+No detector/model or Building benchmark has been implemented. A bounded read-only snapshot/annotation/replay comparison remains a possible development aid, not a perfect-identity research prerequisite. Evaluate benign-edit identity stability separately from complex changes where retire/rediscover is permitted; preserve Parcel/Settlement boundaries and mark unknown chunks rather than treating them as air.
 
-### Research leads retained — not a detector selection
+- [CraftAssist](https://arxiv.org/abs/1907.08584) and its [heuristics](https://github.com/facebookresearch/craftassist/blob/master/python/craftassist/heuristic_perception.py): connected construction components and house-part labels, not a ready-made crowded-settlement instance detector.
+- [Voxel room segmentation](https://www.mdpi.com/2220-9964/11/10/530) and [watershed](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html): geometric baselines with room/building and wide-opening limitations.
+- [Mask3D](https://github.com/JonasSchult/Mask3D): learned 3D instance approach requiring Minecraft-specific evaluation, not an established cheap production solution.
+- [napari labels](https://napari.org/stable/howtos/layers/labels.html) and [segmentation metrics](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_metrics.html): optional offline reference/prediction inspection and split/merge metrics. Human development annotations do not require player registration.
 
-The 2026-09-09 survey remains evidence for this later slice, not the immediate next implementation. No model, dataset, benchmark tool or detector was deployed, and no ESMP accuracy/latency was measured.
+## Core MVP: durable Decay / Repair / History
 
-- [CraftAssist paper](https://arxiv.org/abs/1907.08584), §§5.4–5.5 and 6: unnatural/player-placed connected components plus a 3D CNN for house parts; 2586 house traces and 2050 annotated houses, not crowded-settlement whole-building labels. [Heuristic implementation](https://github.com/facebookresearch/craftassist/blob/master/python/craftassist/heuristic_perception.py) is a Minecraft 1.12-era reference, not a Paper 26.2 module.
-- [Yang et al., 2022](https://www.mdpi.com/2220-9964/11/10/530): voxel occupancy/free/unknown regions, distance transform, inner-sphere graph seeds, wavefront growth and graph cuts. Wide openings can undersegment; manual correction/efficiency limits remain. Rooms are not whole buildings.
-- [Watershed baseline](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html): reproducible distance-transform partitioning, not proven Minecraft detection.
-- [Mask3D](https://github.com/JonasSchult/Mask3D): 3D instance segmentation on other datasets; reference CUDA/MinkowskiEngine stack, no established Minecraft accuracy or inexpensive CPU deployment.
-- [napari labels](https://napari.org/stable/howtos/layers/labels.html) and [segmentation metrics](https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_metrics.html): candidate annotation/slice overlays and adapted Rand/split-merge evaluation tooling.
+- Resolve journal/checkpoint/material recovery, expected-state plus geometry conflict preservation, ownership/Parcel permission revalidation and naturally loaded budgeted batches.
+- Initial Repair is repair point/station + physical materials + shared game time. Whole-Building player scope can use local batches. Live villagers/artisans, housing/pathfinding/death/profession simulation are not prerequisites.
+- Initial collapse vocabulary is DROP and CAVE_IN; tune a small material/weathering/integrity set. TOPPLE/full physics is later. System decay has no ordinary collectible block drops.
+- Era is a lightweight counter/state for qualifying completed restoration cycles and History facts; dedicated abilities/rankings/UI are later.
+- MVP ownership stays persistent despite low Activity/ruin. Ordinary wild structures/infrastructure retain bounded/coarse treatment; do not expand them into global structural simulation.
 
-Unaccepted research proposal [INFERENCE]: bounded read-only Paper snapshot export, offline reference/prediction overlays, reproducible candidate runs and edit-sequence replay. Compare filtered components, free-space/geometry partitioning and learned candidates. Record world instance, block states, claims/Parcels, unavailable masks and relevant revisions. Measure block assignment, terrain leakage, false merges/splits, interior/exterior and renovation errors, identity stability and capture/analysis cost. Offline annotation does not make player registration mandatory. Hold out real builds and avoid transformed-copy train/test leakage.
+## Required immediately after core MVP: Dynamic Settlement Cycle
 
-## MVP durable mutation, Decay and Repair gates
+Design Civic Capacity/maintenance demand or an equivalent, selective preservation, mature-city/new-Settlement incentives, gradual peripheral decline/release and history-preserving reclaim. Resolve formulas, UI, Holder/ownership guarantees, release timing, contiguity and protected historic cores before enabling automatic ownership loss.
 
-- Journal/checkpoint implementation, paired world/database reconciliation, expected-state and geometry-level conflict preservation, idempotent material accounting, and naturally loaded/budgeted work.
-- Whole-Building Repair as the initial player-facing scope, internally localized batches, and clear baseline retirement under renovation. Block entities cannot be handled as ordinary blocks until safe policy exists.
-- Small material/profile and weathering/integrity sets; DROP/TOPPLE/CAVE_IN are initial candidate failure modes, not a full-physics commitment. System decay must not generate ordinary collectible drops.
-- Coarse localized due analysis for ordinary wild structures and lightweight infrastructure segments; define eligibility and promotion to richer persistent tracking. No global full-world scan.
-- Repair/villager integration and qualifying Era thresholds. **No automatic inactivity/ruin-based Settlement release in the MVP**, even after physical decay exists.
+This phase precedes Server Trade/Facility recognition, Resource automation, production, freight, teleport and seasons. None of those systems or a disaster/Epoch framework is a prerequisite.
 
-## Economy / Facilities / Transport / Resource gates
+## Post-core: Server Trade and lightweight Facility recognition
 
-- Preserve existing accounting/recovery gates beyond the minimal claim-charging dependency: physical depot/stall permissions, stock/item conversion, audited wallets/treasuries, issuance/operating budgets, transactional quotes/payments, ownership changes and restart recovery.
-- Initial Facilities remain a bounded simple catalogue with automatic functional basics and reviewed higher certification. Define Building/Facility linkage, workforce/housing checks, capacity allocations, recipes/mined inputs, qualification reactivation and production pause-interval accounting.
-- Define stage/culture criteria and later unlocks; Village-or-certified-landmark basic teleport qualification remains accepted. Culture does not independently increase production capacity or redefine Era.
-- Server Trade has accepted finite stock, global bounded bands and separate buy/sell lists; catalogues, farm-output eligibility, spreads and replenishment values remain open. Physical stalls come before advanced order/delivery systems.
-- Routes need corridor/land/Parcel authorization, targeted invalidation, bulk/throughput/rates, bounded held cargo, original-recipient access and payment recovery. Disruption blocks new departures, not existing shipment schedules. Teleport needs safe destinations and understandable cargo fees; shared-storage bypasses remain accepted.
-- Shared Resource cutover needs evacuation, retired login/respawn/portal handling, generation/retention policy and verified paired backup/restore. MAIN is the clock source, not resettable Resource instances.
-- Calendar leap/season boundaries and safe bounded native effects remain open; regional identity stays separate from cosmetics. Full seasonal palette techniques remain deferred.
+- Define narrow commodity whitelists/unit conversions/whole lots, separate purchase/sale eligibility, finite stock, optional small essential restocking and resistance to crafting/value loops. Avoid generic material decomposition.
+- Quote/admit stock, global issuance budget, category buy quota, optional player quota and stock-demand limits before taking items. Resolve recoverable physical item exchange and deterministic buy/sell direction/reasons.
+- Use coarse-period discrete stock bands with fixed multipliers, spread and min/max integer prices. Resolve period snapshots, rounding that preserves spread and quantity reservation; avoid per-trade price oscillation. Continuous pressure formula/hysteresis require later evidence.
+- Observe wallet/treasury supply, issuance/sinks, median/top balances and Server Trade volume/stock. Manual tuning first; basket indexes and automatic monetary-policy responses remain deferred.
+- Facility is identity, Settlement plus Building/region, type and enabled/certified state. Shared production budgets, offline accrual, worker density, reachable housing, depots and detailed production chains are not initial requirements.
 
-## Required next major phase after stable MVP: dynamic Settlement cycles
+## Resource operations and optional systems
 
-This phase is mandatory, not optional or dependent on disasters. Civic Capacity/maintenance capacity, area/Building/Facility/infrastructure demand, selective preservation, mature/new-city incentives and gradual peripheral release are candidate mechanisms. Define formulas, UI, ownership guarantees, Holder consent/rights, release timing, contiguity, reclamation and protection of historic cores before enabling any automatic ownership loss.
+Safe operator-triggered Resource preparation/activation or a verified maintenance procedure can precede full automation. Define evacuation, saved-location/portal handling, fresh instance publication, paired backup/restore and retained-world policy before use; do not expose mixed cycles. Automate when actual reset frequency warrants it.
 
-MVP Settlements remain persistent unless explicitly abandoned or changed through an authorized lifecycle operation. Do not reinterpret existing Activity INACTIVE or future Building RUINED as permission to release claims.
+Keep GameClock. Calendar presentation is optional; gameplay seasons and reversible seasonal block effects are deferred. Retain History/landmark/site flags rather than a Cultural Standing score. Freight and public Settlement teleport are deferred in full; physical travel remains the default and any later teleport must use direct qualification, not removed levels.
 
-## Further world evolution and open disaster design
+Economic Receiving Capacity is a deferred anti-abuse candidate. If ever justified, distinguish peer-origin inflow from legitimate self-earned/issued money, reject over-limit inflows atomically and cover all player/treasury routes. Do not implement Settlement-size ceilings or advanced treasury law as current MVP requirements.
 
-- Coarse Anthropogenic Landforms are an accepted later direction for significant excavations, fills, lakes, hills or canals; incidental edits are not full persistent terrain records and Buildings remain Building data. Fixed 8×8×8 is preferred initially; significance/material rules, simulation, erosion and adaptive refinement remain open.
-- Chunk retirement/regeneration needs explicit safeguards for Parcels, Buildings, entities, POI, infrastructure, history and player terrain changes.
-- Disasters, sea-level shifts, Disaster Operators/Fields and Epoch transitions remain open/optional. They are not prerequisites for the required dynamic-cycle phase.
-- Other deferred refinements: exemptions/cooldowns, presentation/localization/rankings, alliances, advanced Repair scopes and policy-migration UX. Resolve each at its own gate without inventing new MVP systems.
+World evolution/Anthropogenic Landforms, regeneration and disasters/Epoch systems retain separate later safety design. Landform history is not an excuse to mutate immutable natural LandValueProfiles.
 
-## Canonical ambiguities to resolve at the affected implementation gate
+## Current implementation acceptance and refinements
 
-Specific §§7, 23 and 25–28 govern the MVP: broad historical civilization-cycle diagrams and the generic Release glossary do not enable automatic MVP release. Numeric/public identity, role/ban checks, policy authority, consent and parent-release constraints are now implemented as described in §7. Real currency integration remains deferred by explicit user choice; future ownership-loss guarantees and policy tuning must not silently bypass current Holder consent.
+The completed Parcel text/visual fixes remain pending user acceptance in the temporary checklist. The existing installed Activity value-policy migration limit also remains. Neither is evidence that the new economy/certification/transfer requirements already run. Existing direct naming and transfer tests remain version-specific until their respective implementations are replaced.

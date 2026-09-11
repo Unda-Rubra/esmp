@@ -16,9 +16,11 @@ The runnable plugin consists of four Gradle modules and one deployable Paper JAR
 - Configured Main World instances are claimable; Resource worlds remain unclaimable. Removed definitions remain historical only. Existing claims load before gameplay is admitted; persistence failure stops the server rather than leaving claims unprotected.
 - Building discovery, decay/repair, Resource resets, Facilities/economy/transport/culture and seasonal presentation remain disabled. Automatic inactivity-driven Settlement release is intentionally outside the MVP and belongs to the required post-MVP dynamic-cycle phase. Shared game time and Activity are implemented; their eligibility output does not itself mutate buildings or produce goods.
 
+The accepted economy/razor addendum is now merged into this document. The target is a scarce integer ledger currency, immutable land valuation, paid Claims, two-state Settlement certification, and administrator-reviewed ownership acquisition. The current JAR still uses numeric-only area quotes, a direct naming-certification toggle, and the existing two-party transfer flow; this documentation merge does not implement the new ledger, fees or certification workflow.
+
 The Factory Realm is removed from the current scope following the team's RPG-survival balance and performance review. It is not a scheduled milestone or dormant runtime module. This cut removes the dedicated realm and industrial systems; it does not add a redstone ban to the remaining worlds. Reintroduction requires a new explicit decision.
 
-Main World Facilities are accepted as bounded Settlement production, not a restoration of the Factory Realm, Plot aggregate, or removed industrial module. For the MVP, Settlements remain persistent; the longer Explore → Settle → Build → Produce → Trade → Develop → Prosper → Decline → Ruin → Reclaim cycle belongs to the required post-MVP dynamic-Settlement phase.
+The protected core is Settlement/Parcel/Protection → Activity → Building identity/baseline → Decay/Repair/History → the required Dynamic Settlement Cycle. Currency and land pricing support this loop. Facility recognition starts as lightweight site identity; production, cultural ranks, freight, teleport and gameplay seasons are later, need-driven extensions rather than core prerequisites. The Factory Realm remains removed.
 
 Legacy configuration migration retains the version-1 Factory retirement/backup and then upgrades to config version 3, backing up to `config-before-game-clock.yml` and converting former offer `*-seconds` values to `*-ticks` at 20 ticks per former second. Civilization migration converts existing absolute deadlines once from their remaining cutover lifetime; expired offers remain expired. It preserves IDs, claims, memberships and history. No physical worlds are deleted.
 
@@ -165,7 +167,7 @@ Evolve: SMP
 │   ├── Activity
 │   ├── Decay
 │   ├── Repair
-│   ├── Villager / Artisan
+│   ├── Building / Settlement Certification
 │   └── History / Era
 │
 └── esmp-resource
@@ -174,7 +176,7 @@ Evolve: SMP
 
 The bootstrap composes Core and gameplay modules and coordinates database migrations, startup, and shutdown. Module boundaries remain explicit application APIs and committed domain events; sharing one artifact does not permit cross-domain business-state access. Independent plugin deployment, classloader boundaries, and cross-plugin version compatibility are not part of the initial design.
 
-The accepted extension adds logical Economy, Transport, and Calendar/Seasons services alongside Civilization gameplay; §16A.7 assigns state ownership. These are architectural responsibilities, not newly implemented Gradle modules. Keep APIs and committed facts between them; choose package/module extraction when the corresponding feature is implemented, without adding empty modules. Core must not own currency issuance, Facility recipes, progression, route pricing, or season policy.
+The near-term extension adds logical Economy services alongside Civilization, not speculative new Gradle modules. Civilization owns land/certification/claim semantics; Economy owns currency, accounts, issuance and monetary transactions (§16A.7). Core remains infrastructure-only. Add packages/modules when their real implementation requires them; do not scaffold deferred Transport, Seasons or workforce systems.
 
 ## 4.1 Module responsibility
 
@@ -230,11 +232,10 @@ The module also owns:
 - claim protection and visualization;
 - building candidates;
 - repair;
-- villagers/artisans;
-- eras;
-- historical records.
-- economic-stage and cultural capabilities on existing Settlements;
-- Main World Facility qualification and certification, shared production-capacity allocation, and Activity eligibility exposed to Economy.
+- lightweight Era facts and historical records;
+- UNVERIFIED/VERIFIED Settlement certification and direct capability qualification;
+- immutable Main World LandValueProfiles, land-acquisition policy and Activity eligibility;
+- lightweight Facility recognition when its post-core slice begins.
 
 ### `esmp-resource`
 
@@ -462,6 +463,18 @@ UNIQUE (world_instance_id, chunk_x, chunk_z)
 
 Activity, building condition, repair, Era, history, Facility state, and future dynamic-cycle state remain separate domain records rather than duplicated mutable fields on `Settlement`.
 
+Settlement certification is separate from ownership and Activity:
+
+```text
+SettlementCertification
+├── settlement_id
+├── status = UNVERIFIED | VERIFIED
+├── eligible_since_game_tick (optional)
+├── verified_by_uuid (optional)
+├── verified_at_game_tick (optional)
+└── note / decision provenance (optional)
+```
+
 ## 7.4 Ownership, governance, public access, and bans
 
 A player can own multiple Settlements. A Settlement has one Owner, zero or more Governors, zero or more Citizens, and any number of Public users.
@@ -493,6 +506,8 @@ The implemented administrator check uses online `esmp.admin` permission and offl
 The MVP should not model resident, tenant, worker, merchant, or visitor as additional Settlement roles. A Public player may still use interactions explicitly allowed by the active Settlement or Parcel policy. Parcel ownership/holding is orthogonal to Settlement membership: a Public player can hold a Parcel without becoming a Citizen.
 
 On successful ownership transfer, the former Owner becomes a Citizen by default unless a separately approved rule changes this behavior. Update `Settlement.owner_uuid`, remove any membership row for the new Owner, and persist the former Owner as `CITIZEN` atomically. No intermediate state may expose two Owners or an ownerless owned Settlement.
+
+Target transfer flow: Owner requests → recipient accepts → simple land-based Acquisition Fee is computed → administrator reviews/approves → fee and ownership change commit atomically through the owning transaction workflow. Acceptance alone must not transfer ownership in the new flow. Revalidate participants, ownership, relevant revisions, administrator approval and available recipient funds at commit. The fee is a SINK, distinct from any private compensation (§16A.5). The current two-party implementation requires migration before this behavior is enabled.
 
 Ownership transfer, membership invitation, Governor promotion, removal, demotion, and voluntary leave retain the existing durable-offer and atomic-transition principles. Rename the old Manager semantics to Governor and Member semantics to Citizen; do not keep duplicate legacy role names in the new schema. Owners cannot leave without first transferring ownership or abandoning under the applicable rules.
 
@@ -555,13 +570,15 @@ Protection is guarded during startup. Fatal persistence/publication errors and h
 
 Settlement claims remain full vertical chunk columns. The minimum claim unit is still one 16×16 chunk from world minimum height through world maximum height. The first chunk establishes the Settlement component; additions must share an edge with the existing component; removals that split the component are rejected; ordinary unclaim cannot remove the final chunk; separate Settlements may remain edge-adjacent without merging.
 
-The current user-approved stage implements **numeric claim pricing only**, with no real currency or item consumption. The configured next-claim price is `claim-base-price + claim-price-step * current claimed chunks`, initially 100 + 25×area. Creation quotes the area-zero price; successful create/claim records the numeric price and `charged=false` in its committed history. `/settlement price [settlement]` exposes the quote. No mock balance or wallet is created and unclaim has no refund because nothing was charged. Real currency integration is deferred until the user chooses a system; its debit/recovery contract will be a later change. Detailed land markets, rent, taxes and geography-sensitive prices remain deferred.
+Target Claim prices use immutable land base value, player-wide portfolio leverage, Settlement-size leverage and a light Activity/development adjustment, plus personal early-land subsidies. Founding a separate nearby Settlement also has a same-owner proximity surcharge; ordinary expansion does not. The first-ever founding Claim costs exactly **25**, overriding ordinary valuation. Detailed formulas and subsidy persistence are canonical in §§16A.3–16A.4. Claim payment must reject insufficient funds and commit once with the owning claim/history state. The existing area-only numeric quote remains a legacy runtime behavior until the ledger/valuation cutover, not an alternative target pricing model.
 
 The Settlement API must support complete command-driven administration for creation, claims, unclaims, inspection, membership/governance, bans, Parcel management, permission policy, naming administration, transfer, abandonment, and later lifecycle operations. Commands are the canonical complete interface; convenience tools call the same application services and must not implement separate business rules.
 
-Initial Settlements do not require an official player-chosen name. They use a stable numeric identity and may display a generated geographical label. `official_name` remains null until the Settlement reaches a server-approved certification threshold and an administrator approves the name. Naming and every later rename are administrator-mediated operations and may charge Settlement currency. Naming and rename events are historical facts; previous names are not erased from history.
+Every newly founded Settlement begins **UNVERIFIED**, with only its stable number/generated label. It may claim land, build, use protection/governance and accumulate Activity. It cannot obtain an official public name or appear as a normal named Settlement on the public website/map; selected civic capabilities may explicitly require certification.
 
-Implemented identity uses immutable existing UUID keys internally plus a stable global numeric ID accepted by commands; new names display as `S#<number>` until naming approval. `/settlement certify <settlement> true|false` records administrator-reviewed naming eligibility; `/settlement rename` requires that eligibility and administrator authority. It does not claim to implement automatic economic-stage certification.
+After a configurable Activity/meaningful-development gate, governance may apply for administrator certification. Review concerns civic quality and exploit resistance, not aesthetic scoring; a technically active but exploit-oriented enclosure may be declined. Denial leaves the Settlement functional and owned, in UNVERIFIED status. On approval it becomes **VERIFIED** and may receive a separately administrator-approved official name, public named listing and directly qualified future civic capabilities.
+
+This is one two-state governance filter, not an economic level or rank ladder. Do not add VERIFIED_II or recreate Settlement/Village/Town/City stages. All later official renames remain administrator-mediated and historical; naming/rename fees are explicit service sinks where configured. Existing internal UUIDs/public numbers and historical names must be preserved through an explicit migration policy. The current boolean naming toggle and grandfathered names are implementation history, not proof of the new eligibility/application/provenance workflow.
 
 ## 7.7 Parcel model
 
@@ -677,7 +694,7 @@ A fully automated machine should not generate infinite settlement activity simpl
 
 Activity therefore measures **meaningful player participation in a settlement**, not raw machine uptime.
 
-Facility output, offline accrual, and automated trade/transport processing grant no Activity. Economy consumes Settlement Activity eligibility but cannot sustain it through its own production events. After insufficient Activity exceeds a configurable grace period, production pauses even when unloaded buildings show no decay; recovery cannot turn paused time into catch-up output (§16A.2).
+Automation, including any future production or transport system, grants no Activity. Existing game-time inactivity/pause-interval APIs may support later consumers, but production simulation is not an Activity or Repair prerequisite. Future offline accounting must remain bounded and must not invent progress while the shared game clock is frozen or the server is stopped.
 
 ## 8.4 Recovery
 
@@ -729,7 +746,7 @@ The selected direction is a hybrid approach combining player-modification eviden
 
 Buildings are discovered automatically inside claimed Settlements. Player modification records are strong evidence but are not the definition of a Building; existing construction inside newly claimed land must still be discoverable.
 
-Each tracked Building has a stable `building_id`, `world_instance_id`, one responsible `settlement_id`, a footprint, and a versioned restoration baseline. The footprint must lie entirely inside one Settlement. Building identity should survive ordinary rediscovery.
+Each tracked Building has a stable `building_id`, `world_instance_id`, one responsible `settlement_id`, a footprint and a versioned restoration baseline. The footprint lies entirely inside one Settlement. Ordinary expansion/contraction preserves identity when it is obvious. Major structural reinterpretation may retire the old identity and discover one or more new Buildings, keeping lightweight predecessor/history links when obvious. Preserve old history; a general graph-matching or perfect split/merge identity solver is not an MVP Decay/Repair gate.
 
 Discovery establishes the initial baseline. Authorized player edits revise only the affected active baseline portions. ESMP decay and repair change physical condition, not intended design. Authorized demolition therefore changes the baseline rather than becoming damage that Repair later reverses.
 
@@ -764,7 +781,7 @@ Block entities are a special category. The MVP does not define complex inventory
 
 Wild construction does not receive the full persistent Building model by default. Ordinary wild structures use occasional localized scans and coarse decay planning when naturally loaded and due. Roads, railways, and similar infrastructure may use specialized lightweight linear/segment models. Only structures important enough to justify persistent identity should be promoted to richer tracking.
 
-The first structural-decay implementation should prefer a small material/profile set and a small failure-mode set. Weathering and structural integrity are separate concerns. Initial collapse synthesis may support simple `DROP`, `TOPPLE`, and `CAVE_IN` behavior without attempting full rigid-body physics, finite-element analysis, or complex continuous rotations.
+Initial structural decay uses small material/profile and weathering/integrity sets with **DROP** and **CAVE_IN** as the required collapse vocabulary. TOPPLE is deferred until visual quality demonstrates a need. Full rigid-body physics, finite-element analysis, continuous rotations and sophisticated collision synthesis are not prerequisites for proving the ruin loop.
 
 Discovery and rediscovery remain bounded, localized, and event-driven. Do not introduce recurring scans of every block in every Settlement.
 
@@ -845,9 +862,9 @@ Instead, a player interacts with a building through a dedicated repair point suc
 
 - a cellar entrance;
 - a repair station;
-- an artisan/workshop point.
+- a workshop repair point.
 
-The player provides materials or hires villagers/artisans.
+The MVP requires a repair point/station, the required physical materials and shared game time. It does not require live villagers, professions, pathfinding, entity survival or workforce simulation.
 
 ## 11.1 Repair as a process
 
@@ -860,13 +877,13 @@ Player supplies resources
         ↓
 Repair job created
         ↓
-Villager / artisan works
+Budgeted repair work advances with game time
         ↓
 Building gradually restored
         ↓
 Repair completed
         ↓
-Era advances
+Qualifying restoration records lightweight Era/history progress
 ```
 
 Instant restoration is not the preferred model.
@@ -877,59 +894,17 @@ System decay must not create ordinary collectible block drops, and repair/materi
 
 ---
 
-# 12. Villager / Artisan System
+# 12. Optional Villager / Artisan Extension
 
-Villagers can serve as a settlement's repair workforce.
-
-The system may allow:
-
-- assigning villagers to repair jobs;
-- consuming repair materials;
-- running repair work over game time;
-- restoring eligible building components progressively.
-
-The detailed villager job architecture is not yet finalized.
+Villagers/artisans are deferred enhancements for workforce flavor, repair efficiency, lightweight Facility integration or cultural meaning. Entity lifecycle, pathfinding, profession, death and chunk loading must not block MVP Repair. Add those concerns only when their gameplay benefit justifies them; materials plus game time are sufficient for the initial repair process.
 
 ---
 
-# 13. Era System
+# 13. Lightweight Era Semantics
 
-Every completed repair cycle can advance a building's **Era**.
+Era is a Building historical counter/state advanced by qualifying completed construction → decline → restoration cycles and recorded in History. It is not elapsed calendar age, a Settlement economic level or a new progression subsystem.
 
-Era is not simply an age measured in years.
-
-It represents:
-
-> A completed historical cycle of construction → decline → restoration.
-
-Example:
-
-```text
-Era 1
-  Build
-   ↓
-  Decay
-   ↓
-  Repair
-   ↓
-Era 2
-   ↓
-  Decay
-   ↓
-  Repair
-   ↓
-Era 3
-```
-
-This makes Era a historical/cultural value rather than merely a timestamp.
-
-Possible future rankings include:
-
-- oldest buildings;
-- highest Era;
-- most repairs;
-- longest continuously owned settlements;
-- most historically persistent settlement sites.
+MVP implementation needs only the counter/state, qualifying-cycle rule and durable historical fact. Era-specific abilities, rankings, names and dedicated UI are later presentation/content work, not prerequisites for the core loop.
 
 ---
 
@@ -959,6 +934,8 @@ The Resource Realm exists primarily as a renewable resource supplier.
 It is intentionally separated from the permanent civilization world.
 
 ## 15.1 Resource world properties
+
+Initial operation may use administrator-triggered preparation/activation commands or a verified maintenance procedure. The world roles, fresh instance identities and safe cutover invariants still apply; fully automatic cycle orchestration is a mature implementation target, not a blocker for other core systems.
 
 - no settlement claims;
 - no settlement activity;
@@ -996,9 +973,9 @@ ResourceCycle
 
 Each dimension instance belongs to this cycle and uses a fresh physical world identity. Generation settings and seeds are recorded with the relevant generation data; their exact schema is deferred. The active cycle selects all three instances together for player entry and portal routing.
 
-## 15.3 Reset lifecycle
+## 15.3 Safe reset lifecycle
 
-Replacement worlds are prepared before closing the old cycle. Resource worlds must not be deleted live while players are using them.
+The sequence below describes the mature lifecycle and the safety obligations of operator-driven resets. Initial implementation may execute it through administrative operations or a documented maintenance window instead of an automatic scheduler. Replacement worlds must be ready before public cutover, and populated worlds must never be deleted live. Full automated generation/evacuation/activation/archive/recovery follows only when reset frequency justifies it.
 
 ```text
 Create pending cycle with three new world instances
@@ -1090,110 +1067,172 @@ A repair station/cellar can use a vanilla container interface to show:
 
 - required materials;
 - repair status;
-- assigned artisans;
+- remaining game-time work;
 - progress.
 
 The first version should avoid a large custom RPG-style menu hierarchy.
 
 ---
-# 16A. Economy, Transport, and Seasons
+# 16A. Economy, Currency, and Land
 
-Accepted on 2026-09-09 after review of the gameplay extension. These systems support useful settlements, visible infrastructure, and history rather than compressed villager captivity or large redstone farms as the economic core. They are separate feature slices, not one milestone. The shared reckoning clock and Activity eligibility are implemented; production, markets, transport, cultural progression and seasonal presentation still require their §26 gates.
+The accepted economy addendum and its final razor review supersede provisional economy scope. This is the target design, not a claim that the currently numeric-only runtime already has accounts, monetary issuance, land valuation or the new transfer/certification workflow.
 
-## 16A.1 Progression, culture, and certification
+## 16A.1 Economic purpose and currency
 
-Economic stages are I **Settlement**, II **Village**, III **Town**, and IV **City**, attached to the existing Settlement identity. Housing, public space, industry, trade, transport, Activity, and history are candidate criteria, not selected numerical requirements. Ordinary vanilla crafting remains available at every stage; progression gates Facility tiers and automated throughput, not normal recipes.
+Use one scarce, server-wide **virtual ledger currency** with low integer denominations. Currency supports exchange, land, civic/public services, certification and administration; ordinary survival, exploration, mining, crafting and building remain available without money. Physical materials remain physical requirements rather than being replaced by currency.
 
-Cultural standing is a parallel capability track: architecture, history, and landmarks can grant public significance to nonproductive castles, ruins, and monuments. It does not independently raise production capacity or redefine Building Era. Reclaim still uses current ruins as the active baseline while retaining history; neither progression nor the calendar advances Era. Exact cultural ranks and qualification criteria remain open.
+Persist Player Wallet and Settlement Treasury accounts. Diamonds, emeralds, notes or custom coin items are not authoritative money. Physical vouchers/bearer tokens and multiple-currency gameplay are deferred.
 
-A Facility combines a functional place, its Settlement, and villager workforce to provide goods or services. Examples include farms, lumber yards, quarries/stone works, smithies, bakeries, ports, and railway stations; examples are not a finalized recipe catalogue.
+Keep a stable internal `currency_id` separate from configurable `singular_name`, `plural_name`, `symbol` and `format`. Changing display names or symbols must not redefine account identity or migrate balances. Store balances, prices and transaction amounts in integer units (`long` or equivalent), never `double`; specify checked arithmetic and deterministic integer rounding before implementation.
 
-Basic production requires automatic checks for usable work area, valid workstations, reachable housing, and reasonable worker density. Housing may be in another building within the same Settlement. Higher tiers require administrator certification for function, exploit resistance, and consistent standards—not aesthetic scoring.
+Operating-scale targets: starting funds approximately 100; ordinary balances in the hundreds; wealthy balances in low thousands; very wealthy balances in several thousands; periodic issuance budgets ordinarily at most tens of thousands. These are tuning targets, not hard wealth caps. One unit should matter, ten be noticeable, one hundred significant and one thousand substantial.
 
-Relevant changes trigger revalidation and suspend affected capabilities only. Invalid higher-tier qualification does not stop basic production if basic checks still pass; failure of basic requirements also blocks basic production. Material scope changes or exploits require staff review, not every decorative edit. Preserve stored goods and unused inputs. Certificate scope, records, triggers, type-specific requirements, and reactivation rules must be resolved before enablement.
+## 16A.2 Ledger invariants, issuance and sinks
 
-## 16A.2 Bounded Facility production and physical depots
+Wallets and treasuries remain non-negative. Reject any payment that would overdraw, including Claims, acquisition, naming/certification and other system services. Debt is not a negative balance. Informal promises stay social; formal loans, invoices, interest, collateral, default and bankruptcy require a separate future domain.
 
-Each economic stage supplies one shared Settlement production-capacity budget allocated among Facilities. Combined allocations cannot exceed it; adding villagers or Facilities does not create additional budget. Facility tiers remain bounded by economic capability and certification. Exact units, allocations, authority, and stage amounts remain open.
+Distinguish monetary movement types:
 
-Production is hybrid: basic renewables use capacity/workers/time; processed goods consume inputs. Market category does not determine production method: basic glass can still require sand/fuel. Metal-producing Facilities consume supplied ore or other eligible mined inputs; time and capacity cannot create metal. This does not approve an item-provenance tracker or a ban on vanilla farms.
+| Type | Meaning | Circulating supply |
+|---|---|---|
+| TRANSFER | Move existing money between authorized accounts | Unchanged |
+| ISSUANCE | Create server-authorized money | Increases |
+| SINK | Destroy money for a system charge | Decreases |
 
-Bounded offline accrual uses saved valid Facility state without loading chunks or pretending villagers continue ticking. Available inputs, output capacity, workforce eligibility, and the shared production budget bound it. Insufficient Activity beyond a configurable grace period pauses new production until meaningful participation recovers, independently of physical ruin. Stored goods and unused inputs remain; paused time never yields catch-up production. Production grants no Activity. Automatic loss of earned progression or culture is not selected by this operating-state rule.
+`M(next) = M(now) + issuance - sinks`, where circulating supply includes player wallets and Settlement treasuries. Peer trade/donations redistribute money; they do not mint it. The server is not an ordinary cash account whose buys/sales must balance.
 
-Here, offline means players offline or chunks unloaded while the shared game clock advances. Server downtime and frozen game time produce no accrual. Production grace periods, input/output accounting, and Activity eligibility all use that same clock; they must not substitute wall-clock catch-up.
+Every durable movement has a stable `transaction_id`, affected account(s), integer amount, explicit reason, game-tick/timestamp provenance and optional metadata. Retry cannot commit the same transaction twice. Monetary state and its durable audit result must agree; pure ledger/claim transactions use coordinated owning-domain APIs, not an asynchronous event as retroactive admission control.
 
-Inputs and outputs use bounded ledger stock at a physical Facility depot. Deposits remove physical items into stock; withdrawals return physical items. The ledger is not a duplicate snapshot of items still in a chest. Use vanilla-client-compatible interfaces. Permission checks, interrupted deposit/withdrawal recovery, in-progress jobs, capacity reservations, and stale saved-state validity must be defined before enabling production.
+Initial reasons include STARTING_FUNDS, PLAYER_TRANSFER, SETTLEMENT_DONATION, CLAIM_PURCHASE, SETTLEMENT_FOUNDING, SETTLEMENT_ACQUISITION_FEE, NAMING_FEE, RENAME_FEE, EVENT_REWARD, EXPLORATION_REWARD, ADMIN_GRANT and REFUND. SERVER_TRADE_PURCHASE/SALE distinguish the later trade paths; add Facility/market/transport reasons when their real services exist. Reason names and buy/sell direction must be explicit, not a generic money-change event.
 
-## 16A.3 Goods and regional specialization
+All server issuance is constrained by a periodic **Server Monetary Budget**: `actual issuance <= configured budget`. It is a ceiling, not a distribution target; unused capacity need not be paid out. Accepted channels are starting funds, controlled administrative/public rewards, exploration/event rewards and later Server Trade purchases from players. Repetitive block breaking, ordinary mob kills, walking, online time and generic jobs loops must not automatically mint money.
 
-Basic construction/survival supply includes timber, stone, food, clay, glass, and basic metal. Processed building materials, masonry/bricks, food, tools, and components support industry chains. Rare goods such as Elytra, Dragon Egg, Wind Burst III, special equipment/materials, event rewards, and historical relics belong to exploration/events/history rather than unlimited ordinary Facility production. Exact catalogues remain open.
+Prefer coarse, configurable active-player budget tiers over a complex formula (illustrative bands: 1–5, 6–15, 16–30, 30+ genuinely active players). Do not scale linearly with online/alt/AFK count. Define period/eligibility/missed-period handling before enabling issuance. The global budget and idempotent one-time starting grant must exist before the first issuance channel is exposed; trade-specific quotas come with Server Trade.
 
-Stable natural biome/terrain profiles give efficiency advantages, not hard availability locks. Seasonal modifiers apply separately; cosmetic biome changes must not redefine regional identity or create specialization exploits. Mountain/forest/plain/coast mappings and multipliers remain illustrative until configured.
+Preferred sinks are Claim creation/expansion, acquisition fees, official naming/rename, Facility certification and explicit system services. Market, teleport or freight fees apply only if those deferred services are introduced. Direct peer transfers have no generic movement tax. Avoid passive land/maintenance taxes, automatic inactivity charges, confiscation and hard balance caps. Future old-city preservation spending is deliberate investment, not offline punishment.
 
-## 16A.4 Currency and markets
+Treasury access remains governed by Settlement authorization and audit: Owner-controlled withdrawals and minimal approved Governor spending do not require advanced appropriation law. A treasury remains Settlement property after ownership transfer; it never silently becomes the incoming Owner's personal wallet.
 
-Currency is ledger-based with distinct player wallets and Settlement treasuries. Budgeted server purchases and exploration/event rewards create currency. Player trades transfer currency. Teleport and market service fees destroy currency; freight separates operator revenue (transfer) from a disclosed system fee (destruction). No recurring wages or membership taxes are introduced.
+## 16A.3 Immutable generated-land valuation
 
-Owner controls treasury withdrawals and operating budgets. Governors may make audited operational payments within Owner-approved budgets; Citizens cannot spend treasury funds. This is bounded delegated trust, not a guarantee against self-dealing, and does not create custom Settlement roles. Budget allocation/replenishment and detailed spending controls remain open.
+Every Main World chunk receives its **LandValueProfile at first generation**, before player terrain/building changes can manipulate the assessed base. Minimal persisted record:
 
-Server Trade is a bounded basic-commodity backstop, including selected simple processed essentials—not an unlimited quest-money shop. It has global Cheap/Normal/Expensive price bands adjusted at coarse configurable intervals from stock and demand, within fixed price bounds. Stock is finite: purchases consume it, eligible sales and controlled replenishment restore it. Temporary shortages are accepted.
+```text
+LandValueProfile
+├── world_instance_id
+├── chunk_x
+├── chunk_z
+├── valuation_version
+├── base_value
+└── valuation_class (optional, UI/debug)
+```
 
-NPC buying and selling use separate eligibility lists. Selling an essential to players does not imply buying it from them; eligibility of vanilla farm outputs remains open. Rare and most specialized goods belong primarily to player markets. Exact prices, spreads, quote/bulk behavior, quantities, replenishment, and issuance budgets remain feature gates.
+Coarse natural factors may include terrain class, slope/buildability, biome/environment desirability, river/coast access and special natural features. Coefficients are configurable and explainable, not a real-estate simulator. Sample factors to compute the immutable base; discard intermediate features unless an actual diagnostic consumer justifies retaining them.
 
-Initial Player Trade uses physical market stalls with stocked goods and posted prices; buyers visit to purchase and collect. Global instant delivery, orders, procurement, and bulk fulfillment are not implicitly included. Stocking, purchase/collection, permissions, and crash-safe item/payment settlement must be resolved before enabling stalls.
+Flattening hills, excavating, filling coastlines, roads or cities cannot retroactively change the stored base value. Preserve valuation versions; revaluation requires an explicit approved operation/migration. Existing pre-feature chunks need a backfill policy that does not pretend player-modified terrain is pristine. Generation capture, persistence/recovery and legacy backfill are implementation gates, not permission for live global scans or arbitrary async Paper access.
 
-## 16A.5 Freight and public teleport
+## 16A.4 Claim price and personal subsidies
 
-Trade Routes connect physical depots over real roads, rails, or port connections. Qualification combines automatic endpoint/basic checks with initial administrator review of the physical connection. Relevant edits and invalid endpoints trigger targeted rechecks, not periodic whole-route scans. Registered corridors, land permissions, and invalidation coverage remain design work.
+For ordinary expansion:
 
-Freight uses timed ledger shipments, not travelling cargo entities. Dispatch reserves cargo and route throughput; arrival follows an abstract travel time. Stack-equivalent bulk units include nested cargo contents rather than counting a filled portable container as one empty item. Mode and distance inform quoted cost and travel time. Exact weights, throughput windows, rates, and payment timing remain open.
+```text
+C_expand = B_terrain × P_portfolio × S_settlement × A_activity × D_early
+```
 
-Route disruption blocks new departures but does not destroy or automatically pause already-dispatched shipments; they retain their arrival schedule. An unavailable destination holds cargo for the explicitly identified original recipient, not whoever later owns its coordinates. Ownership changes, recipient recovery access, destination capacity, and payment recovery must not duplicate cargo, redirect ownership, or turn held shipments into unlimited storage.
+For founding a separate Settlement:
 
-Public Settlement Teleport is distinct from ordinary movement and freight. Village economic stage qualifies for basic teleport infrastructure; an independently certified cultural landmark also qualifies without increasing production capacity. Higher economic stages can support stronger transport capabilities, with exact unlocks unresolved.
+```text
+C_found = B_terrain × P_portfolio × N_proximity × D_founding
+```
 
-Teleport costs base plus carried-cargo surcharge to favor people using teleport and bulk goods using routes. Shared inventories and Ender Chests remain unchanged; manual/global-storage bypasses are accepted under this soft incentive, not a promise of strict freight separation. Cargo classification, portable-container treatment, fee presentation, and safe destination/payment handling remain feature gates.
+- `B_terrain` comes from the immutable/versioned LandValueProfile.
+- `P_portfolio` reflects the assessed player's total owned Settlement count and total claimed area. Configurable tiers can combine both dimensions so neither one giant city nor many tiny Settlements bypass leverage.
+- `S_settlement` rises with the area of the Settlement being expanded.
+- `A_activity` is a light Activity/meaningful-development correction, not a dominant discount, punishment for activity or incentive to farm Activity. It does not depend on a removed economic-stage ladder.
+- `N_proximity` applies only to CREATE_NEW_SETTLEMENT, based on distance to that player's existing Settlements. Nearby separate founding should usually cost more than normal expansion; expansion receives no founding proximity surcharge.
 
-## 16A.6 Calendar and seasons
+Example proximity bands (0–3 chunks ×2, 4–7 ×1.6, 8–15 ×1.3, 16–31 ×1.1, 32+ ×1), portfolio tiers and size coefficients are illustrative tuning, not hard-coded balance decisions. Define distance measurement, the assessed player/payer when governance acts on behalf of a Settlement, integer rounding and quote revision checks before payment implementation.
 
-One Minecraft day equals one calendar day; a year contains 365 days or 366 in a leap year. Start at **0 A.D.**, followed by 1 A.D., 2 A.D., and onward. At normal 20-minute days, a non-leap year is five real days plus one hour forty minutes—not a fixed five-real-day year. Sleeping and time changes can affect pacing.
+**First-ever founding Claim: fixed price 25**, overriding normal valuation. Subsequent personal early-land discounts may diminish (illustrative second through fifth Claims: ×0.50, ×0.65, ×0.80, ×0.90; later ×1). Those later coefficients remain configurable.
 
-All ESMP gameplay timing uses one shared reckoning clock measured in game ticks/days, including Activity loss, decay/repair progression, production, grace periods, freight, cooldowns, offer expiry, market intervals, and Resource schedules. It is not tied to the real-life clock. When `advance_time=false`, the shared clock and time-driven mechanisms stop advancing. Server downtime adds no game time and creates no catch-up. Changing tick rate alters real-world pacing only: the same elapsed game days must produce the same time-based Activity/decay result.
+Persist personal `PlayerLandProgress` with `first_claim_used` and `subsidized_claims_used` or equivalent. Selling/transferring, abandoning or founding another Settlement does not reset the subsidy, and prior ownership's subsidy history never transfers to a new owner. Legacy acquisition history requires an explicit migration policy.
 
-Gameplay consumes one clock supplied by the configured, loaded MAIN world's `getFullTime()`. First installation begins at reckoning tick 0; 24000 ticks are one game day. All positive source deltas count, including sleep and explicit forward time commands; negative changes re-anchor without subtracting reckoning time or reversing completed work. `advance_time=false` re-anchors without crediting deltas; Activity contributions are also disabled while frozen. Claim protection and explicit commands remain available.
+Quotes explain the final integer price and major causes—base land, portfolio, Settlement scale, light Activity correction and any own-nearby-founding surcharge—without dumping every coefficient. Revalidate price context, subsidy state, topology, ownership/permission and sufficient funds at commit; debit, consumed subsidy and Claim/history changes must not partially commit.
 
-The clock persists source UUID, raw source position and reckoning ticks. Boot resumes persisted reckoning time and re-anchors to the loaded source without inferring downtime from either wall time or a mismatched world save. A changed MAIN source UUID fails startup instead of silently resetting chronology. Resource worlds do not drive this source.
+## 16A.5 Peer transfers and Settlement acquisition
 
-Game-timed domain writes checkpoint the clock in their transaction; idle clock checkpoints occur every 200 game ticks and normal shutdown flushes. Abrupt failure may lose uncheckpointed clock-only progress/coalesced observations, but committed score/offer anchors are not ahead of the durable clock. This is not a coordinated world-save/DB restore protocol; restore paired data, never mix unrelated MAIN and database snapshots.
+Direct peer payments move existing currency and remain atomic. A short `/pay` interface may use configurable per-transaction or newcomer-period limits and operator-visible large-transfer audit if needed. Settlement-size-based Economic Receiving Capacity is **deferred**, not an MVP prerequisite or a hard cap on wealth.
 
-Offer expiry, border duration and protection-message throttling now use game ticks. Existing pending offers retain their remaining lifetime via a one-time legacy conversion; new expiry has no wall-clock fallback. New history includes explicit game ticks; original wall timestamps remain diagnostics/legacy provenance, not gameplay inputs.
+If later evidence warrants receiving capacity, it would constrain peer-origin inflows rather than legitimate Server Trade income, rewards, starting funds or other self-earned/server-issued money. An over-limit transfer must reject in full, not partially fill to the ceiling, and report what is receivable. Such a future model must cover player→player, player→recipient-controlled treasury, treasury→player and treasury→treasury routing; treasury capacity need not equal wallet capacity. Do not implement that model merely because land tiers are available.
 
-Leap-year and season-boundary presentation remains deferred. The implemented clock supplies ticks/days, not a completed seasonal rendering or full calendar UI.
+Settlement succession remains supported. Initial target flow is Owner request → nominated recipient acceptance → simple land-based Acquisition Fee quote → administrator review/approval → atomic fee/ownership transfer. Existing membership eligibility, single-Owner and former-Owner-to-Citizen rules remain. Pending acceptance/approval changes no ownership. The current runtime's two-party transfer must be explicitly migrated before this new contract is advertised.
 
-Spring favors growth/building, summer production, autumn harvest/storage/trade, and winter reduced agriculture plus crafts/trade. Exact effects remain tuning work. Seasons modify production/demand rather than owning another economy; decay eligibility remains independent. They provide rhythm, not compulsory daily tasks, punitive survival, or intricate stock management.
+The incoming Owner pays a **SINK** Acquisition Fee derived from immutable land values under current configured acquisition rules; a suitable initial form is `k × sum(BaseLandValue_i)` with configurable `k`. No predecessor early-land subsidy is inherited. Do not anchor the fee to historical cheap Claim purchase prices or appraise Buildings, labor, stock, railways, Facility or cultural value.
 
-Initial presentation uses bounded native weather/particles and limited reversible snow/vegetation in eligible loaded areas, preserving builds and restoration baselines. Mutations require the same permissions, world-instance validation, expected-state checks, and recovery discipline as other world work. Full seasonal grass/foliage palette changes remain a deferred future feature; no resource-pack/client-biome technique or compatibility promise is selected.
+Private compensation in money, items, services or none is a social agreement; ESMP does not enforce a canonical sale price. The treasury stays attached to the Settlement and outgoing money still requires treasury authorization and ledger audit. Repeated-transfer cooldowns are optional later controls. A fully automatic fee `f(land profiles, recipient portfolio, size, recipient proximity)` remains a future automation option justified by transfer volume, not an additional MVP formula.
 
-## 16A.7 Ownership, recovery, and scope boundaries
+## 16A.6 GameClock and optional calendar
 
-| Logical owner | Authoritative state and integration |
+Keep the implemented shared GameClock for Activity, jobs, cooldowns, monetary periods and lifecycle work. Gameplay timing uses game ticks/days, not real-life elapsed time. `advance_time=false` freezes time-driven progression; stopped-server time gives no catch-up. Changing tick rate changes real-world pacing, not results per elapsed game day.
+
+The loaded MAIN world's `getFullTime()` supplies forward deltas, including sleep and forward time commands. Rewinds re-anchor without subtracting reckoning time or reversing completed work. Initial installation starts at tick 0; boot resumes persisted reckoning time and re-anchors to the loaded source. Source UUID replacement fails rather than silently resetting chronology; Resource resets do not drive the clock.
+
+Game-timed domain writes checkpoint with their transaction; otherwise clock-only checkpoints occur every 200 game ticks and at normal shutdown. Uncheckpointed time/observations may be lost on abrupt failure; this does not replace paired world/database restoration. Old wall timestamps remain diagnostic/legacy provenance, not gameplay inputs.
+
+Optional calendar presentation retains one Minecraft day per calendar day, 365/366-day years starting at 0 A.D.; leap/season presentation details remain separate. **GameClock is retained infrastructure; calendar presentation is optional; gameplay Seasons are deferred content.** Seasonal production/demand, reversible snow/vegetation and other seasonal presentation do not block the core or Dynamic Settlement Cycle. Full seasonal palette techniques remain later design.
+
+## 16A.7 State ownership and recovery boundaries
+
+| Logical owner | Authoritative responsibilities |
 |---|---|
-| Civilization | Settlement identity/roles, economic and cultural capabilities, Facility qualification/certification, shared production allocation, and Activity eligibility. |
-| Economy | Wallet/treasury ledger, issuance and operating budgets, depot/stall stock, production accounting, market prices/quotes and settlement. Consumes Civilization eligibility, never writes Activity. |
-| Transport | Route qualification/capacity, shipment lifecycle and recipient, teleport access/requests. Uses Civilization authorization and Economy stock/payment APIs. |
-| Calendar/Seasons | Shared gameplay reckoning clock and calendar state, regional/seasonal modifiers, and bounded presentation plans. Supplies time and modifiers, never duplicates Economy balances or changes Building Era. |
-| Core / Paper adapter | Neutral persistence/scheduling/world identity in Core; world observations, inventory interaction, and mutations on the proper Paper execution context. No gameplay policy in Core. |
+| Civilization | Settlement/Parcel governance, certification, Activity, immutable land profiles, personal land-subsidy progression, Claim/ownership acquisition and Building/history semantics. |
+| Economy | Stable currency identity, wallet/treasury ledger, typed movements, issuance budget, monetary audit; later Server Trade stock/quotas/quotes. |
+| Core / Paper adapter | Neutral world identity, GameClock/persistence/scheduling infrastructure; world-generation capture, item interaction and physical mutation on the proper execution context. |
 
-This is a logical ownership contract, not a finalized SQL schema or new Gradle-module layout. All domains remain within one plugin lifecycle. Facility/depot/route/landmark coordinates use `world_instance_id`; stable roles use `world_definition_id`. Settlement ownership or claim changes require dependent eligibility and access to be revalidated rather than inherited by coordinate alone.
+These are responsibilities inside one plugin lifecycle, not pre-created module/table/event classes. Use explicit owning APIs and short coordinated SQLite transactions for ledger/Claim state; stable transaction IDs and committed facts provide retry/audit semantics. Never authorize first and try to fix an overdraw with a later event.
 
-Economy commits pure ledger state through short owning-domain transactions and stable operation identities. Cross-domain stock/payment/capacity changes require an explicit recoverable command workflow; committed events report results and must not be relied on to retroactively enforce admission invariants. Physical item exchange cannot be atomic with SQL; §17.4 recovery and coordinated world/database restore apply. Exact reservation, refund, reconciliation, and durable audit designs are enablement gates, not implemented guarantees.
+Physical item/material exchange cannot share one atomic transaction with Minecraft world state. Its prepare/apply/reconcile protocol, permissions, capacity checks and backup/restore safety are gates for Repair and later Server Trade. Generation-time valuation likewise needs recoverable capture/persistence. Do not add arbitrary async world reads, force-load chunks or scan all inactive Settlements.
 
-Use event-driven invalidation, saved-state accounting, due-work indexes, and bounded queues. Never scan every Facility, route, or claimed block on every tick; do not schedule writes to all inactive Settlements. Unloaded physical changes are not simulated as complete. Offline economic accrual is a separate bounded ledger calculation, not an exception allowing chunk loading or off-thread Paper access.
+## 16A.8 Server Trade — post-core backstop
 
-Initial scope spans progression/certification, basic production and commodity categories, Server Trade and physical stalls, regional modifiers, lightweight freight, public teleport, native seasonal effects/basic modifiers, and cultural/landmark capabilities. Exclude detailed population simulation, wages/happiness/taxes, full physical logistics, unlimited automation, complex finance, faction warfare, forced seasonal chores, and complex NPC-city AI. The Factory Realm remains removed; full seasonal palettes remain deferred.
+Server Trade is a bounded commodity backstop/price anchor after the core Dynamic Settlement Cycle, not the primary player market. It offers controlled conversion of basic goods into scarce currency and limited emergency goods access.
+
+Normalize narrowly whitelisted item forms into commodity units and whole trade lots, not generic decomposition of every item into its supposed wood/metal contents. Example categories include TIMBER, STONE, FOOD, CLAY, GLASS and BASIC_METAL. Illustrative conversions such as one log or four planks per timber unit, or lots of 32 stone/16 logs, require validation; crafting/conversion loops must not increase value. Exact forms, lot sizes and purchase/sale eligibility remain configuration.
+
+Finite category stock behaves as follows:
+
+| Player action | Items/stock | Money movement |
+|---|---|---|
+| Sells eligible goods to server | Player goods decrease; server stock increases | Player wallet receives ISSUANCE within budget/quota |
+| Buys goods from server | Server stock decreases; player receives goods | Player wallet pays a SINK |
+
+The server is not a normal cash account. Limited essential-goods restocking may be explicitly configured, small relative to player production and visible as server policy. It must not masquerade as player-sourced stock or turn Server Trade into the main supplier.
+
+Category parameters include base/target/min/max price or stock values as applicable: `base_price`, `target_stock`, `min_price`, `max_price`, `spread`, `current_stock`, `trade_lot_size`, `period_buy_quota` and optional per-player quota. Purchases from players are simultaneously limited by global remaining issuance, category buy quota, optional player quota and stock-demand/maximum-stock thresholds. Quote the currently purchasable quantity before taking items; revalidate/reserve all constraints at commit.
+
+MVP pricing uses **discrete stock bands with fixed multipliers**, for example VERY_LOW_STOCK / LOW_STOCK / NORMAL / HIGH_STOCK / VERY_HIGH_STOCK. Reprice only at coarse economic periods of one or several game days, with stable prices inside the period. Low stock can raise prices, high stock lower them or pause server purchases. Player-sell receipts and player-buy costs have a fixed spread, integer quotes and min/max bounds; rounding must preserve their distinction so player trade can beat both sides.
+
+Continuous stock pressure is only a deferred tuning alternative: `P_mid = clamp(P0 × (1 - alpha × (S-T)/T), P_min, P_max)`, with player-sell/player-buy quotes around it by spread. Hysteresis is also deferred unless observed band flapping warrants it; neither is required by the MVP.
+
+## 16A.9 Economic feedback and observation
+
+Use transient, event-driven feedback: small money changes through ActionBar/light sound; important income/expenses through Title/Subtitle/sound; milestones through short sound/Title sequences and limited particles. Optional internal MINOR/NORMAL/MAJOR/MILESTONE categories help avoid fatigue. A first starting-funds grant is a one-time onboarding moment with configured amount (target approximately 100), currency name and final balance, not a hidden mutation.
+
+Management Book/commands aggregate wallet, treasury, recent transactions, Claims, governance/bans, Parcels, Activity and history; recognized Facilities appear when implemented. A short `/balance` command is appropriate. BossBar can show real process progress; optional Scoreboard/HUD views must not become a mandatory permanent status block. Keep player text concise and explain the action.
+
+MVP monitoring is observational: wallet supply, treasury supply, total supply, issuance/sinks per period, median wallet, top-balance distribution and Server Trade volume/stock when available. Operators tune from real data. Money per genuinely active player may be informative but is not the sole signal. Commodity-basket purchasing-power indexes and automatic central-bank/budget reactions are deferred; do not introduce hard wealth caps or confiscation through analytics.
+
+## 16A.10 Lightweight recognition and deferred extensions
+
+The first Facility model is a recognized site/capability record: `facility_id`, `settlement_id`, `building_id` or bounded region, `type`, and enabled/certified state. Farm, Workshop, Market, Station and Port are examples. Recognition does not require workers/housing, shared production-capacity budgets, offline accrual, depot ledgers or production chains; add them only when actual gameplay need justifies a later extension.
+
+The four-level Settlement/Village/Town/City economic ladder is removed. Capabilities use direct feature-specific qualification; UNVERIFIED/VERIFIED is only the separate governance/publication gate in §7.6. Cultural Standing is deferred; History, lightweight Era and landmark/site flags preserve meaning without another score or rank.
+
+Abstract freight is deferred in full, including routes-as-cargo-services, reservations, throughput, nested cargo accounting and destination recovery. Public Settlement teleport is also deferred and, if later needed, must be a separate service independent from freight or removed stages. Walking, roads, rails, boats and terrain remain the default geographic experience; infrastructure may be recognized for history/maintenance without shipment simulation.
+
+Advanced production, formal credit/debt, interest/bankruptcy, physical bearer currency, multiple primary currencies, securities/complex markets, enforced private property-sale contracts, passive taxes, advanced treasury appropriation law, commodity futures/orders, gameplay seasons and automatic monetary policy remain outside the core MVP. None may become a dependency of required Dynamic Settlement Cycles.
 
 ---
-
 
 # 17. Persistence and Database Architecture
 
@@ -1235,7 +1274,7 @@ ESMP Database
 
 Exact table names and schema are not finalized.
 
-Accepted future state also includes progression/cultural capabilities, Facility certificates and allocations, production checkpoints, depot/stall stock, wallet/treasury entries and budgets, market quotes, route reservations/shipments, and calendar/modifier state. §16A.7 defines logical ownership; these are not existing tables or migrations.
+Accepted near-term state adds currency definition, wallet/treasury accounts, typed monetary transactions and issuance budgets; minimal immutable LandValueProfiles; personal land-subsidy usage; two-state certification/application provenance; and administrator-approved acquisition-fee work. Server Trade stock/quotas and lightweight Facility identity follow after the core cycle. Detailed workforce/production, freight, cultural ranks and seasonal state are deferred, not initial tables to scaffold. §16A.7 defines logical ownership.
 
 The initial persistence engine is **SQLite**, embedded in the single Paper server deployment. Core provides connection, transaction, and migration infrastructure; each domain owns its repositories, schema, and queries. Durable application state, jobs, and the event outbox share this database so domain changes and outbox records can commit together.
 
@@ -1275,7 +1314,7 @@ On retry, distinguish an unapplied operation, an already achieved target, and a 
 
 World mutation success does not mean Minecraft has durably saved the affected chunks. Recovery and coordinated restore must account for world-save/DB-checkpoint divergence; ambiguous outcomes must be reconciled rather than blindly replayed over newer state. Detailed journal storage, checkpoint protocols, and material accounting are implementation work.
 
-The same cross-store boundary applies to depot/stall item exchange, charged teleport effects, and seasonal block changes. Pure ledger production does not access Paper state from database workers. Enabling any of these features requires its specific recovery protocol, including item/payment ambiguity and stale qualification; the existing Settlement outbox alone does not satisfy that gate.
+Physical material and Server Trade item exchange must use recoverable DB-to-world workflows; pure monetary balances/fees can share the owning SQLite transaction with claim or ownership changes through explicit domain APIs. Future stock/transport/season features have their own gates and are not prerequisites for these core transactions. The existing Settlement outbox alone does not establish safe inventory/material recovery.
 
 ---
 
@@ -1341,21 +1380,7 @@ Modules should communicate through explicit application APIs and domain events r
 
 Use APIs or commands when a caller needs a synchronous decision or invariant. Use events to report facts that have already committed.
 
-Example domain events:
-
-```text
-SettlementFoundedEvent
-SettlementChunkClaimedEvent
-SettlementOwnershipTransferredEvent
-SettlementBecameRuinedEvent
-SettlementReleasedEvent
-SettlementReclaimedEvent
-PlayerRepairBuildingEvent
-RepairCompletedEvent
-EraAdvancedEvent
-```
-
-A statistics/ranking module can listen to these events without Decay or Repair knowing about that module.
+Create domain events only for real durable consumers or historical facts. Preserve stable event IDs, transactional outbox storage and post-commit delivery, but do not predeclare a catalogue of speculative event classes for deferred systems. Lightweight Era or monetary history can be represented by the simplest durable fact that satisfies the actual consumer.
 
 Durable domain events are recorded in an outbox in the same database transaction as the owning domain-state change, then delivered after commit. Delivery is at least once: events have stable IDs, and consumers deduplicate durable effects. A crash between commit and delivery must not lose historical events, while retrying delivery must not advance Era or duplicate history entries. Core supplies delivery infrastructure; gameplay domains own event semantics. Exact storage and retry scheduling remain implementation details.
 
@@ -1434,7 +1459,7 @@ The exact scheduler abstraction must be designed so the same domain code can lat
 
 Only naturally loaded chunks are eligible for Decay and Repair mutation. A job resumes through load-driven, budgeted scheduling; unloading before application returns affected work to pending rather than triggering a chunk load. Activity evaluation uses elapsed shared game time independently of chunk loading, but unloaded-world mutation is not simulated as completed.
 
-Offline Facility accrual (§16A.2) is bounded ledger accounting, not physical world simulation. Use targeted invalidation and budgeted due work for Facilities, routes, and seasons. World observations and native effects remain on the proper execution context and must not force chunk loads.
+If later Facility production or other optional simulation is introduced, it must use bounded due work and preserve the separation between ledger accounting and physical world mutation. Those systems are not prerequisites for the core MVP or Dynamic Settlement Cycle; all Paper world access remains on the proper execution context.
 
 When a player edit invalidates planned work, preserve that edit and replan the affected operations. Do not require a manual restart of the whole Building job. Replanning uses the current baseline and permissions and cannot reuse obsolete ownership or activity eligibility.
 
@@ -1504,7 +1529,7 @@ ESMP
 
 `Civilization Domain` is an architectural grouping. It must not become a `Civilization` table or aggregate unless a future, separately approved gameplay requirement introduces one.
 
-The accepted extension adds Facility/progression/cultural state to Civilization and logical Economy, Transport, and Calendar/Seasons services as assigned in §16A.7. These are gameplay domains, not additions to infrastructure-only `esmp-core`; the diagram above describes the original civilization/resource loop.
+The target adds Settlement certification, LandValueProfile and PlayerLandProgress alongside a logical Economy owner for currency/account/transaction state (§16A.7). Facility recognition remains lightweight and later. These are gameplay responsibilities, not additions to infrastructure-only `esmp-core`; deferred domains do not require empty runtime modules.
 
 ---
 
@@ -1566,10 +1591,10 @@ The post-MVP dynamic-cycle phase may later use Civic Capacity/maintenance demand
 | Periodic reset | No | Yes |
 | Shared player inventory | Yes | Yes |
 | Shared Ender Chest | Yes | Yes |
-| Facility / progression / cultural sites | Settlement-local | No Settlement sites |
-| Depot / stall / Settlement transport infrastructure | Main World sites | No Settlement sites |
-| Player currency | Shared player account | Same account; no per-realm balance |
-| Calendar / seasonal policy | §16A.6 | Reset/source reconciliation must be resolved |
+| Settlement certification / recognized sites | Settlement-local | No Settlement sites |
+| LandValueProfile | Immutable generated-chunk valuation | Not a Claim pricing source |
+| Player currency | Shared player wallet | Same wallet; no per-realm balance |
+| GameClock | Retained MAIN source | Resource resets do not restart reckoning |
 
 This table is a design boundary, not yet a final implementation schema.
 
@@ -1577,70 +1602,73 @@ This table is a design boundary, not yet a final implementation schema.
 
 # 25. Current Decisions
 
-The following decisions are settled enough to guide the MVP and immediate implementation planning:
+The following summarize the current target; implementation status is recorded at the start of this document.
 
-1. **Civilization** is the persistent Main World gameplay domain, not an owner aggregate. **Settlement** is the Main World ownership/governance/Activity/claim aggregate.
-2. Main World Settlement claims use full vertical 16×16 chunks, remain four-directionally contiguous, and do not cross world instances. Separate Settlements may be adjacent and one player may own multiple Settlements.
-3. The user selected numeric-only claim pricing for the current stage: record the increasing configured area price, but do not deduct currency/items or invent balances. Real currency charging is deferred until the user selects the system. Detailed land markets, rent, taxes and geography pricing remain deferred.
-4. MVP Settlement governance identities are one Owner, zero or more Governors, zero or more Citizens, and derived Public users. Legacy Manager/Member/Visitor naming is replaced by Governor/Citizen/Public in the target model.
-5. `BANNED` is a Settlement-local negative authorization override, not a positive membership role. Owner/Governor governance may ban non-administrator players from Settlement/Parcel interactions; server administrators bypass Settlement bans.
-6. Public users are not forced into an adventure-like spectator relationship. They may use interactions allowed by the applicable Settlement or Parcel policy while unauthorized building, inventories, and automation remain protected.
-7. Parcel is a lightweight 3D subdivision inside one Settlement using world-aligned 8×8×8 cells. Parcel cells cannot overlap another Parcel, must remain six-directionally connected, and must stay within the owning Settlement.
-8. A Parcel may have zero, one, or multiple Holders. Holder is orthogonal to Settlement membership. Unassigned Parcels are governable by Owner/Governors; assigned Parcels cannot be unilaterally revoked or reshaped by either side. Governance plus all Holders must agree, otherwise a server administrator resolves the dispute.
-9. The MVP does not model Parcel rent, contract duration, renewal, debt, or private agreement terms.
-10. Parcel permissions expose only `BUILD`, `INTERACT`, `CONTAINER`, and `AUTOMATION`, evaluated against OWNER/GOVERNOR/CITIZEN/HOLDER/PUBLIC relations. Per-block/container ACLs are deferred; finer separation should normally use a separate Parcel.
-11. Every Settlement/Parcel operation has complete command support. A replaceable Management Book provides convenience governance access and a replaceable Parcel Wand provides spatial editing. Tools contain identification only; authority belongs to the user, not the item.
-12. Parcel Wand geometry editing uses a named off-hand Name Tag plus two selected 8×8×8 voxel endpoints. Proposed cuboids add only unparcelled cells, must leave the Parcel connected, and preview through particles/text before atomic commit. Cell deletion is allowed only from the surface and only if the remainder stays connected.
-13. Initial Settlements need no official player-chosen name. They use a stable number and optionally a generated geographic label. Official naming and all later renaming require administrator approval and may charge Settlement currency; rename history is preserved.
-14. Activity remains Settlement-local and based on meaningful participation rather than login time. Public/Holder participation may contribute under bounded anti-abuse rules; exact weights remain tunable.
-15. Buildings are automatically discovered within claimed Settlements and have stable identity plus versioned restoration baselines. Authorized player edits update intended design; decay/repair do not redefine it.
-16. Building geometry must include enough exterior/interior and support information to avoid restoring obsolete external structures through newly created player interiors. Renovation may retire only affected restoration fragments while preserving history.
-17. Block entities are special and do not receive a complex inventory-decay/restoration design in the MVP. Unsafe ordinary-block treatment is prohibited until a dedicated policy is defined.
-18. Decay/Repair use durable, budgeted jobs, natural chunk loading, expected-state revalidation, and affected-work replanning. System decay does not create ordinary collectible block drops.
-19. Initial structural decay should use coarse material profiles plus simple weathering/integrity and a limited collapse set such as DROP, TOPPLE, and CAVE_IN rather than full physics.
-20. Ordinary wild structures use coarse, occasional localized decay analysis rather than persistent full structural graphs. Roads/railways and similar infrastructure may use specialized lightweight segment models.
-21. Facility implementation starts simple: a bounded set of Facility types, basic automatic functional checks, and administrator certification for higher tiers. Avoid detailed social/workforce simulation in the MVP.
-22. Significant player terrain modification may later be represented as coarse Anthropogenic Landforms, initially favoring fixed 8×8×8 material/shape voxels. This direction is accepted, but advanced natural-evolution behavior is not part of the MVP.
-23. Resource worlds remain separate renewable worlds without Settlements/claims, and the Main World remains the persistent civilization/history world.
-24. Performance remains a first-class constraint: no recurring full-world/full-Settlement block scans; candidate generation, persistent queues, bounded processing, and correct world-thread mutation remain required.
-25. The MVP intentionally does **not** implement dynamic Settlement cycles. MVP Settlements are persistent unless explicitly abandoned or changed by administrative/approved lifecycle operations.
+1. Civilization is the persistent Main World gameplay domain; Settlement owns governance/Claims/Activity. Main World is permanent and Resource instances are renewable; player inventory and Ender Chest remain shared.
+2. Claims remain full-height 16×16 chunks, four-face contiguous within one world instance. Adjacent Settlements never merge automatically; one player may own multiple Settlements.
+3. Owner/Governor/Citizen/derived Public and local BANNED remain. Owner identity is unique; Holder is an independent Parcel relationship, not a governance role.
+4. Parcels use world-aligned 8×8×8 non-overlapping, six-connected cells within one Settlement. Assigned changes preserve governance/all-Holder consent and administrator dispute handling.
+5. Authorization retains administrator/ban precedence and BUILD/INTERACT/CONTAINER/AUTOMATION relation sets, with both protected sides checked for indirect transfers. Commands are complete; book/wand items carry no authority.
+6. Currency is one scarce, configurable-display ledger unit with integer wallet/treasury balances. No physical money store, floating-point amounts, negative accounts, formal debt or hard wealth caps in MVP.
+7. Monetary TRANSFER / ISSUANCE / SINK are distinct, with stable transaction IDs, explicit reasons and game-time provenance. Peer transfers conserve supply; retries cannot commit twice.
+8. All issuance—including starting funds (target approximately 100), administrative/public rewards and later Server Trade purchases—is budgeted. No per-block/mob/walking/online jobs mint. Budgets are ceilings, not payout targets.
+9. Development/service costs are sinks; no generic peer-transfer tax, passive land tax, inactivity charge or wealth confiscation.
+10. Main World chunks receive minimal immutable/versioned LandValueProfiles at first generation. Player terrain/building changes do not alter base value; approved migrations govern revaluation.
+11. Claim cost uses land base, player portfolio, Settlement size, light Activity and personal early subsidies. Separate nearby founding adds same-owner proximity leverage; ordinary expansion does not.
+12. The first-ever founding Claim costs 25. Early subsidy usage belongs to the player and neither resets nor transfers through ownership changes, abandonment or new Settlements.
+13. Settlement certification is only UNVERIFIED / VERIFIED. Activity/development eligibility permits an application; administrator approval unlocks official-name/publication eligibility and explicitly qualified civic capabilities. Denial preserves Claims and normal governance.
+14. Settlement/Village/Town/City economic stages are removed. Cultural Standing is deferred; History, lightweight Era and landmark/site flags carry near-term meaning.
+15. Initial ownership transfer requires recipient acceptance, administrator approval and a simple land-based Acquisition Fee paid by the incoming Owner. No inherited subsidy, historical-price anchoring or automatic Building/labor appraisal. Treasury stays with the Settlement; private compensation remains social.
+16. Activity stays local and meaningful, independent of login recency. Automation grants no Activity. GameClock is retained; calendar presentation is optional and gameplay Seasons are deferred.
+17. Building identity survives obvious expansion/contraction. Complex reinterpretation may retire/rediscover identities with lightweight predecessor links; preserve old history rather than demand perfect graph matching.
+18. Renovation-safe geometry/baseline fragments, block-entity safeguards, durable budgeted work, natural chunk loading and expected-state revalidation remain core. System decay creates no ordinary collectible drops.
+19. MVP collapse modes are DROP and CAVE_IN. TOPPLE/full physics are deferred.
+20. MVP Repair requires a station/point, materials and shared game time. Villager/artisan simulation is optional later work. Era is a lightweight qualifying-restoration counter/state in History.
+21. No automatic inactivity/ruin-driven ownership release in MVP. The Dynamic Settlement Cycle is the required next major phase immediately after the core MVP.
+22. Server Trade and lightweight Facility recognition follow the core cycle. Trade uses finite category stock, narrow unit/lot normalization, budget/quota admission, stable coarse-period discrete stock bands and spread.
+23. Facility starts as identity/type/region/enabled-certified state, not workforce/housing/offline production/depot/capacity simulation.
+24. Monitoring is observational and feedback transient. Automatic monetary policy, basket indexes and a mandatory permanent HUD are deferred.
+25. Peer receiving capacity and fully automatic portfolio-based ownership revaluation are deferred; simple transfer controls may be added if needed. Any future receiving cap must address treasury routing and distinguish self-earned money.
+26. Safe operator-driven Resource preparation/activation may precede full reset automation. Automated orchestration must earn its complexity through actual reset frequency.
+27. Freight, public teleport, advanced production, gameplay seasons, cultural ranks and optional analytics cannot block the core cycle. Later world evolution/disasters/Epoch systems retain their independent design gates.
+28. Keep one modular Paper lifecycle, infrastructure-only Core, explicit owning APIs and durable outbox semantics. Add actual events/consumers, not speculative event catalogues; never scan every Settlement block globally.
 
 ---
 
 # 26. Deferred and Open Design
 
-## 26.1 Next phase: dynamic Settlement cycles — required after MVP
+## 26.1 Dynamic Settlement Cycle — required immediately after core MVP
 
-Dynamic cycles are not an optional someday feature; they are the required major design/implementation phase immediately after the MVP is stable. The MVP nevertheless treats Settlements as persistent so the permission, Parcel, Building, Activity, and recovery foundations can be proven first.
+The core MVP ends after Settlement/Parcel/economic land foundations, Building identity/geometry, and durable Decay/Repair/History. The next required phase is Dynamic Settlement Cycles, before Server Trade, Facility recognition, reset automation and optional production/transport/seasons.
 
-The next phase must solve how long-running active players are encouraged to found and develop new Settlements while older cities can gradually lose maintained territory without a blunt wipe. Current candidate concepts include:
+Candidate mechanisms remain Civic Capacity/maintenance demand from meaningful local Activity and demonstrated development, gradual peripheral decline/release, mature-city versus new-Settlement incentives, selective preservation and history-preserving reclaim. No removed economic-stage ladder is required. Resolve formulas, UI, ownership/Holder guarantees, timing, contiguity and protection of historic cores before automatic ownership loss. MVP Settlements remain persistent until explicit authorized lifecycle action.
 
-- a **Civic Capacity / maintenance capacity** derived from meaningful local Activity and possibly Settlement stage;
-- maintenance demand that grows with claimed area, Buildings, Facilities, and infrastructure;
-- selective preservation rather than “high Activity makes every Building immune”;
-- mature/legacy-city incentives that make new Settlement development attractive without making old cities worthless;
-- gradual peripheral claim decay/release rather than sudden full-Settlement deletion;
-- rules that allow old cores, landmarks, and history to survive while under-maintained outskirts return to reusable land.
+## 26.2 Ledger, valuation and certification cutover gates
 
-Exact formulas, UI, ownership guarantees, release timing, reclaim behavior, and interactions with Parcel Holders remain unresolved and must be designed before enabling this phase.
+- Choose the stable currency identifier/display configuration, account/repository model, checked integer amount/rounding rules, transaction IDs/reasons, authorization and atomic/recoverable movement semantics. Non-negative accounts and no duplicate commits are hard invariants.
+- Define monetary periods, genuinely active-player budget tiers, budget reservation/carry-over/forward-clock-jump handling and legacy-player starting-funds eligibility. Budget enforcement precedes any issuance, including onboarding.
+- Capture LandValueProfile from initial generation safely and durably; resolve pre-existing-chunk backfill, valuation versions/revaluation authority and absent-profile behavior before paid Claims. Do not assess edited terrain as immutable natural evidence without an approved policy.
+- Define player portfolio/size tiers, light Activity correction, distance metric/proximity bands, deterministic integer rounding, payer/assessed-player identity for Governor actions, quote revisions and personal subsidy-history migration. First-ever founding price 25 is settled; later coefficient examples are tuning.
+- Add Activity/development eligibility, certification application/review/provenance and official-name/map-publication gates. Resolve legacy naming-toggle/name migration and any later revocation rules without silently deleting protected Settlements.
+- Migrate two-party transfer offers to recipient acceptance plus fee quote/admin approval and atomic acquisition. Define fee coefficient/rounding, pending-offer migration, treasury authorization and revalidation of changed claim/profile/participant state. Full automatic recipient portfolio revaluation and permanent receiving capacity are not MVP dependencies.
 
-## 26.2 Natural disasters / Epoch transitions — continue discussion
+## 26.3 Building / Decay / Repair gates
 
-Large-scale disasters, forced global cycle transitions, pre/post-disaster ownership, sea-level changes, Disaster Operators/Fields, and RPG-style world catastrophes remain intentionally open. They may later enrich world history but are not currently required to make dynamic Settlement cycles work.
+Resolve bounded discovery and obvious-identity preservation, retire/rediscover rules with lightweight lineage, safe geometry/baselines, renovation conflict retirement, block-entity treatment, journal/checkpoint/material recovery and loaded-chunk scheduling. Perfect split/merge matching is not required. Start collapse with DROP/CAVE_IN and Repair with station + materials + game time; qualifying Era thresholds stay lightweight. TOPPLE, live workforce, detailed repair scopes and ranking/UI systems are later refinements.
 
-## 26.3 World evolution / Anthropogenic Landforms — continue discussion
+## 26.4 Post-core Server Trade and Facility gates
 
-The coarse Anthropogenic Landform direction is accepted, but exact significance scoring, material categories, simulation frequency, erosion rules, adaptive voxel refinement, and interaction with Buildings/infrastructure remain open.
+After Dynamic Settlement Cycles, implement narrow commodity normalization/lots, finite stock and optional safety-net restocking, global/category/player/stock-demand purchase admission, discrete period pricing/spread/min-max rules and recoverable item exchange. Operators observe supply/issuance/sinks/distribution/stock/volume and tune manually. Continuous pressure pricing, hysteresis, basket indexes and automatic monetary policy require evidence first.
 
-Chunk retirement/regeneration is deferred due to its cross-cutting risk across Building, Parcel, entities, POI, infrastructure, history, and player terrain changes.
+Recognized Facility identity/type/region/enabled-certified state does not require production, villagers, housing, worker-density, shared capacity or depot accounting. Detailed production and advanced player-market/order workflows remain need-driven extensions.
 
-## 26.4 Building / Decay / Repair remaining gates
+## 26.5 Resource operations and optional content
 
-Before enabling physical decay/repair, resolve and verify Building split/merge/history linkage, safe baseline representation, block-entity policy, journal/checkpoint recovery, material accounting, deterministic conflict preservation, and loaded-chunk scheduling. Exact decay probabilities, material values, weathering palettes, repair speed, villager implementation, and Era advancement thresholds remain tunable.
+Retain renewable roles, fresh world instances and safe evacuation/cutover/restore obligations. Operator-triggered commands or a documented maintenance procedure may provide initial resets; full automation follows when justified. Optional calendar presentation, gameplay seasons, freight, public teleport, Cultural Standing and workforce simulation are not core-cycle blockers.
 
-## 26.5 Economy / Facilities / Transport / Resource remaining gates
+## 26.6 Further world evolution and disasters
 
-Keep the existing accounting/recovery gates for physical stock, currency, markets, transport, production, Facility certification, resource-world cutover, and coordinated backup/restore. Avoid expanding these systems merely to support the MVP permission/Parcel work.
+Anthropogenic Landforms remain a coarse later representation of significant player terrain modification, distinct from immutable natural LandValueProfiles. Significance/material rules, erosion, adaptive refinement and Building/infrastructure interaction remain open. Chunk retirement/regeneration needs explicit protection for Parcels, Buildings, entities, POI, history and valuation records. Disasters, sea-level changes and Epoch transitions remain optional/open and are not prerequisites for Dynamic Settlement Cycles.
 
 ---
 
@@ -1648,44 +1676,35 @@ Keep the existing accounting/recovery gates for physical stock, currency, market
 
 | Phase | Prerequisites and deliverable |
 |---|---|
-| 1. Runtime / world identity — implemented | Existing modular runtime, world registry, SQLite execution, migrations, startup/restart verification. |
-| 2. Settlement foundation / GameClock / Activity — implemented | Preserve claim topology, durable offers/history, game-time semantics and bounded Activity while evolving policy. |
-| 3. **Settlement/Parcel revision — implemented with numeric-only prices** | Governor/Citizen/Public+BANNED, Parcel geometry/authorization/Holders and consent, complete commands, Management Book/Parcel Wand and official-name administration. Currency selection/charging remains explicitly deferred; no funds/items consumed. |
-| 4. **MVP Building identity and geometry** | Discovery, stable ID/baseline, split-merge linkage, exterior/interior spatial semantics, localized player-edit reconciliation; simple Facility linkage/qualification may begin here. |
-| 5. **MVP durable world mutation / Decay / Repair** | Recoverable material/world operations, special block-entity safety gate, simple weathering/integrity, limited structural failure modes, Repair respecting renovation conflicts, coarse wild-structure decay. |
-| 6. Economy / Facilities / production / markets / transport | Implement accepted gameplay extensions in bounded slices with their existing accounting and recovery gates; keep Facility qualification initially simple. |
-| 7. Resource lifecycle / seasonal presentation | Proceed independently when evacuation, backup/restore, calendar, and safe mutation gates are ready. |
-| 8. **Dynamic Settlement cycles — required next major phase after MVP** | Design and implement Civic Capacity/maintenance demand or equivalent, mature/new-city incentives, and safe gradual peripheral decline/release while protecting history and avoiding abrupt wipes. |
-| 9. Further world evolution | Anthropogenic Landforms, richer natural change, possible chunk retirement/regeneration after explicit safety design. |
-| 10. Natural disasters / Epoch systems | Optional later world-history/RPG layer; design remains open and must not be assumed by earlier phases. |
+| 1. Runtime / world identity / persistence — implemented | Existing modular runtime, world registry, SQLite execution and migration/startup verification. |
+| 2. Settlement foundation / GameClock / Activity — implemented baseline | Preserve governance, Parcel protection, consent, tools, historical facts and shared game-time behavior. |
+| 3. Settlement/Parcel economic land foundations — next | Extend the implemented baseline with one integer currency ledger, budget-safe issuance and starting funds, LandValueProfile generation/backfill, paid Claim pricing/personal subsidies, UNVERIFIED/VERIFIED certification, and administrator-approved acquisition fees. Numeric-only runtime quotes and naming toggles are not completed target economics. |
+| 4. Building identity / baseline / geometry | Bounded discovery, preserve obvious identities, retire/rediscover complex changes with lightweight history links, exterior/interior/support semantics and renovation-safe active baselines. |
+| 5. Durable Decay / Repair / History — core MVP completion | Recoverable materials/world work, block-entity safety, DROP/CAVE_IN, station + materials + game-time Repair, and lightweight Era/history. No villager simulation or perfect topology solver prerequisite. |
+| 6. Dynamic Settlement Cycle — required immediately after core MVP | Civic Capacity/maintenance demand or equivalent, gradual peripheral decline/release, mature/new-city incentives and history-preserving reclaim with ownership/Holder guarantees. |
+| 7. Server Trade + lightweight Facility recognition | Finite normalized lots/stock, budget/quota admission, discrete period bands/spread, recoverable exchange and minimal observation; Facility identity/type/region/enabled-certified state. |
+| 8. Resource reset automation | Automate verified operator procedures when reset frequency justifies generation/evacuation/activation/archive/recovery orchestration. Safe manual operations may precede this phase. |
+| 9. Optional advanced economy / production / transport / seasons | Add only demonstrated needs; no global economic levels, speculative workforce or mandatory freight/teleport/season dependencies. |
+| 10. World evolution / disasters / Epoch systems | Separate later design/safety gates for landforms, regeneration and optional large world-history changes. |
 
-This order is dependency-aware rather than strictly serial. The key product boundary is that the MVP stops before automatic dynamic Settlement decline, while Phase 8 is a committed next-stage requirement rather than an indefinitely deferred idea.
+The ordering is dependency-aware. Budget enforcement belongs with the first issuance even though Server Trade-specific quotas/pricing arrive later. Dynamic Settlement Cycles must not wait for phases 7–10.
 
 ---
 
-# 28. Immediate Architecture Work
+# 28. Immediate Architecture and Execution Plan
 
-The Settlement/Parcel slice is implemented with user-approved numeric-only prices. Next define and evaluate Building identity and geometry, preserving the new authorization/Parcel boundaries. Real currency integration remains deferred to the user's currency choice rather than blocking this slice.
+The addendum selects the currency model; the previous “wait for currency selection” gate is closed. Current runtime behavior remains unchanged until a tested implementation cutover.
 
-Completed foundation and next dependencies:
+1. Define currency identity/display and integer Wallet/Treasury persistence, then implement non-negative TRANSFER/ISSUANCE/SINK transactions with stable IDs, audit reasons and budget enforcement.
+2. Add idempotent starting funds (target approximately 100), `/balance`, minimal peer/treasury movement and short event-driven feedback. Resolve legacy account/grant eligibility and period semantics first; avoid jobs/reward-system expansion.
+3. Capture minimal immutable LandValueProfiles at new Main chunk generation and define safe legacy backfill/versioning.
+4. Replace area-only quotes with land/portfolio/size/light-Activity pricing, fixed first-ever founding cost 25, persistent personal early subsidies and founding-only own-nearby surcharge. Ship actual charging only with its atomicity, permission, retry and quote tests.
+5. Add Activity/development-gated UNVERIFIED/VERIFIED applications/admin review and naming/publication eligibility; migrate the current naming toggle explicitly.
+6. Add recipient acceptance + simple land-based Acquisition Fee + administrator approval before atomic ownership transfer, preserving treasury and history. Strong receiving capacity and fully autonomous property valuation remain deferred.
+7. Proceed to bounded Building geometry and obvious-identity/retire-rediscover rules, then durable station/material/time Repair and DROP/CAVE_IN decay with lightweight history.
+8. Move directly to the required Dynamic Settlement Cycle. Server Trade/recognition, Resource automation and optional advanced systems follow in the order above.
 
-```text
-numeric-only claim pricing (implemented; real charging deferred)
-↓
-Governor/Citizen/Public + Settlement bans (implemented)
-↓
-Parcel geometry, policies, Holder consent and command API (implemented)
-↓
-Management Book / Parcel Wand / naming administration (implemented)
-↓
-Building geometry evaluation and identity design (next)
-↓
-Building identity + exterior/interior geometry
-↓
-durable Decay/Repair safety gates
-```
-
-Do not implement automatic Settlement decay/release in the MVP. Record the required dynamic-cycle phase and its open questions, then return to it after the MVP foundations are stable.
+No code, database migration, account grant or new fee is executed by this document merge. Keep current implementation acceptance checks separate from future ledger/certification/acquisition checks.
 
 ---
 
@@ -1694,30 +1713,26 @@ Do not implement automatic Settlement decay/release in the MVP. Record the requi
 | Term | Meaning |
 |---|---|
 | ESMP | Evolve: SMP |
-| Civilization | The overall persistent Main World gameplay environment/domain; not a player-owned entity |
-| Civilization World | Permanent Main World where settlements and history exist |
-| Settlement | Main World ownership, team, permission, activity, and claim aggregate |
-| Claim | Protected chunk ownership relationship and the operation that changes it |
-| Settlement Chunk | One claimed Main World chunk belonging to a Settlement |
-| Resource Realm | Renewable resource worlds that periodically reset |
-| World Definition | Stable configured world role, such as `MAIN` or `RESOURCE_NETHER` |
-| World Instance | One physical Minecraft world incarnation with a Bukkit world UUID |
-| Activity | Quantified measure of meaningful participation in one Settlement |
-| Decay | Controlled transformation of abandoned construction into ruins |
-| Ruin | A decayed but recognizable remnant of previous construction |
-| Release | Removing claim protection through confirmed Owner abandonment or automatic inactivity-and-ruin eligibility |
-| Reclaim | Establishing a new ownership epoch over previously occupied land |
-| Repair | Process that restores a building during decline |
-| Era | Historical restoration-cycle count/state |
-| History | Persistent record of buildings, Settlements, and ownership epochs |
-| Resource Cycle | One generation/lifetime of resettable Resource world instances |
-| Economic stage | Settlement/Village/Town/City capabilities on the existing Settlement, not Building Era |
-| Cultural standing | Independent public/landmark capability track, without production-capacity increases |
-| Facility | Main World functional production/service site with Settlement qualification and villager workforce |
-| Depot stock | Bounded ledger inventory exchanged for physical items at a real Facility interface |
-| Treasury | Settlement currency account with Owner-controlled budgets and audited Governor operations |
-| Trade Route / Shipment | Qualified physical connection / recipient-bound timed ledger cargo movement |
-| Calendar / reckoning clock | Shared gameplay ticks/days; 365/366-day calendar years from 0 A.D.; freezes with `advance_time=false`, with no real-time or downtime progression |
+| Civilization | Persistent Main World gameplay domain, not a player-owned aggregate |
+| Settlement / Claim | Governance/ownership identity / protected full-height chunk relationship and operation |
+| Parcel / Holder | 8×8×8-cell permission subdivision / independent holding relationship |
+| SettlementCertification | UNVERIFIED or VERIFIED governance/publication status, not an economic level |
+| World Definition / Instance | Stable configured role / physical incarnation used for coordinates |
+| Activity | Meaningful local participation measured against shared game time |
+| Building | Stable-where-obvious structural identity with versioned active baseline and preserved history |
+| Decay / Ruin | Bounded change into recognizable damaged construction / its remnant |
+| Repair | Station/material/game-time restoration of still-valid damage, preserving renovations |
+| Era / History | Lightweight qualifying-restoration counter or state / persistent committed historical facts |
+| Release / Reclaim | Explicit MVP ownership release (automatic peripheral release only after its post-MVP gate) / new control without reviving obsolete baselines or resetting personal subsidies |
+| Currency / Wallet / Treasury | One stable ledger unit / player account / Settlement-owned account |
+| TRANSFER / ISSUANCE / SINK | Supply-preserving movement / money creation / money destruction |
+| LandValueProfile | Minimal immutable/versioned generated-chunk base valuation, distinct from player-modification history |
+| PlayerLandProgress | Persistent personal first/early-Claim subsidy usage |
+| Acquisition Fee | Incoming Owner's system land charge, separate from private compensation |
+| Facility | Lightweight recognized site identity/type/region and enabled/certified state |
+| Resource Cycle | Shared generation/lifetime of renewable Overworld/Nether/End instances |
+| GameClock | Retained shared gameplay ticks/days; frozen time/downtime never accrues progress |
+| Anthropogenic Landform | Deferred coarse record of significant player terrain modification, not a mutable land-price profile |
 
 ---
 

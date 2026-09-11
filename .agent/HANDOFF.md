@@ -2,46 +2,49 @@
 
 ## State
 
-- Current UI fixes: `f675a15` (short player text and live Parcel overlays), followed by `e823189` (precise cardinal targeting at voxel boundaries).
-- Tools remain `/esmp tools parcel_wand` and `/esmp tools management_book`. Existing item identities, governance/consent and numeric-only pricing are preserved. Core schema 1, Civilization schema 3 and config 4 remain current.
-- Parcel targets use dense blue surfaces; previews have blue wire borders, existing Parcels green exposed edges, and invalid/excluded selections red borders. Aim and clicks share the same resolver, including air.
-- Player tooltips and confirmations use short purpose/action text. Existing tool descriptions refresh on join, hotbar change and use. Detailed audit facts remain stored separately.
-- The user development server was left intact. Verification used the isolated Parcel fixture. The temporary acceptance checklist now contains 30 pending user checks, with all previous outcomes preserved.
+- The user-supplied `ARCHITECTURE_ADDENDUM.md` is merged into canonical `ARCHITECTURE.md`. The final razor review (§§21–23 of the source) governs conflicts with earlier provisional economy scope; all 18 explicit merge requirements are accounted for in `.agent/DECISIONS.md`.
+- Target currency is now selected: one scarce integer ledger unit, non-negative Wallet/Treasury accounts, typed idempotent transactions and budgeted issuance. LandValueProfile-based paid Claims, personal subsidies, two-state certification and administrator-approved acquisition are next implementation work.
+- Current runtime remains the existing Settlement/Parcel/GameClock/Activity implementation, including `f675a15`/`e823189` UI fixes. Core schema 1, Civilization schema 3, config 4; actual Claims are still numeric-only, naming uses the existing toggle, and ownership transfer still uses the existing two-party flow. This work changes documentation only.
+- The core sequence is economic land foundations → Building identity/baseline/geometry → durable Decay/Repair/History → required Dynamic Settlement Cycle. Server Trade/lightweight Facility recognition, Resource automation and optional advanced systems follow afterward.
+- All 30 pending player checks and prior acceptance facts remain. New economy/certification/acquisition behavior has not been added as completed gameplay. The supplied source addendum and runtime/server data were left intact.
 
 ## Completed
 
-- Replaced corner-only outlines with sampled wireframes and a 386-point target surface. Cached nearby geometry and draft validation use committed publication/selection state. Each overlay frame is capped at 1536 particles per viewer.
-- Sample aim every two server ticks and refresh stable overlays every four ticks. A first-corner selection follows aim until the second corner is chosen; invalid selections remain visible, confirmation requires validity, and completed selections clear.
-- Reachable blocks select their containing voxel. Air/out-of-reach rays select beyond occupied camera/body cells. Negative coordinates, vertical directions, exact grid boundaries and head/body straddling are handled; tracing clips before unavailable chunks.
-- Corrected two concrete input/geometry edge cases: right-click swing packets also causing left-air input, and tiny trigonometric components selecting a sideways voxel during cardinal aiming on exact boundaries. The latter was reproduced with a failing regression before correction.
-- Shortened tool lore, book introduction, claim/Parcel confirmations and Activity/Settlement summaries. Kept useful failure reasons, permissions and durable history unchanged.
+- Replaced the provisional currency-choice wait and area-only target pricing with one low-denomination ledger currency, separate display identity, non-negative integer accounts, TRANSFER/ISSUANCE/SINK, stable transaction IDs/reasons, budgeted issuance and development/service sinks.
+- Added first-generation immutable minimal LandValueProfile, configurable land/portfolio/size/light-Activity pricing, founding-only own-nearby surcharge, fixed first-ever founding price 25 and non-resettable/non-transferable personal subsidies. Approximately 100 starting funds and other example scales remain tuning targets, not wealth caps.
+- Added UNVERIFIED/VERIFIED eligibility/application/admin review and naming/public named-listing gates. Removed the global economic-stage ladder and deferred Cultural Standing.
+- Replaced initial autonomous ownership acquisition with recipient acceptance, a simple land-based fee and administrator approval before atomic transfer. Kept private compensation social, treasury attached to the Settlement, and strong receiving-capacity/full revaluation models deferred.
+- Reduced Building topology continuity to obvious identity preservation or retire/rediscover with lightweight links. Kept renovation safety/history, reduced collapse to DROP/CAVE_IN, made live villagers optional and Era lightweight. Facility begins as site identity/capability, not production/workforce/depot simulation.
+- Deferred freight, public teleport and gameplay seasons; retained GameClock and optional calendar presentation. Permitted verified operator-driven Resource procedures before full automation. Kept outbox semantics without speculative event-class catalogues.
+- Defined post-core Server Trade as finite normalized categories/lots with simultaneous budget/quota/stock admission, periodic discrete bands/spread and observational monitoring. Continuous pricing/hysteresis/automatic policy remain evidence-driven later options.
+- Rewrote the canonical execution order and memory gates, updated Chinese onboarding summaries/agent invariants/navigation links, and marked existing acceptance checks as version-specific rather than pretending the target has shipped.
 
 ## Changed files
 
-- `esmp-plugin/.../settlement/ManagementTools.java` — shared targeting, live drafts, air input, metadata refresh, dense/cached overlays and concise text.
-- New `ParcelAim.java`, `ParcelDraft.java`, `ParcelOverlayGeometry.java` — pure ray/validation/particle geometry helpers.
-- `SettlementRuntime.java` — committed publication version for renderer cache invalidation.
-- `SettlementCommands.java`, `EsmpPlugin.java`, and Civilization `SettlementService.java` / `ParcelService.java` — concise player output.
-- New `ParcelOverlayTest.java`, plugin test dependencies and lockfile — six deterministic geometry/ray/preview regressions using existing JUnit versions.
-- `ARCHITECTURE.md`, `README.md`, `AGENTS.md`, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md`, `.agent/TEST_CHECKLIST.md`, `.agent/HANDOFF.md` — current controls, colors, text convention and verification.
+- `ARCHITECTURE.md` — merged economy rules, certification/acquisition, scope reductions, state ownership, glossary and §§27–28 execution order; obsolete positive commitments replaced instead of kept as parallel designs.
+- `AGENTS.md` — selected target invariants, lean core dependencies and revised read-order heading.
+- `README.md` — current numeric-only runtime versus accepted ledger target, key economic rules and Chinese execution summary.
+- `.agent/DECISIONS.md` — dated rationale, supersession and an 18-item source-to-canonical merge map.
+- `.agent/OPEN_QUESTIONS.md` — remaining concrete ledger/valuation/certification/migration gates, lean Building/Repair scope and post-core sequencing; retained useful research leads.
+- `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md` — canonical economy/land and execution-plan pointers; old currency-wait/near-term optional-system assumptions retired.
+- `.agent/TEST_CHECKLIST.md` — planning-boundary notice; 30 existing unchecked player tests preserved, no unimplemented milestone added.
+- `.agent/HANDOFF.md` — this current plan/state and verification evidence.
 
 ## Verification
 
-- Final `./gradlew build --no-daemon --console=plain` with the existing JDK 25 toolchain passed. Initial test dependency resolution used `--write-locks`.
-- Six `ParcelOverlayTest` cases cover air/camera/body targeting, unloaded-chunk clipping, cardinal precision, surface density/edge budgets, concave Parcel edges, and invalid/clipped draft geometry. The cardinal-boundary regression failed on the pre-fix code and passed after correction.
-- Live Paper fixture `esmp-parcel-smoke` on loopback 25584/25585 passed actual block target, out-of-reach fallback, left/right air clicks, first-corner live preview, frozen-calendar responsiveness, exact-grid vertical aim, negative coordinates, body/camera boundary straddling, visible red invalid selection with rejected confirmation, and successful blue preview confirmation.
-- Decoded real particle packets contained 386 unique blue target-surface positions, intermediate green edge positions and red invalid-border positions. Final smoke output: `.run/parcel-smoke/overlay-smoke-cardinal.log`; packet sample: `.run/parcel-smoke/overlay-particles.json`.
-- The fixture's old Minecraft-data dust schema expected float RGB, while the received payload used packed RGB plus scale. A process-local decoder correction enabled zero-error particle inspection; installed client libraries were not edited. Native desktop appearance/comfort remains in the user checklist.
-- A broad `/data get` lore query was truncated; checking the specific first lore element confirmed the refreshed text. An Eval string-rewriting issue was reported and corrected with anchored edits. These tooling errors did not change production semantics.
-- Touched Java files were formatted with temporary google-java-format 1.36.1, four-space AOSP mode. Documentation link/fence checks passed before final checklist/handoff verification.
-- Final report/checklist checks passed: six overlay regressions, 30 pending player checks, valid local links/anchors and balanced fences. Fixture shutdown was confirmed with exit 0; temporary smoke client, formatter and fixture translator JARs were removed. Ignored logs and packet samples remain.
+- Read the full 1575-line addendum, including final razor amendments and the explicit 18-item merge checklist, and the affected canonical architecture/notes.
+- Inline document validation passed all 18 merge requirements plus ledger invariants, superseded-positive-wording checks and Dynamic-cycle-before-Server-Trade ordering.
+- Local Markdown targets/heading anchors and fenced blocks passed checks across seven updated documents preceding this handoff. Acceptance check count remains exactly 30.
+- Source addendum SHA-256: `721755c0ef71c3208e36dfc8ccbd28d1bf25a884d60334f8a0d0e081b1050cc0`.
+- No compilation, gameplay scenario, monetary grant, schema migration or server operation was performed for this documentation integration. Earlier runtime proof remains in history and the versioned player checklist.
 
 ## Next action
 
-Ask the user to try the updated wand visuals and text in the target client, following checklist section 8. Continue Building geometry/evaluation after feedback; keep real currency integration deferred to the user's choice.
+Specify the bounded integer account/transaction/budget contract, then implement the first ledger slice with non-negative balances, stable IDs, typed movements, authorization and audit. Budget enforcement belongs with the first issuance; starting funds/balance feedback follow. Resolve legacy grant eligibility before enabling onboarding, and legacy natural-land backfill before charging Claims.
 
 ## Risks or blockers
 
-- Particle position/color and interaction behavior are verified through the live protocol fixture; native-client visual acceptance remains pending.
-- Rendering is bounded and cached; larger selections adapt border sampling and rotate through nearby existing edges. Tune from real client feedback rather than restoring global scans or per-frame full-Parcel analysis.
-- Keep input deduplication shared across air-interact and swing events, and preserve cardinal-component cleanup in both ray clipping and the native block trace.
+- Starting-fund treatment for existing players, monetary period/tier/carry-over behavior, transaction reversal rules and checked integer rounding need implementation choices. The currency model itself is settled; do not reopen physical-item versus ledger currency.
+- LandValueProfile cannot be reconstructed honestly by silently sampling already player-modified legacy chunks. Define approved backfill/versioning and missing-profile behavior before paid Claims.
+- Governor payer versus assessed-player/subsidy identity, distance metric, quote revisions, current naming-toggle migration and pending-transfer migration must be explicit. Preserve history and avoid resetting personal subsidy usage.
+- Final razor choices supersede earlier alternatives: no permanent peer receiving ceiling, no mandatory continuous price/hysteresis model, no automatic monetary policy, no perfect Building split/merge solver, no villager prerequisite, and no optional production/transport/season dependency ahead of Dynamic Settlement Cycles.
