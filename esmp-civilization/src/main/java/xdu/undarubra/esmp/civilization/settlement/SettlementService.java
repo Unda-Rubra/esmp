@@ -47,8 +47,6 @@ public final class SettlementService {
 
         CompletableFuture<SettlementChange> rename(UUID actor, UUID id, String rawName);
 
-        CompletableFuture<SettlementChange> certify(UUID actor, UUID id, boolean certified);
-
         CompletableFuture<SettlementChange> ban(UUID actor, UUID id, UUID target, boolean banned);
 
         CompletableFuture<SettlementChange> offer(
@@ -113,10 +111,6 @@ public final class SettlementService {
 
     public CompletableFuture<SettlementChange> rename(UUID actor, UUID id, String rawName) {
         return repository.rename(actor, id, rawName);
-    }
-
-    public CompletableFuture<SettlementChange> certify(UUID actor, UUID id, boolean certified) {
-        return repository.certify(actor, id, certified);
     }
 
     public CompletableFuture<SettlementChange> ban(

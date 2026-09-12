@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!-- Frozen Phase 0 bridge only. Never append future migrations here. -->
+    <include file="core.xml" relativeToChangelogFile="true"/>
+    <include file="economy.xml" relativeToChangelogFile="true"/>
+    <include file="civilization.xml" relativeToChangelogFile="true"/>
+</databaseChangeLog>

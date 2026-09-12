@@ -138,7 +138,8 @@ class ParcelOverlayTest {
                 new LandSnapshot.Land(
                         1,
                         null,
-                        false,
+                        xdu.undarubra.esmp.civilization.certification.CertificationStatus
+                                .UNVERIFIED,
                         0,
                         Set.of(),
                         Map.of(base.id(), base, other.id(), other),

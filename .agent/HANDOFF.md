@@ -2,46 +2,51 @@
 
 ## State
 
-- Frozen roadmap **Phases 0 and 1 are implemented/verified**. Phase 2 certification is next; no certification/acquisition/Local Activity/Building implementation occurred here. The frozen source bundle remains unchanged.
-- All Settlement expansion now pays from Treasury, assessed against current Owner, including Owner-initiated expansion. Founding remains founder Wallet and first-ever founding remains 25. Governor allowance enforcement is unchanged and shares the owning transaction.
-- Personal purchase count is explicitly modeled by PlayerLandProgress as its monotonic revision: every supported mutation increments that persisted counter; failed/replayed purchases and transfer do not mutate it. No redundant column or schema change was added.
-- Quote context now has a treasury-expansion format version. Existing unpurchased contexts reject and require a new quote; paid receipts bypass revalidation and remain replayable. Historical payments and progression records are not rewritten.
-- Schema/config versions and released Liquibase baseline remain unchanged: Core 1, Civilization 3, Economy 2, land-value 1, Claim-pricing 1, config 8. No legacy migration was extended.
-- Only isolated `.run/mvp-phase0-fresh` ran, including intentional SIGKILL recovery testing, then stopped cleanly. The original development server/world/database was not changed. Player checklist retains 48 historical checks plus two Phase 0 and three Phase 1 checks, all pending user sign-off.
+- Frozen roadmap **Phases 0–2 are implemented/verified**. Phase 3 administrator-approved ownership acquisition is next. No acquisition fee, Local Activity, Building, website, aesthetic ranking or automatic revocation was added here. The frozen architecture bundle remains unchanged.
+- Certification is exactly UNVERIFIED/VERIFIED. Default application gate: age ≥72000 game ticks, current aggregate Activity not INACTIVE, lifetime actually credited meaningful Activity ≥20. Governance applies; administrator approves/denies. Denial preserves Claims/roles/balance/protection.
+- Config is 9, with `certification.minimum-age-ticks` and `certification.minimum-lifetime-credit`. `config-before-certification.yml` preserves the prior config. Legacy schema markers remain their bridge versions; Liquibase `phase2-certification` owns the forward schema change.
+- Old certify(boolean) API, `/settlement certify` routing and writable `settlement_details.certified` column are removed. Existing approved flags or official names migrate to VERIFIED; unnamed/unapproved records remain UNVERIFIED. Lifetime credit starts at zero, not synthesized from decayed scores/history estimates.
+- Application/decision provenance, optional normalized proposed name, authority/name revision checks, decision replay and clean verified-name read/export are implemented through opaque UnitOfWork and generated repository types. Existing paid-Claim payer/subsidy rules are unchanged.
+- Only `.run/mvp-phase2-upgrade` (copied actual development data) and `.run/mvp-phase2-fresh` ran; both were stopped. Original development DB bytes remained unchanged. There are 56 pending player checks (48 historical +2 Phase 0 +3 Phase 1 +3 Phase 2), none automatically user-approved.
 
 ## Completed
 
-- Removed the Owner-wallet branch from expansion payer selection. Treasury insufficiency cannot fall back to personal funds; a deposit can fund a still-valid quote without changing its payer/assessment.
-- Added PlayerLandProgress domain invariant/revision semantics and included that revision in validated quote context. Existing exact integer/fixed-point pricing, portfolio/size/Activity factors, first founding override, missing-profile rejection, topology and history remain.
-- Versioned pending quote consent without destructively deleting paid records or altering released changelogs. Real prior-JAR quote compatibility was exercised, not only fabricated test data.
-- Updated command help and Chinese onboarding to explain treasury funding and deposits. No command alias or alternate free/direct Claim mutation path was added.
-- Added four real-ledger regressions: Owner wallet cannot cover empty treasury; Governor quote stale after Owner portfolio changes; claim then unclaim cannot revive same-area consent; prior-format unpaid quote rejects but paid receipt replays after restart. Existing expiry/ownership/insufficient-funds/rollback/no-reset/rounding tests remain passing.
+- Added CertificationStatus, Policy, Application, View, VerifiedSettlement and CertificationService repository façade, plus JooqCertificationRepository and factory wiring.
+- Added `settlement_activity_lifetime`, credited in the same transaction and only by the amount surviving existing permission/cooldown/category/daily/score caps. Read does not decay this total or infer downtime/initial credit. No spatial Activity buckets were introduced.
+- Added status/name revision to Settlement details and durable `settlement_certification_applications` with applicant/time/proposed name, captured ownership/name revisions, state and administrator/time/note. Approval rechecks applicant governance/bans, ownership/name revisions, eligibility and name uniqueness before atomically setting VERIFIED, naming and appending history. Exact decision replay leaves a later rename intact.
+- Added `/settlement certification`, `apply`, `applications`, `review` and `verified`, with visible IDs/eligibility and book links. Admin rename now requires VERIFIED and advances naming revision. No fee is charged in this phase.
+- Corrected the forward-migration prerequisite: `db.changelog-baseline.xml` includes only the unchanged Phase 0 changes; baseline verification/sync use it, while the full master applies Phase 2 afterward. New-schema land/permission snapshots load only after `finishMigration`, before gameplay admission. This is the scoped migration correctness fix identified in the prior handoff.
+- Kept unrelated bootstrap/wand/overlay bodies intact; applied only certification wiring, new status projection and migration-before-snapshot ordering. Restored unneeded rewrite churn before final validation.
 
 ## Changed files
 
-- `esmp-civilization/.../persistence/ClaimPricing.java` — treasury-only expansion, progression value/revision and versioned quote context.
-- `esmp-civilization/.../settlement/PlayerLandProgress.java` — immutable personal progression contract; revision equals its persisted monotonically consumed purchase count.
-- `esmp-economy/src/test/java/xdu/undarubra/esmp/economy/PaidClaimTest.java` — treasury-funded existing fixtures and four new boundary regressions.
-- `esmp-plugin/.../settlement/SettlementCommands.java` — funding/payer help text.
-- AGENTS.md, README.md and .agent decision/open-question/acceptance/navigation/handoff notes — completed Phase 1, preserved historical evidence and Phase 2 next action.
+- `schema/db/changelog/db.changelog-master.xml`, new `db.changelog-baseline.xml` and `phase2-certification.xml` — separated fixed bridge and forward changes, explicit naming migration, lifetime/app tables. Released core/economy/civilization baseline files are unchanged.
+- Core `DatabaseSchema.java` — baseline-specific reference/sync and full forward update/validation.
+- `buildSrc/GenerateJooq.java` — typed UUID mappings for application/applicant/decision actor columns.
+- Civilization `certification/*`, `persistence/JooqCertificationRepository.java`, SettlementServices factory; JooqActivityRepository, JooqSettlementRepository, JooqParcelRepository, SettlementService, LandSnapshot — new workflow/lifetime credit, retired toggle, enum snapshot and verified-only rename.
+- Plugin EsmpPlugin/SettlementRuntime/SettlementCommands/ManagementTools/config.yml — policy/config backup, safe startup ordering, commands, read/export and book links.
+- CertificationServiceTest (seven tests); SchemaMigrationTest and existing naming/legacy/overlay fixtures — frozen gate, denial, replay/rename, stale governance, uniqueness and native migration correctness.
+- README/AGENTS and .agent notes — current commands/phase, explicit counter/migration semantics, acceptance evidence and Phase 3 next action.
 
 ## Verification
 
-- `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed using ordinary committed repositories (no temporary TLS transport): 30 tasks executed, three up-to-date. XML totals **87 tests, zero failures/errors/skips**. Dependency verification and ArchUnit remained enabled.
-- Google Java Format 1.28.0 ran on the four changed Java files before the clean build. No schema/codegen configuration or frozen dependency pin changed.
-- Previous-version fixture: launched its actual Phase 0 JAR, generated an Owner expansion quote for 80 with WALLET payer, froze GameClock and stopped. Installed Phase 1 JAR; that genuine old quote rejected with `Claim price context changed`.
-- Real Paper treasury scenario: Owner wallet 1005, treasury 55, price 80. Purchase rejected with insufficient funds and preserved both balances. Depositing 25 made treasury 80 and wallet 980; confirmation charged treasury to zero, not the wallet. Paid replay left balances unchanged. New command help explicitly identified treasury funding.
-- Captured committed state, sent SIGKILL to the verified isolated server process, then restarted. All **369 non-clock rows** survived unchanged, including receipts/progress/Claims/Liquibase metadata. Live rejoin showed wallet 980, treasury zero, four claimed chunks and idempotent paid replay.
-- Protection after recovery: a Public player's raw block-break action on the newly claimed chunk left the grass block intact; the same action by the Owner produced air. Console conditional world checks and chat markers confirmed both outcomes. The block was restored afterward. The first runner assertion incorrectly looked for an asynchronous `say` marker in the RCON return; it was corrected to observe the actual chat marker, with no production-code change.
-- Evidence retained in ignored `.run/phase1-previous-quote.log`, `phase1-live.log`, `phase1-crash-recovery.log`, `phase1-crash-recovery-complete.log`, `phase1-protection-positive-control.log` and `phase1-quotes.json`. Temporary smoke runner/formatter are removed after verification. Native visual acceptance remains with the user; older protocol particle decoding limitations are not UI sign-off.
+- Final `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed: 30 tasks executed/three up-to-date, **94 tests, zero failures/errors/skips**. Dependency verification and ArchUnit remained enabled. No dependency pin changed.
+- Google Java Format 1.28.0 ran on changed Java sources. Source audit found no old certify method/command/CERTIFIED generated field or TODO/FIXME stubs in active Civilization/plugin code.
+- Native SQLite tests exposed pinned Liquibase addColumn/dropColumn rebuild defects: lost defaults/nullability/unique metadata, retained retired column, and failure on unnamed legacy foreign keys. The three affected ALTER operations are documented native SQLite exceptions; structured update/createTable/createIndex changes remain. Tests verify actual column removal, UNVERIFIED defaults/NOT NULL, old-name/flag mapping and baseline→forward execution without invented credit. No gameplay SQL was added.
+- Real copied `.run/dev` data migrated through the actual legacy bridge into Phase 2 with the final JAR: Oakfall/Test records VERIFIED, unnamed S#3 UNVERIFIED; retired column absent and lifetime table empty. Original database SHA-256 stayed unchanged. Both legacy and fresh final artifacts reached ESMP READY.
+- Real default-gate Paper scenario: fresh founder paid 25 and stayed UNVERIFIED; removed toggle did not change status; too-young application rejected. Live actions yielded lifetime 19 at age >3 days and application still rejected. An additional accepted action in the next game day reached 20 and permitted application. The initial runner incorrectly assumed 20 attempted actions meant 20 credited actions; no production bypass/fabricated credit was used to make the check pass.
+- Non-admin review rejected. Admin denial retained one Claim, UNVERIFIED and wallet 75. A later application approved `Certified  Home`; verified export listed it. Admin renamed to `Renamed Home`; repeated original approval preserved the new name and exactly one CERTIFICATION_APPROVED history fact.
+- Stop/start preserved all **282 non-clock rows**. Rejoin showed VERIFIED/Renamed Home/lifetime 20/wallet 75 and safe decision replay. The final narrow-bootstrap artifact also passed legacy startup and repeated this persisted readback.
+- Evidence retained under ignored .run: phase2-certification-live.log, phase2-certification-live-complete.log, phase2-certification-restart.log, phase2-final-artifact-restart.log, phase2-applications.json and the two isolated servers. Native book layout remains user acceptance; old protocol-client particle limitations are not visual sign-off.
 
 ## Next action
 
-Begin frozen Phase 2: durable lifetime meaningful Activity credit, fixed eligibility gate (age ≥3 game days, non-INACTIVE, lifetime credit ≥20), governance application, administrator approval/denial and explicit old-name/flag migration. Do not add Phase 3 acquisition, Local Activity or Building work at the same time.
+Begin frozen Phase 3 only: Owner proposal → recipient acceptance → current immutable-land fee quote → administrator approval → atomic recipient Wallet SINK and ownership transition. Preserve treasury identity/history, remove the incoming Owner's membership, make former Owner Citizen, and explicitly handle old pending transfer offers. Acceptance alone must no longer transfer.
 
 ## Risks or blockers
 
-- Before the first new post-Phase-0 schema migration, fix the legacy bridge to verify/synchronize only the known Phase 0 baseline and then apply later changeSets normally. It currently references the full master because neither Phase 0 nor Phase 1 required newer schema. Do not rewrite released baseline files or mark future Phase 2 changes already applied. Cover this necessary migration-correctness adjustment with bridge→new-latest tests.
-- Progress revision equivalence is valid while every supported progression mutation consumes a purchase. Any future administrative progression edit would need an explicit revision/migration policy; no such operation exists now.
-- Phase 1 acceptance is not full MVP or user acceptance. Old pre-freeze wallet-funded expansion checks remain historical only; current user instructions explain treasury deposits.
-- The isolated fixture is intentionally time-frozen and contains test grants; it is not the user development server/configuration.
+- Native SQLite ALTER exceptions are required by the observed pinned Liquibase rebuild behavior and are documented/tested. Do not expand them into arbitrary application SQL or edit released baseline changeSets.
+- Lifetime credit cannot be reconstructed honestly for pre-feature gameplay; existing VERIFIED legacy records are grandfathered, other old Settlements accrue actual credit from migration onward. This is explicit policy, not a hidden zero-score conversion.
+- Configurable eligibility changes affect approval-time checks; admin denial can resolve stale applications. No automatic revocation or applicant-withdrawal feature was introduced.
+- The old two-party ownership transfer remains until Phase 3. Do not advertise acquisition fee/admin approval as already implemented.
+- The isolated fixtures contain test time jumps/actors and are not user development configuration. No original server was upgraded or started.

@@ -60,6 +60,49 @@ class SchemaMigrationTest {
                     "INSERT INTO economy_accounts VALUES('WALLET:kept','esmp:coin','WALLET','"
                             + UUID.randomUUID()
                             + "',9223372036854775807);");
+            UUID world = UUID.randomUUID();
+            s.executeUpdate("INSERT INTO world_definitions VALUES('MAIN','civilization','NORMAL')");
+            s.executeUpdate(
+                    "INSERT INTO world_instances VALUES('"
+                            + world
+                            + "','MAIN','"
+                            + source
+                            + "','world','1970-01-01T00:00:00Z')");
+            for (int i = 1; i <= 3; i++) {
+                UUID settlement = UUID.randomUUID();
+                s.executeUpdate(
+                        "INSERT INTO"
+                            + " settlements(settlement_id,world_instance_id,name,name_key,owner_uuid,created_at,ownership_revision,chunk_revision,status,founded_tick)"
+                            + " VALUES('"
+                                + settlement
+                                + "','"
+                                + world
+                                + "','Legacy"
+                                + i
+                                + "','legacy"
+                                + i
+                                + "','"
+                                + UUID.randomUUID()
+                                + "',0,1,1,'OWNED',0)");
+                s.executeUpdate(
+                        "INSERT INTO settlement_chunks VALUES('"
+                                + world
+                                + "',"
+                                + i
+                                + ",0,'"
+                                + settlement
+                                + "')");
+                s.executeUpdate(
+                        "INSERT INTO settlement_details VALUES('"
+                                + settlement
+                                + "',"
+                                + i
+                                + ","
+                                + (i == 1 ? "'Legacy1'" : "NULL")
+                                + ","
+                                + (i == 2 ? 1 : 0)
+                                + ",0)");
+            }
         }
     }
 
@@ -74,11 +117,8 @@ class SchemaMigrationTest {
             initialize(store);
             store.finishMigration().join();
         }
-        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
-                var s = c.createStatement();
-                var r = s.executeQuery("SELECT count(*) FROM DATABASECHANGELOG")) {
-            assertTrue(r.next());
-            assertEquals(3, r.getInt(1));
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file)) {
+            assertPhaseTwoSchema(c);
         }
     }
 
@@ -99,13 +139,23 @@ class SchemaMigrationTest {
             try (var r =
                     s.executeQuery(
                             "SELECT balance FROM economy_accounts WHERE"
-                                + " account_key='WALLET:kept'")) {
+                                    + " account_key='WALLET:kept'")) {
                 assertTrue(r.next());
                 assertEquals(Long.MAX_VALUE, r.getLong(1));
             }
-            try (var r = s.executeQuery("SELECT count(*) FROM DATABASECHANGELOG")) {
+            assertPhaseTwoSchema(c);
+            try (var r =
+                    s.executeQuery(
+                            "SELECT number,certification_status,official_name FROM"
+                                + " settlement_details ORDER BY number")) {
                 assertTrue(r.next());
-                assertEquals(3, r.getInt(1));
+                assertEquals("VERIFIED", r.getString(2));
+                assertEquals("Legacy1", r.getString(3));
+                assertTrue(r.next());
+                assertEquals("VERIFIED", r.getString(2));
+                assertNull(r.getString(3));
+                assertTrue(r.next());
+                assertEquals("UNVERIFIED", r.getString(2));
             }
             assertThrows(
                     java.sql.SQLException.class,
@@ -126,9 +176,34 @@ class SchemaMigrationTest {
                 var r =
                         s.executeQuery(
                                 "SELECT count(*) FROM sqlite_master WHERE"
-                                    + " lower(name)='databasechangelog'")) {
+                                        + " lower(name)='databasechangelog'")) {
             assertTrue(r.next());
             assertEquals(0, r.getInt(1));
+        }
+    }
+
+    private static void assertPhaseTwoSchema(java.sql.Connection c) throws Exception {
+        try (var old = c.getMetaData().getColumns(null, null, "settlement_details", "certified")) {
+            assertFalse(old.next(), "The retired toggle column must not remain writable.");
+        }
+        try (var column =
+                c.getMetaData()
+                        .getColumns(null, null, "settlement_details", "certification_status")) {
+            assertTrue(column.next());
+            assertEquals(java.sql.DatabaseMetaData.columnNoNulls, column.getInt("NULLABLE"));
+            assertTrue(column.getString("COLUMN_DEF").contains("UNVERIFIED"));
+        }
+        try (var s = c.createStatement();
+                var r = s.executeQuery("SELECT count(*) FROM settlement_activity_lifetime")) {
+            assertTrue(r.next());
+            assertEquals(0, r.getInt(1), "Migration must not fabricate lifetime credit.");
+        }
+        try (var s = c.createStatement();
+                var r =
+                        s.executeQuery(
+                                "SELECT ID FROM DATABASECHANGELOG WHERE"
+                                    + " ID='phase2-certification'")) {
+            assertTrue(r.next(), "Forward migration must execute after baseline synchronization.");
         }
     }
 

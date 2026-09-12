@@ -11,6 +11,8 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import xdu.undarubra.esmp.civilization.certification.CertificationApplication;
+import xdu.undarubra.esmp.civilization.certification.CertificationView;
 import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
 import xdu.undarubra.esmp.civilization.settlement.ClaimQuote;
 import xdu.undarubra.esmp.civilization.settlement.Role;
@@ -55,7 +57,11 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "ban",
                     "unban",
                     "bans",
-                    "certify",
+                    "certification",
+                    "apply",
+                    "applications",
+                    "review",
+                    "verified",
                     "parcel",
                     "bypass",
                     "help");
@@ -89,9 +95,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 help(player);
                 return true;
             }
-            if (!runtime.ready()) {
+            if (!runtime.ready())
                 throw new SettlementException("Settlements are initializing or unavailable.");
-            }
             UUID actor = player.getUniqueId();
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> {
@@ -117,17 +122,16 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             q -> {
                                 Player current = plugin.getServer().getPlayer(actor);
                                 if (current == null) return;
-                                if (!current.hasPermission("esmp.settlement")) {
+                                if (!current.hasPermission("esmp.settlement"))
                                     throw new SettlementException(
                                             "You do not have permission to use Settlements.");
-                                }
-                                // Receipts are replayable even after the player has moved.
+                                // Receipts remain replayable after moving away.
                                 if (!q.purchased()
                                         && (!q.worldInstance()
                                                         .equals(
                                                                 runtime.mainInstance(
                                                                         current.getWorld()))
-                                                || !q.chunk().equals(chunk(current)))) {
+                                                || !q.chunk().equals(chunk(current))))
                                     throw new SettlementException(
                                             "Return to the quoted world and chunk ("
                                                     + q.chunk().x()
@@ -135,7 +139,6 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                                     + q.chunk().z()
                                                     + ") before purchasing, or request a new"
                                                     + " quote.");
-                                }
                                 runtime.mutate(
                                         current,
                                         q.founding() ? null : q.settlementId(),
@@ -169,23 +172,101 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             Component.text(
                                     "Banned players: " + runtime.land(settlement.id()).bans()));
                 }
-                case "certify" -> {
-                    exact(args, 3, "certify <settlement> <true|false>");
-                    if (!args[2].equals("true") && !args[2].equals("false"))
-                        throw new SettlementException("Expected true or false");
-                    var settlement = named(args[1]);
-                    if (!runtime.administrator(actor))
-                        throw new SettlementException("Administrator required");
+                case "certification" -> {
+                    exact(args, 2, "certification <settlement>");
+                    UUID id = referenceId(args[1]);
+                    runtime.query(
+                            player,
+                            () -> runtime.certification().view(id),
+                            view -> {
+                                Player current = plugin.getServer().getPlayer(actor);
+                                if (current != null) showCertification(current, view);
+                            });
+                }
+                case "apply" -> {
+                    if (args.length != 2 && args.length != 3)
+                        throw new SettlementException(
+                                "Usage: /settlement apply <settlement> [proposed-name]");
+                    UUID id = named(args[1]).id();
+                    String proposedName = args.length == 3 ? args[2] : null;
+                    // Governance, bans, eligibility and replay are authoritative in the repository.
                     runtime.mutate(
                             player,
-                            settlement.id(),
+                            id,
+                            null,
+                            () -> runtime.certification().apply(actor, id, proposedName));
+                }
+                case "applications" -> {
+                    exact(args, 2, "applications <settlement>");
+                    UUID id = referenceId(args[1]);
+                    runtime.query(
+                            player,
+                            () -> runtime.certification().applications(id),
+                            applications -> {
+                                Player current = plugin.getServer().getPlayer(actor);
+                                if (current == null) return;
+                                current.sendMessage(
+                                        Component.text(
+                                                "Certification applications: "
+                                                        + applications.size()));
+                                for (var application : applications)
+                                    showApplication(current, application);
+                            });
+                }
+                case "review" -> {
+                    if (args.length != 4 && args.length != 5)
+                        throw new SettlementException(
+                                "Usage: /settlement review <settlement> <applicationUUID>"
+                                        + " <approve|deny> [note]");
+                    if (!runtime.administrator(actor))
+                        throw new SettlementException("Administrator required");
+                    UUID id = referenceId(args[1]);
+                    UUID applicationId = parseUuid(args[2]);
+                    String action = args[3].toLowerCase(Locale.ROOT);
+                    if (!action.equals("approve") && !action.equals("deny"))
+                        throw new SettlementException("Review action must be approve or deny.");
+                    String note = args.length == 5 ? args[4].trim() : "";
+                    if (note.length() > 256)
+                        throw new SettlementException(
+                                "Decision notes must not exceed 256 characters.");
+                    runtime.mutate(
+                            player,
+                            id,
                             null,
                             () ->
-                                    runtime.service()
-                                            .certify(
+                                    runtime.certification()
+                                            .decide(
                                                     actor,
-                                                    settlement.id(),
-                                                    Boolean.parseBoolean(args[2])));
+                                                    id,
+                                                    applicationId,
+                                                    action.equals("approve"),
+                                                    note));
+                }
+                case "verified" -> {
+                    exact(args, 1, "verified");
+                    runtime.query(
+                            player,
+                            () -> runtime.certification().verifiedSettlements(),
+                            settlements -> {
+                                Player current = plugin.getServer().getPlayer(actor);
+                                if (current == null) return;
+                                current.sendMessage(
+                                        Component.text(
+                                                "Named verified Settlements: "
+                                                        + settlements.size()));
+                                for (var settlement : settlements)
+                                    current.sendMessage(
+                                            Component.text(
+                                                            settlement.officialName()
+                                                                    + " (#"
+                                                                    + settlement.number()
+                                                                    + ") | settlementId="
+                                                                    + settlement.id())
+                                                    .clickEvent(
+                                                            ClickEvent.runCommand(
+                                                                    "/settlement certification "
+                                                                            + settlement.id())));
+                            });
                 }
                 case "claim" -> {
                     exact(args, 2, "claim <settlement>");
@@ -218,6 +299,12 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                             + " · "
                                             + count
                                             + (count == 1 ? " chunk" : " chunks")));
+                    player.sendMessage(
+                            Component.text("Certification: " + land.certification())
+                                    .clickEvent(
+                                            ClickEvent.runCommand(
+                                                    "/settlement certification "
+                                                            + settlement.id())));
                     player.sendMessage(Component.text("Role: " + roleName(settlement.role(actor))));
                     player.sendMessage(Component.text("Owner: " + playerName(settlement.owner())));
                     settlement.members().entrySet().stream()
@@ -230,9 +317,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                                             roleName(e.getValue())
                                                                     + ": "
                                                                     + playerName(e.getKey()))));
-                    if (args[0].equalsIgnoreCase("info")) {
-                        showActivity(player, settlement);
-                    }
+                    if (args[0].equalsIgnoreCase("info")) showActivity(player, settlement);
                 }
                 case "activity" -> {
                     optionalName(args, "activity");
@@ -282,11 +367,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "invite", "promote", "transfer" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
                     SettlementView settlement = named(args[1]);
-                    if (args[0].equalsIgnoreCase("invite")) {
-                        manage(player, settlement);
-                    } else {
-                        owner(player, settlement);
-                    }
+                    if (args[0].equalsIgnoreCase("invite")) manage(player, settlement);
+                    else owner(player, settlement);
                     UUID recipient = resolvePlayer(args[2]);
                     SettlementOffer.Type type =
                             switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -327,19 +409,15 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 if (verb.equals("cancel")) {
                                     SettlementView settlement =
                                             runtime.index().byId(offer.settlementId());
-                                    if (settlement == null) {
+                                    if (settlement == null)
                                         throw new SettlementException(
                                                 "Settlement is no longer owned.");
-                                    }
-                                    if (offer.type() == SettlementOffer.Type.INVITE) {
+                                    if (offer.type() == SettlementOffer.Type.INVITE)
                                         manage(player, settlement);
-                                    } else {
-                                        owner(player, settlement);
-                                    }
-                                } else if (!offer.recipient().equals(actor)) {
+                                    else owner(player, settlement);
+                                } else if (!offer.recipient().equals(actor))
                                     throw new SettlementException(
                                             "Only the nominated recipient may resolve this offer.");
-                                }
                                 runtime.mutate(
                                         player,
                                         offer.settlementId(),
@@ -404,11 +482,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "kick", "demote" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
                     SettlementView settlement = named(args[1]);
-                    if (args[0].equalsIgnoreCase("demote")) {
-                        owner(player, settlement);
-                    } else {
-                        manage(player, settlement);
-                    }
+                    if (args[0].equalsIgnoreCase("demote")) owner(player, settlement);
+                    else manage(player, settlement);
                     UUID target = resolvePlayer(args[2]);
                     boolean demote = args[0].equalsIgnoreCase("demote");
                     runtime.mutate(
@@ -426,11 +501,10 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     exact(args, 2, "leave <settlement>");
                     SettlementView settlement = named(args[1]);
                     if (settlement.role(actor) == Role.OWNER
-                            || settlement.role(actor) == Role.PUBLIC) {
+                            || settlement.role(actor) == Role.PUBLIC)
                         throw new SettlementException(
                                 "Only Citizens and Governors can leave; Owners must transfer or"
                                         + " abandon.");
-                    }
                     runtime.mutate(
                             player,
                             settlement.id(),
@@ -442,7 +516,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     SettlementView settlement = named(args[1]);
                     if (!runtime.administrator(actor))
                         throw new SettlementException(
-                                "Only a server administrator approves official names");
+                                "Only a server administrator may rename a VERIFIED Settlement");
                     runtime.mutate(
                             player,
                             settlement.id(),
@@ -451,8 +525,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 }
                 case "history" -> {
                     exact(args, 2, "history <settlement|uuid>");
-                    SettlementView settlement = runtime.find(args[1]);
-                    UUID id = settlement == null ? parseUuid(args[1]) : settlement.id();
+                    UUID id = referenceId(args[1]);
                     runtime.query(
                             player,
                             () -> runtime.service().history(id),
@@ -480,9 +553,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 }
                 case "bypass" -> {
                     exact(args, 2, "bypass <on|off>");
-                    if (!args[1].equalsIgnoreCase("on") && !args[1].equalsIgnoreCase("off")) {
+                    if (!args[1].equalsIgnoreCase("on") && !args[1].equalsIgnoreCase("off"))
                         throw new SettlementException("Use bypass on or bypass off.");
-                    }
                     player.sendMessage(
                             Component.text(
                                     "Explicit protection bypass="
@@ -497,6 +569,98 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private UUID referenceId(String reference) {
+        var settlement = runtime.find(reference);
+        return settlement == null ? parseUuid(reference) : settlement.id();
+    }
+
+    private void showCertification(Player player, CertificationView view) {
+        if (view == null) throw new SettlementException("Settlement not found.");
+        player.sendMessage(
+                Component.text(
+                        "Settlement #"
+                                + view.number()
+                                + " · "
+                                + view.status()
+                                + (view.officialName() == null
+                                        ? ""
+                                        : " · " + view.officialName())));
+        player.sendMessage(
+                Component.text(
+                        String.format(
+                                Locale.ROOT,
+                                "Age: %.2f / %.2f game days · Lifetime activity: %.2f / %.2f",
+                                view.ageTicks() / 24000.0,
+                                view.minimumAgeTicks() / 24000.0,
+                                view.lifetimeCredit(),
+                                view.minimumLifetimeCredit())));
+        player.sendMessage(
+                Component.text(
+                        "Activity: "
+                                + (view.active() ? "active" : "inactive")
+                                + " · Eligible to apply: "
+                                + (view.eligible() ? "yes" : "no")));
+        if (view.pendingApplication() == null)
+            player.sendMessage(Component.text("No pending application."));
+        else showApplication(player, view.pendingApplication());
+        Component actions =
+                Component.text("[Applications]")
+                        .clickEvent(
+                                ClickEvent.runCommand(
+                                        "/settlement applications " + view.settlementId()));
+        if (view.eligible() && view.pendingApplication() == null) {
+            actions =
+                    actions.append(
+                            Component.text(" [Apply]")
+                                    .clickEvent(
+                                            ClickEvent.suggestCommand(
+                                                    "/settlement apply "
+                                                            + view.settlementId()
+                                                            + " ")));
+        }
+        player.sendMessage(actions);
+    }
+
+    private void showApplication(Player player, CertificationApplication application) {
+        player.sendMessage(
+                Component.text(
+                        "applicationId="
+                                + application.id()
+                                + " | state="
+                                + application.state()
+                                + " | applicant="
+                                + application.applicant()
+                                + " | appliedTick="
+                                + application.appliedTick()));
+        player.sendMessage(
+                Component.text(
+                        "proposedName="
+                                + (application.proposedName() == null
+                                        ? "(none)"
+                                        : application.proposedName())
+                                + " | decidedBy="
+                                + application.decidedBy()
+                                + " | decidedTick="
+                                + application.decidedTick()
+                                + " | note="
+                                + (application.decisionNote() == null
+                                        ? ""
+                                        : application.decisionNote())));
+        if (application.state() == CertificationApplication.State.PENDING
+                && runtime.administrator(player.getUniqueId())) {
+            String command =
+                    "/settlement review " + application.settlementId() + " " + application.id();
+            player.sendMessage(
+                    Component.text("[Review: approve]")
+                            .clickEvent(ClickEvent.suggestCommand(command + " approve "))
+                            .append(
+                                    Component.text(" [Review: deny]")
+                                            .clickEvent(
+                                                    ClickEvent.suggestCommand(
+                                                            command + " deny "))));
+        }
+    }
+
     private void requestQuote(Player player, SettlementView settlement) {
         UUID actor = player.getUniqueId();
         runtime.rememberAdministrator(actor);
@@ -504,7 +668,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         UUID world = mainWorld(player);
         requireUnclaimedHere(player);
         ChunkPosition chunk = chunk(player);
-        // The service requires a committed natural profile. Do not force a chunk load/capture.
+        // Requires a committed natural profile; never force a chunk load/capture.
         runtime.query(
                 player,
                 () ->
@@ -577,35 +741,31 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                             Locale.ROOT,
                                             "Today: %.2f points",
                                             status.creditedToday())));
-                    if (status.recoveryNeeded() > 0) {
+                    if (status.recoveryNeeded() > 0)
                         player.sendMessage(
                                 Component.text(
                                         String.format(
                                                 Locale.ROOT,
                                                 "%.1f points to recover.",
                                                 status.recoveryNeeded())));
-                    }
                 });
     }
 
     private static void manage(Player player, SettlementView settlement) {
-        if (!settlement.role(player.getUniqueId()).canManage()) {
+        if (!settlement.role(player.getUniqueId()).canManage())
             throw new SettlementException(
                     "Only the Owner or a Governor may manage this Settlement.");
-        }
     }
 
     private static void owner(Player player, SettlementView settlement) {
-        if (settlement.role(player.getUniqueId()) != Role.OWNER) {
+        if (settlement.role(player.getUniqueId()) != Role.OWNER)
             throw new SettlementException(
                     "You do not have authority; only the Owner may perform this operation.");
-        }
     }
 
     private void requireUnclaimedHere(Player player) {
-        if (runtime.at(player.getLocation()) != null) {
+        if (runtime.at(player.getLocation()) != null)
             throw new SettlementException("This chunk is already claimed.");
-        }
     }
 
     private SettlementView named(String value) {
@@ -616,17 +776,14 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
 
     private SettlementView here(Player player) {
         SettlementView settlement = runtime.at(player.getLocation());
-        if (settlement == null) {
-            throw new SettlementException("This chunk is unclaimed.");
-        }
+        if (settlement == null) throw new SettlementException("This chunk is unclaimed.");
         return settlement;
     }
 
     private UUID mainWorld(Player player) {
         UUID id = runtime.mainInstance(player.getWorld());
-        if (id == null) {
+        if (id == null)
             throw new SettlementException("Claims are only allowed in the registered Main World.");
-        }
         return id;
     }
 
@@ -637,19 +794,16 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
 
     private UUID resolvePlayer(String input) {
         Player online = plugin.getServer().getPlayerExact(input);
-        if (online != null) {
-            return online.getUniqueId();
-        }
+        if (online != null) return online.getUniqueId();
         try {
             return UUID.fromString(input);
         } catch (IllegalArgumentException ignored) {
-            /* Resolve cached names without network lookup. */
+            /* Cached names only, no network lookup. */
         }
         OfflinePlayer known = plugin.getServer().getOfflinePlayerIfCached(input);
-        if (known == null) {
+        if (known == null)
             throw new SettlementException(
                     "Player must be online/known to this server, or use their UUID.");
-        }
         return known.getUniqueId();
     }
 
@@ -662,20 +816,17 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         try {
             return UUID.fromString(input);
         } catch (IllegalArgumentException invalid) {
-            throw new SettlementException("Expected a valid UUID/offer ID.");
+            throw new SettlementException("Expected a valid UUID.");
         }
     }
 
     private static void exact(String[] args, int count, String usage) {
-        if (args.length != count) {
-            throw new SettlementException("Usage: /settlement " + usage);
-        }
+        if (args.length != count) throw new SettlementException("Usage: /settlement " + usage);
     }
 
     private static void optionalName(String[] args, String verb) {
-        if (args.length > 2) {
+        if (args.length > 2)
             throw new SettlementException("Usage: /settlement " + verb + " [settlement]");
-        }
     }
 
     private static void help(Player player) {
@@ -691,16 +842,20 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 + " history <name|uuid>",
                         "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",
                         "/settlement offers | accept|decline|cancel <offer-id> | leave <name>",
-                        "/settlement rename <settlement> <official-name> | certify <settlement>"
-                                + " <true|false> (admin)",
+                        "/settlement certification <settlement> | applications <settlement> |"
+                                + " verified",
+                        "/settlement apply <settlement> [proposed-name] (Owner/Governor; no fee)",
+                        "/settlement review <settlement> <applicationUUID> <approve|deny> [note]"
+                                + " (admin)",
+                        "/settlement rename <settlement> <official-name> (admin; VERIFIED only)",
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
                         "/esmp tools <parcel_wand|management_book>",
                         "/settlement landvalue (natural base of the current chunk)",
-                        "/settlement parcel help | abandon <settlement> | confirm <offer-id>")) {
+                        "/settlement parcel help | abandon <settlement> | confirm <offer-id>"))
             player.sendMessage(Component.text(line));
-        }
         player.sendMessage(
-                Component.text("Put multiword names in double quotes, e.g. \"New Haven\"."));
+                Component.text(
+                        "Put multiword names and notes in double quotes, e.g. \"New Haven\"."));
     }
 
     @Override
@@ -708,15 +863,27 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
             CommandSender sender, Command command, String alias, String[] args) {
         if (!(sender instanceof Player)
                 || !sender.hasPermission("esmp.settlement")
-                || !runtime.ready()) {
-            return List.of();
-        }
-        if (args.length == 1) {
+                || !runtime.ready()) return List.of();
+        if (args.length == 1)
             return COMMANDS.stream()
+                    .filter(s -> !s.equals("review") || sender.hasPermission("esmp.admin"))
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
+        // Parse complete quoted arguments while preserving the current (possibly empty) token.
+        String[] parsed;
+        try {
+            parsed = CommandArguments.parse(args);
+        } catch (IllegalArgumentException incompleteQuote) {
+            parsed = args;
         }
-        if (args.length == 2
+        if (parsed.length == 0) return List.of();
+        String verb = parsed[0].toLowerCase(Locale.ROOT);
+        if (verb.equals("review") && !sender.hasPermission("esmp.admin")) return List.of();
+        if (parsed.length == 4 && verb.equals("review")) {
+            String prefix = parsed[3].toLowerCase(Locale.ROOT);
+            return List.of("approve", "deny").stream().filter(s -> s.startsWith(prefix)).toList();
+        }
+        if (parsed.length == 2
                 && List.of(
                                 "claim",
                                 "price",
@@ -732,28 +899,27 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 "leave",
                                 "rename",
                                 "abandon",
-                                "history")
-                        .contains(args[0].toLowerCase(Locale.ROOT))) {
+                                "history",
+                                "certification",
+                                "apply",
+                                "applications",
+                                "review")
+                        .contains(verb)) {
+            String prefix = parsed[1].toLowerCase(Locale.ROOT);
             return runtime.index().all().stream()
                     .map(SettlementView::name)
-                    .filter(
-                            s ->
-                                    s.toLowerCase(Locale.ROOT)
-                                            .startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(prefix))
                     .sorted()
                     .limit(50)
                     .map(CommandArguments::quote)
                     .toList();
         }
-        if (args.length == 3
-                && List.of("invite", "promote", "demote", "transfer", "kick")
-                        .contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (parsed.length == 3
+                && List.of("invite", "promote", "demote", "transfer", "kick").contains(verb)) {
+            String prefix = parsed[2].toLowerCase(Locale.ROOT);
             return plugin.getServer().getOnlinePlayers().stream()
                     .map(Player::getName)
-                    .filter(
-                            s ->
-                                    s.toLowerCase(Locale.ROOT)
-                                            .startsWith(args[2].toLowerCase(Locale.ROOT)))
+                    .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(prefix))
                     .sorted()
                     .toList();
         }

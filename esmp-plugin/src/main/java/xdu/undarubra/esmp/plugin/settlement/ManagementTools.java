@@ -429,14 +429,20 @@ public final class ManagementTools implements Listener, AutoCloseable {
         Component naming =
                 Component.text("History and administration\n")
                         .append(link("History", "/settlement history " + ref, false))
+                        .append(link("Certification", "/settlement certification " + ref, false))
                         .append(
                                 link(
-                                        "Certify naming (admin)",
-                                        "/settlement certify " + ref + " true",
+                                        "Apply for certification",
+                                        "/settlement apply " + ref + " ",
+                                        true))
+                        .append(
+                                link(
+                                        "Applications / review",
+                                        "/settlement applications " + ref,
                                         false))
                         .append(
                                 link(
-                                        "Approve name (admin)",
+                                        "Rename verified settlement (admin)",
                                         "/settlement rename " + ref + " ",
                                         true))
                         .append(link("Leave", "/settlement leave " + ref, false))
@@ -881,7 +887,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         "/settlement parcel add <settlement> <name> | commit",
                         "/settlement parcel list <settlement> | info|view <settlement> <parcel>",
                         "/settlement parcel remove <settlement> <parcel> <blockX> <blockY> <blockZ>"
-                            + " | commit",
+                                + " | commit",
                         "/settlement parcel holders <settlement> <parcel> <player,player|none>",
                         "/settlement parcel policy <settlement> <parcel> <action>"
                                 + " <OWNER,GOVERNOR,CITIZEN,HOLDER,PUBLIC|none>",

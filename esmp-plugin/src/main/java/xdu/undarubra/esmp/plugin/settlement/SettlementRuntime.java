@@ -12,6 +12,8 @@ import org.bukkit.scheduler.BukkitTask;
 
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityService;
+import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
+import xdu.undarubra.esmp.civilization.certification.CertificationService;
 import xdu.undarubra.esmp.civilization.settlement.*;
 import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
 import xdu.undarubra.esmp.civilization.settlement.SettlementChange;
@@ -52,6 +54,7 @@ public final class SettlementRuntime implements AutoCloseable {
     private final GameClock clock;
     private final ActivityService activity;
     private final ActivityListener activityListener;
+    private final CertificationService certification;
     private final SettlementIndex index = new SettlementIndex();
     private final Set<UUID> bypass = new HashSet<>();
     private final Set<UUID> querying = new HashSet<>();
@@ -74,7 +77,8 @@ public final class SettlementRuntime implements AutoCloseable {
             Consumer<Throwable> fatal,
             SettlementService.ReleaseGuard releaseGuard,
             ClaimPricingPolicy pricingPolicy,
-            SettlementService.ClaimPayment payment) {
+            SettlementService.ClaimPayment payment,
+            CertificationPolicy certificationPolicy) {
         this.plugin = plugin;
         this.database = database;
         this.mainWorldName = mainWorldName;
@@ -96,21 +100,29 @@ public final class SettlementRuntime implements AutoCloseable {
         parcels =
                 xdu.undarubra.esmp.civilization.api.SettlementServices.parcel(
                         database, clock, administrators::contains);
+        certification =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.certification(
+                        database,
+                        clock,
+                        certificationPolicy,
+                        administrators::contains,
+                        activity::isActive);
         activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
 
     public CompletableFuture<java.util.List<SettlementView>> initialize() {
         return service.initialize()
-                .thenCompose(
-                        views ->
-                                activity.initialize()
-                                        .thenCompose(ignored -> parcels.snapshot())
-                                        .thenApply(
-                                                snapshot -> {
-                                                    land = snapshot;
-                                                    return views;
-                                                }));
+                .thenCompose(views -> activity.initialize().thenApply(ignored -> views));
+    }
+
+    /** Forward migrations must finish before any new-schema projection is loaded. */
+    public CompletableFuture<Void> loadSnapshots() {
+        return parcels.snapshot().thenAccept(snapshot -> land = snapshot);
+    }
+
+    public CertificationService certification() {
+        return certification;
     }
 
     public void activate(java.util.List<SettlementView> settlements) {

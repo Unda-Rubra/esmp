@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 8
+config-version: 9
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -16,6 +16,13 @@ settlements:
   transfer-ticks: 36000
   promotion-ticks: 1728000
   abandon-ticks: 1200
+
+# Certification requires an Owner/Governor application and administrator review.
+# Age uses shared game ticks. Lifetime credit counts only accepted activity credit.
+# Both thresholds must be non-negative; credit must also be finite. No fee is charged.
+certification:
+  minimum-age-ticks: 72000
+  minimum-lifetime-credit: 20.0
 
 # Create/claim/price request a quote; purchase confirms and pays atomically.
 # Natural profiles must already be committed, including for the first founding (25).

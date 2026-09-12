@@ -248,6 +248,16 @@ public final class JooqActivityRepository implements ActivityRepository {
         if (amount <= 0) {
             return;
         }
+        // Count only the amount that passed authorization, cooldowns and all caps.
+        c.insertInto(SETTLEMENT_ACTIVITY_LIFETIME)
+                .set(SETTLEMENT_ACTIVITY_LIFETIME.SETTLEMENT_ID, a.settlementId())
+                .set(SETTLEMENT_ACTIVITY_LIFETIME.CREDITED, amount)
+                .onConflict(SETTLEMENT_ACTIVITY_LIFETIME.SETTLEMENT_ID)
+                .doUpdate()
+                .set(
+                        SETTLEMENT_ACTIVITY_LIFETIME.CREDITED,
+                        SETTLEMENT_ACTIVITY_LIFETIME.CREDITED.add(amount))
+                .execute();
         double nextScore = value.score() + amount;
         Long inactive = value.inactive();
         if (inactive != null && nextScore >= policy.recoveryThreshold()) {

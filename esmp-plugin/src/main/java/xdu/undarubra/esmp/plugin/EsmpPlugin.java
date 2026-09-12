@@ -15,6 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import xdu.undarubra.esmp.civilization.CivilizationWorlds;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
+import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
 import xdu.undarubra.esmp.civilization.land.LandValuePolicy;
 import xdu.undarubra.esmp.civilization.settlement.ClaimPricingPolicy;
 import xdu.undarubra.esmp.civilization.settlement.ClaimQuote;
@@ -141,7 +142,8 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                                 } catch (LedgerException rejected) {
                                     throw new SettlementException(rejected.getMessage());
                                 }
-                            });
+                            },
+                            readCertificationPolicy());
             ledger =
                     xdu.undarubra.esmp.economy.api.EconomyServices.ledger(
                             store,
@@ -204,6 +206,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                     .thenCompose(owned -> ledger.initialize().thenApply(ignored -> owned))
                     .thenCompose(owned -> landValueService.initialize().thenApply(ignored -> owned))
                     .thenCompose(owned -> store.finishMigration().thenApply(ignored -> owned))
+                    .thenCompose(owned -> settlements.loadSnapshots().thenApply(ignored -> owned))
                     .whenComplete(
                             (ownedSettlements, failure) ->
                                     onServerThread(
@@ -256,7 +259,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 8) {
+        if (!(version instanceof Integer number) || number < 1 || number > 9) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -369,6 +372,20 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 8);
             saveConfig();
         }
+        if (number < 9) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-certification.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException(
+                        "Cannot back up certification configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            readCertificationPolicy();
+            getConfig().set("config-version", 9);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -429,6 +446,20 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                 positiveSetting("settlements.transfer-ticks", 36_000),
                 positiveSetting("settlements.promotion-ticks", 1_728_000),
                 positiveSetting("settlements.abandon-ticks", 1_200));
+    }
+
+    private CertificationPolicy readCertificationPolicy() {
+        Object section = getConfig().get("certification");
+        if (section != null && !(section instanceof ConfigurationSection)) {
+            throw new IllegalArgumentException("certification must be a mapping");
+        }
+        Object credit = getConfig().get("certification.minimum-lifetime-credit", 20.0);
+        if (!(credit instanceof Number amount)) {
+            throw new IllegalArgumentException(
+                    "certification.minimum-lifetime-credit must be numeric");
+        }
+        return new CertificationPolicy(
+                nonNegativeSetting("certification.minimum-age-ticks", 72000), amount.doubleValue());
     }
 
     private ClaimPricingPolicy readClaimPricingPolicy() {

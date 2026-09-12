@@ -7,7 +7,6 @@
     <preConditions onFail="HALT" onError="HALT">
         <dbms type="sqlite"/>
     </preConditions>
-    <include file="core.xml" relativeToChangelogFile="true"/>
-    <include file="economy.xml" relativeToChangelogFile="true"/>
-    <include file="civilization.xml" relativeToChangelogFile="true"/>
+    <include file="db.changelog-baseline.xml" relativeToChangelogFile="true"/>
+    <include file="phase2-certification.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

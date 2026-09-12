@@ -1,5 +1,7 @@
 package xdu.undarubra.esmp.civilization.settlement;
 
+import xdu.undarubra.esmp.civilization.certification.CertificationStatus;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -14,7 +16,7 @@ public record LandSnapshot(Map<UUID, Land> settlements) {
     public record Land(
             long number,
             String officialName,
-            boolean certified,
+            CertificationStatus certification,
             long securityRevision,
             Set<UUID> bans,
             Map<UUID, ParcelView> parcels,

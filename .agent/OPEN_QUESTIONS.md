@@ -4,23 +4,22 @@
 
 The [frozen architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical and unchanged.
 
-Phases 0 and 1 are implemented/verified. All expansion is Treasury-funded and current-Owner-assessed; founding stays founder Wallet. Existing purchase count is the monotonic progression revision, and versioned quote context rejects old unpurchased consent while paid receipts replay. No extra schema column or released-baseline edits were needed. Historical and phase-specific player checks remain pending sign-off.
+Phases 0–2 are implemented/verified. Certification now uses actual lifetime credited Activity, the frozen eligibility gate, governance application and administrator approval/denial. Old naming flags/names migrate explicitly; the boolean toggle/API/column are removed. No automatic revocation or website was added. Historical and phase-specific player checks remain pending.
 
-## Phase 2 — next, not yet implemented
+## Phase 3 — next, not yet implemented
 
-1. **Durable lifetime meaningful credit.** Add actual accepted credit accumulation alongside the current decaying score and daily caps. Do not reconstruct lifetime contributions from current score or silently invent credit. This is a Phase 2 certification dependency, not permission to implement Phase 4 local buckets.
-2. **Frozen gate and state machine.** Defaults: age ≥3 game days, aggregate Activity not INACTIVE, lifetime credited meaningful Activity ≥20. Eligibility permits governance application only; admin approves/denies. Exactly UNVERIFIED/VERIFIED, no automatic approval/revocation/aesthetic scoring.
-3. **Naming migration.** Preserve existing names/IDs/history through an explicit migration of grandfathered flags/names. Remove the old direct naming toggle as an alternate behavior. Pending proposals/reviews and repeated approval must remain deterministic/idempotent; denial retains Claims/protection.
-4. **Forward migration safety.** Before the first post-baseline schema change, restrict the legacy bridge's reference verification and changelogSync to the known Phase 0 baseline, then execute newer changeSets normally. Current bridge uses the full master because Phase 0/1 required no later schema change; do not accidentally mark Phase 2 changes applied or compare an old bridge to a future schema. Cover that infrastructure correctness adjustment with old-bridge→new-latest tests rather than adding legacy SQL migrations or rewriting released baseline files.
-5. **Acceptance/scope.** Clean generation/check, empty and previous-version fixtures, gate thresholds/GameClock behavior, denial preservation, approval idempotency, naming concurrency and relevant Paper tests. No acquisition fees, Local Activity, Building or website implementation in this phase; expose only clean status/name read/export data.
+1. **Frozen transfer workflow.** Owner proposes → recipient accepts → current land-based acquisition fee quote → administrator approves → atomic Wallet SINK plus ownership transition. Acceptance alone must no longer transfer ownership.
+2. **Price and stale context.** Fee is configurable k × sum of immutable base values for current Claims, with deterministic integer rounding. Missing required profiles reject automatic acquisition. Revalidate participants, ownership/claim/profile context and recipient funds at commit; no labor/Building/cultural valuation or peer-receiving-capacity system.
+3. **Atomic state and history.** Preserve Treasury identity/balance/history, remove the incoming Owner's membership row, make the former Owner Citizen and record the receipt/transfer/outbox fact together. No two-owner or ownerless committed intermediate state; retries cannot double debit or transfer again.
+4. **Pending-offer migration.** Define an explicit forward migration/cancellation policy for old pending two-party transfer offers. Preserve historical accepted offers and completed monetary/certification records; no silent reuse of stale consent under the new workflow.
+5. **Acceptance and scope.** Empty/current-previous/legacy-bridge migrations, acceptance-without-approval refusal, insufficient funds, stale context, replay, Treasury preservation and real Paper restart/protection. No Local Activity or Building work before this phase passes.
+
+## Resolved infrastructure requirements
+
+- `db.changelog-baseline.xml` contains only the immutable Phase 0 includes. Legacy shape verification/changeLogSync target it; the full master applies later changes normally. New-schema projections load only after forward migrations finish.
+- Phase 2 uses structured update/table/index changes plus three documented SQLite-native ALTER exceptions. Pinned Liquibase's rebuild path lost constraints/defaults and failed on unnamed legacy foreign keys; tests verify preservation and old-column removal. Do not expand this exception into raw gameplay SQL or new legacy migrations.
+- Lifetime credit begins with actual post-migration awards. Old decaying scores and initial Activity do not reconstruct historic lifetime contributions. Existing explicitly approved/named Settlements were grandfathered VERIFIED by the migration.
 
 ## Later frozen work
 
-Phase 3 replaces two-party transfer with recipient acceptance, fee and admin approval. Phase 4 adds local Activity and derived regions. Phase 5 registers bounded Buildings/active baselines; Phases 6–7 add registered-only Decay and material/time Repair with History/Era. Phase 8 hardens the complete loop and paired recovery before tagging MVP. Dynamic Settlement Cycle follows only afterward, with no deferred-system placeholders now.
-
-## Operational notes
-
-- Canonical schema: `schema/db/changelog/*.xml`; old SQL resources and `.persistence.legacy` adapters are compatibility-only. All normal repositories use generated jOOQ through the opaque UnitOfWork.
-- SQLite baseline constraint exceptions are documented and covered by native schema comparison/negative-data tests; they are not a license for raw gameplay SQL.
-- The Phase 1 clean/no-cache build ran successfully using ordinary committed repositories, without the temporary TLS transport used in Phase 0.
-- The bundle references SVGs but supplies equivalent DOT/PNG; this remains a non-blocking navigation issue.
+Phase 4 adds local Activity and derived regions. Phase 5 explicitly registers bounded Buildings and active baselines. Phases 6–7 add registered-only Decay and material/time Repair with History/Era. Phase 8 hardens the entire loop and paired recovery before the MVP tag. Dynamic Settlement Cycle starts only afterward; no deferred-system placeholders now.

@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 /** Infrastructure-only schema lifecycle. Never synchronizes an unverified legacy database. */
 public final class DatabaseSchema {
     public static final String CHANGELOG = "db/changelog/db.changelog-master.xml";
+    private static final String BASELINE_CHANGELOG = "db/changelog/db.changelog-baseline.xml";
 
     private DatabaseSchema() {}
 
@@ -52,12 +53,18 @@ public final class DatabaseSchema {
             verify(connection);
             return;
         }
-        verify(connection);
+        verify(connection, true);
         migrate(connection, true);
         migrate(connection, false);
+        verify(connection);
     }
 
     private static void migrate(Connection connection, boolean baseline) throws Exception {
+        migrate(connection, baseline ? BASELINE_CHANGELOG : CHANGELOG, baseline);
+    }
+
+    private static void migrate(Connection connection, String changelog, boolean baseline)
+            throws Exception {
         var thread = Thread.currentThread();
         var previous = thread.getContextClassLoader();
         var loader = DatabaseSchema.class.getClassLoader();
@@ -66,20 +73,21 @@ public final class DatabaseSchema {
             thread.setContextClassLoader(loader);
             liquibase.Scope.child(
                     Map.of(liquibase.Scope.Attr.classLoader.name(), loader),
-                    () -> migrateScoped(connection, baseline));
+                    () -> migrateScoped(connection, changelog, baseline));
         } finally {
             thread.setContextClassLoader(previous);
         }
     }
 
-    private static void migrateScoped(Connection connection, boolean baseline) throws Exception {
+    private static void migrateScoped(Connection connection, String changelog, boolean baseline)
+            throws Exception {
         var database =
                 DatabaseFactory.getInstance()
                         .findCorrectDatabaseImplementation(new JdbcConnection(connection));
         // Liquibase owns its migration transaction; do not close the worker-owned connection here.
         var resources = new ClassLoaderResourceAccessor(DatabaseSchema.class.getClassLoader());
         try {
-            var liquibase = new Liquibase(CHANGELOG, resources, database);
+            var liquibase = new Liquibase(changelog, resources, database);
             liquibase.validate();
             if (baseline) liquibase.changeLogSync(new Contexts(), new LabelExpression());
             else liquibase.update(new Contexts(), new LabelExpression());
@@ -95,6 +103,10 @@ public final class DatabaseSchema {
 
     /** Compare actual SQLite structure to the schema constructed by the canonical changelog. */
     public static void verify(Connection connection) throws Exception {
+        verify(connection, false);
+    }
+
+    private static void verify(Connection connection, boolean baseline) throws Exception {
         var path = Files.createTempFile("esmp-schema-reference-", ".db");
         try {
             var config = new SQLiteConfig();
@@ -102,7 +114,7 @@ public final class DatabaseSchema {
             var source = new SQLiteDataSource(config);
             source.setUrl("jdbc:sqlite:" + path);
             try (var reference = source.getConnection()) {
-                migrate(reference, false);
+                migrate(reference, baseline ? BASELINE_CHANGELOG : CHANGELOG, false);
                 var expected = shape(reference);
                 var actual = shape(connection);
                 if (!expected.equals(actual)) {
@@ -207,7 +219,7 @@ public final class DatabaseSchema {
                     try (var inner =
                             c.prepareStatement(
                                     "SELECT sql FROM sqlite_master WHERE type='index' AND"
-                                        + " name=?")) {
+                                            + " name=?")) {
                         inner.setString(1, name);
                         try (var x = inner.executeQuery()) {
                             if (x.next()) {

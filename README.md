@@ -2,7 +2,7 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phase 0、Phase 1 已实现并通过相应验收；Phase 2 认证尚未开始。** 所有扩张现已统一从金库付款，建镇仍从创始人钱包付款。阶段验收不等同于整个 MVP 或玩家验收完成；不要跳到转让审核或建筑。
+**冻结路线图 Phases 0–2 已实现并通过相应验收；Phase 3 所有权购置审核尚未开始。** 建镇用创始人钱包，扩张用聚落金库；认证现在是申请＋管理员审核，不再是直接开关。阶段通过不等同于整个 MVP 或玩家验收完成。
 
 ## 当前基线功能（待按冻结要求重新验收）
 
@@ -14,9 +14,9 @@ ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依
 - 整数钱包、聚落金库、转账、预算内发行及首次加入资金已存在。建镇从创始人钱包付款；所有扩张都从聚落金库付款，无论操作者是 Owner 还是 Governor，均按当前 Owner 的土地组合与优惠评估。
 - 新生成主世界区块的自然估值固定保存；`/settlement landvalue` 查看当前区块。后续挖填建造不改估值，未捕获的旧区块明确显示未知。
 
-新聚落显示 `S#编号`，命令可用编号、`#编号`、当前名称或内部 UUID 定位。内部 UUID 不变；旧名称在迁移时保留为已认证正式名称。新正式名需管理员先认证命名资格，再批准名称。
+新聚落显示 `S#编号`，内部 UUID 和公开编号稳定。新正式名需要先满足认证条件、提交申请并由管理员批准；已 VERIFIED 的正式改名仍由管理员办理。旧审批标记或已有正式名会明确迁移为 VERIFIED，不追造历史活跃贡献。
 
-**尚无注册建筑、Local Activity、Decay、Repair 或 Era 闭环。** 旧认证命名开关和两方转让尚非冻结目标。旧测试通过只证明当时的基线，不代表新阶段已经完成。
+**尚无 Local Activity、注册建筑、Decay、Repair 或 Era 闭环。** 所有权转让暂时仍是旧两方流程；接收方购置费与管理员批准将在 Phase 3 实现。
 
 ## 冻结 MVP 的执行顺序
 
@@ -142,13 +142,25 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 | 成员与治理 | `/settlement invite\|promote\|demote\|kick\|transfer <聚落> <玩家>`、`leave <聚落>` |
 | 禁令 | `/settlement ban\|unban <聚落> <玩家>`、`bans <聚落>` |
 | 邀请/确认 | `/settlement offers`、`accept\|decline\|cancel <offer-id>`、`abandon <聚落>`、`confirm <offer-id>` |
-| 命名/历史 | `/settlement certify <聚落> <true\|false>`、`rename <聚落> <正式名>`（均需管理员）、`history <聚落或历史UUID>` |
+| 认证申请/审核 | `/settlement certification <聚落>`、`apply <聚落> [建议名称]`、`applications <聚落>`、`review <聚落> <申请UUID> <approve\|deny> [说明]`（审核需管理员）、`verified` |
+| 命名/历史 | `/settlement rename <已认证聚落> <正式名>`（管理员）、`history <聚落或历史UUID>` |
 | 工具 | `/esmp tools <parcel_wand\|management_book>`；操作帮助为 `/settlement parcel help` |
 | Parcel 选择 | `/settlement parcel pos1\|pos2 [x y z]`、`clear`、`add <聚落> <名>`、`commit` |
 | Parcel 查看 | `/settlement parcel list <聚落>`、`info\|view <聚落> <Parcel>` |
 | Parcel 修改 | `/settlement parcel remove <聚落> <Parcel> <x y z>`、`delete <聚落> <Parcel>`、`rename <聚落> <Parcel> <新名>` |
 | Holder/权限 | `/settlement parcel holders <聚落> <Parcel> <玩家逗号列表\|none>`、`policy <聚落> <Parcel> <权限域> <关系逗号列表\|none>` |
 | Parcel 提案 | `/settlement parcel requests <聚落>`、`approve\|reject <聚落> <提案UUID>` |
+
+
+## 聚落认证与正式命名
+
+默认申请条件：聚落年龄至少 3 游戏日、当前活跃度不是 INACTIVE、终身实际获得的有效活跃贡献至少 20。条件只允许申请，不会自动认证。终身贡献只累计通过权限、冷却和上限检查后真正获得的分数；初始分数、登录/挂机和管理员改方块不算，旧版本衰减分数不会补造成终身贡献。
+
+Owner/Governor 执行 `/settlement apply 1 "建议名称"`；也可不填名字。管理员用 `/settlement applications 1` 查看申请 ID，再执行 `/settlement review 1 <申请UUID> approve "说明"` 或 `deny "说明"`。多词名称/说明使用双引号。拒绝保留土地、权限和资金，仍可重新申请；批准时再次核对条件、申请人权限、所有权/命名修订及名字冲突。
+
+`/settlement certification 1` 显示状态、年龄、终身贡献和待审申请；`/settlement verified` 是插件内已认证正式名列表，不是网站。审批人、时间、说明与结果持久化。重复同一审批不会重复写历史，也不会覆盖之后的改名。已认证聚落不会因后来不活跃而自动撤销。
+
+旧 `/settlement certify ... true/false` 已移除。配置为 `certification.minimum-age-ticks: 72000`、`minimum-lifetime-credit: 20.0`；这是数值调参，不是跳过管理员审核。本阶段不收认证费，也未实现购置费或网站。
 
 
 ## 付费认领与个人优惠
@@ -207,10 +219,10 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 ## 配置与数据
 
-当前 config 8；Core schema 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1。升级备份为 `config-before-paid-claims.yml`，移除旧 `claim-base-price`/`claim-price-step` 并启用 `claim-pricing`。旧余额、土地和历史保留，不追扣旧费用。
+当前 config 9；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase 的 `phase2-certification` 变更负责新认证状态/申请/终身贡献；旧 `certified` 列已删除。升级前配置备份为 `config-before-certification.yml`，此前备份保留。
 
 ```yaml
-config-version: 8
+config-version: 9
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -243,7 +255,7 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 ## 下一步与协作
 
-下一步只做路线图 Phase 2：补齐终身有效活跃贡献计数，按默认年龄 ≥3 游戏日、当前非 INACTIVE、终身贡献 ≥20 允许提交认证申请，再由管理员批准/拒绝并明确迁移旧名称资格。不要同时实施 Phase 3 的转让购置费、Local Activity 或建筑玩法。
+下一步只做路线图 Phase 3：Owner 提议、接收方接受、基于当前认领基础地价合计的购置费报价、管理员批准，最后原子扣接收方钱包并转移 Owner。保留金库身份、历史及旧 Owner 转 Citizen；明确迁移旧待处理转让。不要同时实现 Local Activity、建筑或后续系统。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 

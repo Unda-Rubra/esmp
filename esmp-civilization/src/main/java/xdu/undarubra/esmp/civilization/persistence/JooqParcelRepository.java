@@ -67,7 +67,7 @@ public final class JooqParcelRepository implements ParcelService.Repository {
         var d = SETTLEMENT_DETAILS.as("d");
         var s = SETTLEMENTS.as("s");
         var metadata =
-                c.select(d.NUMBER, d.OFFICIAL_NAME, d.CERTIFIED, d.SECURITY_REVISION)
+                c.select(d.NUMBER, d.OFFICIAL_NAME, d.CERTIFICATION_STATUS, d.SECURITY_REVISION)
                         .from(d)
                         .join(s)
                         .on(d.SETTLEMENT_ID.eq(s.SETTLEMENT_ID))
@@ -76,7 +76,9 @@ public final class JooqParcelRepository implements ParcelService.Repository {
         if (metadata == null) return null;
         long number = metadata.get(d.NUMBER);
         String official = metadata.get(d.OFFICIAL_NAME);
-        boolean certified = metadata.get(d.CERTIFIED) != 0L;
+        var certification =
+                xdu.undarubra.esmp.civilization.certification.CertificationStatus.valueOf(
+                        metadata.get(d.CERTIFICATION_STATUS));
         long security = metadata.get(d.SECURITY_REVISION);
         var bans = new HashSet<UUID>();
         var parcels = new HashMap<UUID, ParcelView>();
@@ -95,7 +97,8 @@ public final class JooqParcelRepository implements ParcelService.Repository {
             parcels.put(p.id(), p);
             for (var cell : p.cells()) cells.put(cell, p);
         }
-        return new LandSnapshot.Land(number, official, certified, security, bans, parcels, cells);
+        return new LandSnapshot.Land(
+                number, official, certification, security, bans, parcels, cells);
     }
 
     public static ParcelView at(Transaction transaction, UUID id, ParcelCell cell)

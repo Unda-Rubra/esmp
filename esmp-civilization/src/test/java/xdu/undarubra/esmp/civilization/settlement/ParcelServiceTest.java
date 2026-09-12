@@ -6,6 +6,8 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 import xdu.undarubra.esmp.civilization.activity.*;
+import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
+import xdu.undarubra.esmp.civilization.certification.CertificationService;
 import xdu.undarubra.esmp.civilization.land.*;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
@@ -103,6 +105,20 @@ class ParcelServiceTest {
                 (c, settlement) -> true);
     }
 
+    void verify(UUID id) {
+        // Test-only zero thresholds isolate naming and geometry from certification eligibility.
+        CertificationService service =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.certification(
+                        db,
+                        clock,
+                        new CertificationPolicy(0, 0),
+                        admins::contains,
+                        (tx, settlement) -> true);
+        service.apply(owner, id, null).join();
+        UUID appId = service.view(id).join().pendingApplication().id();
+        service.decide(admin, id, appId, true, "fixture").join();
+    }
+
     void profile(UUID worldInstance, ChunkPosition chunk) {
         // Identical immutable valuation inputs at each distinct requested location.
         // LandValueService.capture also verifies repeated captures are identical.
@@ -163,11 +179,11 @@ class ParcelServiceTest {
 
     @Test
     void spacedNamesTrimEdgesAndSurviveApprovalWithUniquenessIntact() {
-        settlements.certify(admin, id, true).join();
+        verify(id);
         settlements.rename(admin, id, "  New  Haven  ").join();
         assertEquals("New  Haven", parcels.land(id).join().officialName());
         UUID second = create(owner, world, new ChunkPosition(2, 0)).settlementId();
-        settlements.certify(admin, second, true).join();
+        verify(second);
         rejected(() -> settlements.rename(admin, second, "new  haven").join());
         parcels.add(owner, id, "  Tool  Store  ", Set.of(new ParcelCell(0, 0, 0)), -64, 320).join();
         assertEquals("Tool  Store", current().name());
@@ -369,7 +385,7 @@ class ParcelServiceTest {
         assertEquals(2, claimed.current().chunks().size());
         rejected(() -> settlements.rename(owner, id, "Home").join());
         rejected(() -> settlements.rename(admin, id, "Home").join());
-        settlements.certify(admin, id, true).join();
+        verify(id);
         settlements.rename(admin, id, "Home").join();
         assertEquals("Home", parcels.land(id).join().officialName());
         assertEquals(land.number(), parcels.land(id).join().number());
@@ -392,6 +408,13 @@ class ParcelServiceTest {
                         c -> {
                             // Deliberate legacy migration fixture: these historical tables cannot
                             // be represented by the current generated schema. Raw SQL stays here.
+                            // Phase2 tables did not exist in a genuine legacy database.
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute(
+                                            "DROP TABLE IF EXISTS"
+                                                + " settlement_certification_applications");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE IF EXISTS settlement_activity_lifetime");
                             // A true legacy database has no Liquibase metadata; retaining it while
                             // downgrading domain tables would describe corruption, not migration.
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
@@ -417,7 +440,7 @@ class ParcelServiceTest {
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "ALTER TABLE settlement_members RENAME TO"
-                                                + " migrated_members");
+                                                    + " migrated_members");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "CREATE TABLE settlement_members(settlement_id TEXT NOT"
@@ -428,15 +451,15 @@ class ParcelServiceTest {
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "INSERT INTO settlement_members SELECT"
-                                                + " settlement_id,player_uuid,CASE role WHEN"
-                                                + " 'GOVERNOR' THEN 'MANAGER' ELSE 'MEMBER' END"
-                                                + " FROM migrated_members");
+                                                    + " settlement_id,player_uuid,CASE role WHEN"
+                                                    + " 'GOVERNOR' THEN 'MANAGER' ELSE 'MEMBER' END"
+                                                    + " FROM migrated_members");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute("DROP TABLE migrated_members");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "UPDATE settlements SET"
-                                                + " name='Legacy',name_key='legacy'");
+                                                    + " name='Legacy',name_key='legacy'");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute("UPDATE civilization_schema SET version=2");
                             return null;
@@ -444,6 +467,8 @@ class ParcelServiceTest {
                 .join();
         restartForLegacyMigration();
         var restored = settlements.initialize().join().getFirst();
+        // Baseline only Phase0, then apply Phase2 before querying the new land snapshot schema.
+        db.finishMigration().join();
         assertEquals(id, restored.id());
         assertEquals(Role.GOVERNOR, restored.role(holder));
         assertEquals("Legacy", parcels.land(id).join().officialName());

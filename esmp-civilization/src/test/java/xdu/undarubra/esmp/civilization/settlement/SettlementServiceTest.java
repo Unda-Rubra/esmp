@@ -129,8 +129,8 @@ class SettlementServiceTest {
                         // Same governance-only payment fixture as in open().
                         (c, quote) -> {},
                         (c, id) -> true);
-        // Leave settlement initialization to the test. Do not finishMigration here:
-        // this focused fixture does not initialize every domain baseline table.
+        // Leave settlement initialization to the test, then finishMigration to baseline
+        // only Phase0 and apply Phase2 before querying the new land snapshot schema.
     }
 
     private void captureProfile(int x, int z) {
@@ -354,6 +354,7 @@ class SettlementServiceTest {
         dbLegacyDeadline(offer.id());
         restartForLegacyMigration();
         service.initialize().join();
+        database.finishMigration().join();
         var migrated = service.inspectOffer(offer.id()).join();
         assertEquals(offer.id(), migrated.id());
         assertTrue(migrated.expiresAtTick() > clock.ticks());
@@ -404,6 +405,7 @@ class SettlementServiceTest {
                 .join();
         restartForLegacyMigration();
         service.initialize().join();
+        database.finishMigration().join();
         assertEquals(Role.GOVERNOR, current(first).role(member));
         assertEquals(Role.CITIZEN, current(first).role(other));
         assertEquals(
@@ -440,7 +442,8 @@ class SettlementServiceTest {
                                     xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                             .fetchCount(
                                                     SETTLEMENT_DETAILS,
-                                                    SETTLEMENT_DETAILS.CERTIFIED.eq(1L)));
+                                                    SETTLEMENT_DETAILS.CERTIFICATION_STATUS.eq(
+                                                            "VERIFIED")));
                             return null;
                         })
                 .join();
@@ -501,6 +504,7 @@ class SettlementServiceTest {
                             // Deliberate migration fixture: remove post-v1 columns and restore the
                             // legacy role constraint. Keep real land profiles and pricing receipts
                             // and progress; this tests offer migration, not pre-pricing state.
+                            governanceLegacyFixture(c);
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute("ALTER TABLE settlements DROP COLUMN founded_tick");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
@@ -510,7 +514,6 @@ class SettlementServiceTest {
                                     .set(CIVILIZATION_SCHEMA.VERSION, 1L)
                                     .where(CIVILIZATION_SCHEMA.ID.eq(1L))
                                     .execute();
-                            governanceLegacyFixture(c);
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .update(SETTLEMENT_OFFERS)
                                     .set(
@@ -526,6 +529,12 @@ class SettlementServiceTest {
     /** Deliberate pre-governance fixture, not a second runtime/codegen schema. */
     private static void governanceLegacyFixture(
             xdu.undarubra.esmp.core.storage.UnitOfWork.Transaction c) {
+        // These Phase2 tables did not exist in a genuine legacy database. Drop them
+        // before removing Liquibase metadata or downgrading governance.
+        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                .execute("DROP TABLE settlement_certification_applications");
+        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                .execute("DROP TABLE settlement_activity_lifetime");
         // A genuine legacy database has no Liquibase metadata. Remove it in the same
         // fixture transaction as the downgrade, then reopen before migration.
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)

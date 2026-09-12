@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="phase2-certification" author="esmp" dbms="sqlite">
+        <!-- SQLite exception: pinned Liquibase addColumn/dropColumn rebuilds this table,
+             loses defaults/nullability/unique metadata, and fails for legacy unnamed FKs.
+             Native SQLite 3.53 ALTER preserves existing constraints. Covered by the
+             Phase 2 empty/legacy/default/retired-column migration tests. -->
+        <sql dbms="sqlite">
+            ALTER TABLE settlement_details ADD COLUMN certification_status TEXT NOT NULL DEFAULT 'UNVERIFIED' CHECK(certification_status IN ('UNVERIFIED','VERIFIED'));
+            ALTER TABLE settlement_details ADD COLUMN certification_revision INTEGER NOT NULL DEFAULT 0 CHECK(typeof(certification_revision)='integer' AND certification_revision>=0);
+        </sql>
+        <!-- Preserve explicit historical naming approval and grandfathered official names.
+             Do not infer lifetime meaningful credit from decayed scores or initial grants. -->
+        <update tableName="settlement_details">
+            <column name="certification_status" value="VERIFIED"/>
+            <where>certified != 0 OR official_name IS NOT NULL</where>
+        </update>
+        <!-- Same verified native-ALTER exception; remove the obsolete writable toggle. -->
+        <sql dbms="sqlite" splitStatements="false">ALTER TABLE settlement_details DROP COLUMN certified</sql>
+        <createTable tableName="settlement_activity_lifetime">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_lifetime_settlement"/></column>
+            <column name="credited" type="REAL" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="settlement_certification_applications">
+            <column name="application_id" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="settlement_id" type="TEXT"><constraints nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_certification_settlement"/></column>
+            <column name="applicant_uuid" type="TEXT"><constraints nullable="false"/></column>
+            <column name="proposed_name" type="TEXT"/>
+            <column name="applied_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="state" type="TEXT"><constraints nullable="false"/></column>
+            <column name="decided_by_uuid" type="TEXT"/>
+            <column name="decided_tick" type="INTEGER"/>
+            <column name="decision_note" type="TEXT"/>
+            <column name="ownership_revision" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="name_revision" type="INTEGER"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="settlement_certification_applications" indexName="certification_applications_history">
+            <column name="settlement_id"/><column name="applied_tick"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

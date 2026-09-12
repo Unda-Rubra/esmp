@@ -196,7 +196,8 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                 .set(SETTLEMENT_DETAILS.SETTLEMENT_ID, id)
                                 .set(SETTLEMENT_DETAILS.NUMBER, number)
                                 .setNull(SETTLEMENT_DETAILS.OFFICIAL_NAME)
-                                .set(SETTLEMENT_DETAILS.CERTIFIED, 0L)
+                                .set(SETTLEMENT_DETAILS.CERTIFICATION_STATUS, "UNVERIFIED")
+                                .set(SETTLEMENT_DETAILS.CERTIFICATION_REVISION, 0L)
                                 .set(SETTLEMENT_DETAILS.SECURITY_REVISION, 0L)
                                 .execute();
                         insertChunk(c, id, world, chunk);
@@ -302,7 +303,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                                         Math.toIntExact(row.get(PARCEL_CELLS.Z)), 2)
                                                 != chunk.z(),
                                 "Remove affected Parcels through their consent workflow before"
-                                    + " unclaiming");
+                                        + " unclaiming");
                     }
                     Set<ChunkPosition> remaining = new HashSet<>(settlement.chunks());
                     remaining.remove(chunk);
@@ -334,14 +335,12 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     require(
                             administrator.test(actor),
                             "Only a server administrator may approve an official name");
-                    Long certified =
-                            c.select(SETTLEMENT_DETAILS.CERTIFIED)
+                    String status =
+                            c.select(SETTLEMENT_DETAILS.CERTIFICATION_STATUS)
                                     .from(SETTLEMENT_DETAILS)
                                     .where(SETTLEMENT_DETAILS.SETTLEMENT_ID.eq(id))
-                                    .fetchOne(SETTLEMENT_DETAILS.CERTIFIED);
-                    require(
-                            certified != null && certified != 0L,
-                            "Naming certification is required");
+                                    .fetchOne(SETTLEMENT_DETAILS.CERTIFICATION_STATUS);
+                    require("VERIFIED".equals(status), "Verified certification is required");
                     requireNameAvailable(c, name, id);
                     c.update(SETTLEMENTS)
                             .set(SETTLEMENTS.NAME, name)
@@ -350,24 +349,13 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                             .execute();
                     c.update(SETTLEMENT_DETAILS)
                             .set(SETTLEMENT_DETAILS.OFFICIAL_NAME, name)
+                            .set(
+                                    SETTLEMENT_DETAILS.CERTIFICATION_REVISION,
+                                    SETTLEMENT_DETAILS.CERTIFICATION_REVISION.add(1L))
                             .where(SETTLEMENT_DETAILS.SETTLEMENT_ID.eq(id))
                             .execute();
                     event(c, id, actor, "RENAMED", settlement.name() + " -> " + name);
                     return changed(c, id, null, "Renamed Settlement to " + name + ".");
-                });
-    }
-
-    public CompletableFuture<SettlementChange> certify(UUID actor, UUID id, boolean certified) {
-        return transact(
-                c -> {
-                    require(administrator.test(actor), "Administrator required");
-                    owned(c, id, actor);
-                    c.update(SETTLEMENT_DETAILS)
-                            .set(SETTLEMENT_DETAILS.CERTIFIED, certified ? 1L : 0L)
-                            .where(SETTLEMENT_DETAILS.SETTLEMENT_ID.eq(id))
-                            .execute();
-                    event(c, id, actor, "NAMING_CERTIFICATION", Boolean.toString(certified));
-                    return changed(c, id, null, "Naming certification=" + certified);
                 });
     }
 
@@ -549,7 +537,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                             (offer.type() == SettlementOffer.Type.ABANDON)
                                     == abandonmentConfirmation,
                             "Use /settlement confirm for abandonment, and /settlement accept for"
-                                + " other offers.");
+                                    + " other offers.");
                     SettlementView settlement = owned(c, offer.settlementId(), actor);
                     require(
                             administrator.test(offer.issuer())
@@ -610,7 +598,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                     targetRole == Role.OWNER
                                             && settlement.chunkRevision() == offer.chunkRevision(),
                                     "Ownership or claims changed; request a fresh abandonment"
-                                        + " warning.");
+                                            + " warning.");
                             require(
                                     !c.fetchExists(
                                             c.selectOne()
@@ -619,7 +607,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                                             PARCELS.SETTLEMENT_ID.eq(
                                                                     settlement.id()))),
                                     "Remove Parcels through their consent workflow before"
-                                        + " abandoning");
+                                            + " abandoning");
                             releaseGuard.check(DatabaseAccess.transaction(c), settlement.id());
                             c.deleteFrom(SETTLEMENT_CHUNKS)
                                     .where(SETTLEMENT_CHUNKS.SETTLEMENT_ID.eq(settlement.id()))
@@ -733,7 +721,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     require(
                             targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
                             "Only Citizens or Governors can be removed; an Owner must transfer or"
-                                + " abandon.");
+                                    + " abandon.");
                     if (voluntary)
                         require(actor.equals(target), "You may only leave for yourself.");
                     else

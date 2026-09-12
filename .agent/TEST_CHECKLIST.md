@@ -6,7 +6,7 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 ## 2026-09-12 frozen-MVP supersession
 
-This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–1 are implemented/verified; Phase 2 is next. Agent execution results are not user sign-off.
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–2 are implemented/verified; Phase 3 is next. Old direct naming-toggle checks are historical only and are superseded by the Phase 2 section. Agent results are not user sign-off.
 
 In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
 
@@ -195,3 +195,13 @@ Agent proof: clean no-cache build/check passed 87 tests. Four new cases cover Ow
 - [ ] As Owner, confirm expansion uses Treasury even when your personal wallet has enough money. Fund the treasury explicitly, purchase, and verify only the treasury is charged at confirmation. Founding must still use the founder's wallet.
 - [ ] Verify Governor allowance/Owner assessment and old pending quote invalidation; paid receipts remain replayable. Changing portfolio/topology/progression must reject stale consent without spending money or allowance.
 - [ ] On a disposable fixture, restart after a committed purchase. Verify Claims/protection, balances, receipt replay and personal progression. No subsidy resets after unclaim, abandonment or transfer.
+
+## Frozen roadmap Phase 2 — certification applications and naming
+
+Implemented: lifetime actual credited Activity, default age ≥3 game days/non-INACTIVE/lifetime ≥20 gate, governance applications, administrator decisions, immutable decision provenance and verified-name read/export. Old certify toggle/API/column removed. Legacy approved flags or official names map to VERIFIED, without fabricating lifetime credit. Baseline-only synchronization precedes real forward migrations and snapshot loading.
+
+Agent proof: 94-test clean no-cache build, including seven certification state-machine tests and empty/legacy naming/default/retired-column checks. Real Paper rejected the old toggle and an early application; at age >3 days and lifetime 19 it still rejected, then an additional credited action reached 20 and permitted application. Non-admin review rejected; denial retained UNVERIFIED/Claim/balance; subsequent approval assigned the name. Repeated approval after a later rename preserved the rename and produced only one approval fact. Restart preserved all 282 non-clock rows. A development-copy migration retained Oakfall/Test as VERIFIED and unnamed S#3 as UNVERIFIED, with no lifetime rows; original dev DB bytes stayed unchanged.
+
+- [ ] Observe UNVERIFIED, age/current Activity/lifetime requirements through `/settlement certification`. Below any gate, application rejects. After eligibility, Owner/Governor can apply with an optional quoted name; eligibility never auto-verifies.
+- [ ] Deny an application as administrator: Claims, roles, funds and protection remain. Reapply and approve; verify name uniqueness, formal naming/export and decision notes. Replay approval after an admin rename; it must not restore the older proposed name.
+- [ ] Upgrade a disposable old-data copy and restart: old approved/named records migrate, the writable certify toggle is absent, new defaults are UNVERIFIED, and lifetime credit is not invented. Confirm config 9 and `config-before-certification.yml`; inspect pending/decided application provenance after restart.

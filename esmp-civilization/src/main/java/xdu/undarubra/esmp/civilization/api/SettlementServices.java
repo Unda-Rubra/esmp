@@ -1,5 +1,8 @@
 package xdu.undarubra.esmp.civilization.api;
 
+import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
+import xdu.undarubra.esmp.civilization.certification.CertificationService;
+import xdu.undarubra.esmp.civilization.persistence.JooqCertificationRepository;
 import xdu.undarubra.esmp.civilization.persistence.JooqParcelRepository;
 import xdu.undarubra.esmp.civilization.persistence.JooqSettlementRepository;
 import xdu.undarubra.esmp.civilization.settlement.*;
@@ -37,5 +40,15 @@ public final class SettlementServices {
     public static ParcelService parcel(
             UnitOfWork database, GameClock clock, Predicate<UUID> administrator) {
         return new ParcelService(new JooqParcelRepository(database, clock, administrator));
+    }
+
+    public static CertificationService certification(
+            UnitOfWork database,
+            GameClock clock,
+            CertificationPolicy policy,
+            Predicate<UUID> administrator,
+            SettlementService.ClaimActivity activity) {
+        return new CertificationService(
+                new JooqCertificationRepository(database, clock, policy, administrator, activity));
     }
 }

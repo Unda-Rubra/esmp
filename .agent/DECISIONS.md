@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-12 — Frozen roadmap Phase 2 certification implemented
+
+Added lifetime actually credited Activity, the frozen 3-game-day/non-INACTIVE/20-credit default gate, governance applications and authoritative administrator approve/deny. All application/name/state/provenance/history changes commit in the same UnitOfWork and publish through the existing coordinator. Denial preserves land/ownership/balance; approval replay does not duplicate facts or overwrite a later rename. No automatic verification/revocation or new fee.
+
+The old certify boolean API, command and column are removed. Existing explicit naming flags or official names migrate deterministically to VERIFIED, while unnamed/unapproved Settlements remain UNVERIFIED. Lifetime counters begin at zero and only record post-migration awarded contributions; current decayed scores are not retrospective proof.
+
+Corrected the Phase 0 bridge for forward changes: a separate immutable baseline manifest references the same released changeSets; only that baseline is verified/synchronized before applying the full master. Projection loading now follows forward migrations, before gameplay admission. Released baseline files and the frozen architecture bundle were not edited.
+
+Pinned Liquibase SQLite add/drop-column table rebuilds were observed to retain retired columns, lose defaults/nullability/unique metadata, and fail on legacy unnamed foreign keys. Three native SQLite ALTER statements are isolated/documented migration exceptions; structured updates/table/index creation remain the default. Empty/legacy/constraint/default/old-column-removal tests prove the exception rather than weakening data checks.
+
+Evidence: clean no-cache check/build passed 94 tests. A real legacy development copy migrated names correctly with zero invented lifetime rows; original DB bytes stayed unchanged. Actual Paper rejected the old toggle and early/19-point application, accepted after 20 credited points, denied without loss, approved a later application and preserved a subsequent rename across replay/restart. All 282 non-clock rows survived restart. Phase 3 is next; no acquisition/Local Activity/Building code was added.
+
 ## 2026-09-12 — Frozen roadmap Phase 1 completed
 
 Every expansion now selects Settlement Treasury regardless of whether the actor is Owner or Governor; founding remains founder Wallet. Current Owner remains the assessed portfolio/subsidy identity. Governor allowance enforcement uses the existing Economy API within the same UnitOfWork; no wallet fallback, new fee or price coefficient change was introduced.
