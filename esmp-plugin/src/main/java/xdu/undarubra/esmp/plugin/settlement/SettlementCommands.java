@@ -685,6 +685,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 + " view [name]",
                         "/settlement purchase <quoteUUID> (confirm a quoted claim at its chunk)",
                         "Create, claim and price request quotes only; payment occurs on purchase.",
+                        "Founding uses your wallet; expansion uses the Settlement treasury.",
+                        "/esmp treasury <settlement> deposit <amount> (fund expansion)",
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
                         "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",

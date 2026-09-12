@@ -125,6 +125,41 @@ class PaidClaimTest {
                 .join();
     }
 
+    void deposit(UUID settlement, long amount) {
+        ledger.post(
+                        new LedgerService.Request(
+                                UUID.randomUUID(),
+                                new LedgerService.Actor(owner, false),
+                                LedgerService.Movement.TRANSFER,
+                                LedgerAccount.wallet(owner),
+                                LedgerAccount.treasury(settlement),
+                                amount,
+                                "SETTLEMENT_DONATION",
+                                ""))
+                .join();
+    }
+
+    long treasury(UUID settlement) {
+        return ledger.balance(
+                        new LedgerService.Actor(owner, false), LedgerAccount.treasury(settlement))
+                .join();
+    }
+
+    void promote(UUID settlement) {
+        var invite =
+                settlements
+                        .offer(owner, settlement, governor, SettlementOffer.Type.INVITE)
+                        .join()
+                        .offer();
+        settlements.accept(governor, invite.id(), false).join();
+        var offer =
+                settlements
+                        .offer(owner, settlement, governor, SettlementOffer.Type.PROMOTE)
+                        .join()
+                        .offer();
+        settlements.accept(governor, offer.id(), false).join();
+    }
+
     void capture(int x, int z) {
         land.capture(
                         List.of(
@@ -173,6 +208,7 @@ class PaidClaimTest {
         settlements.purchase(owner, q.id()).join();
         assertEquals(975, balance(owner));
         assertEquals(1, used(owner));
+        deposit(q.settlementId(), 50);
         var e = expansion(owner, q.settlementId(), 1);
         assertEquals(50, e.amount());
         settlements.purchase(owner, e.id()).join();
@@ -183,11 +219,7 @@ class PaidClaimTest {
         settlements.purchase(owner, e.id()).join();
         assertEquals(925, balance(owner));
         assertEquals(2, used(owner));
-        assertEquals(
-                3,
-                ledger.history(new LedgerService.Actor(owner, false), LedgerAccount.wallet(owner))
-                        .join()
-                        .size());
+        assertEquals(0, treasury(q.settlementId()));
     }
 
     @Test
@@ -264,6 +296,7 @@ class PaidClaimTest {
     @Test
     void unclaimAndAbandonDoNotResetProgressAndSeparateFoundingPaysProximity() {
         UUID s = create();
+        deposit(s, 50);
         var e = expansion(owner, s, 1);
         settlements.purchase(owner, e.id()).join();
         settlements.unclaim(owner, s, new ChunkPosition(1, 0)).join();
@@ -294,6 +327,96 @@ class PaidClaimTest {
         var incoming = expansion(other, s, 1);
         assertEquals(100, incoming.amount());
         assertEquals(0, used(other));
+    }
+
+    @Test
+    void ownerExpansionRequiresTreasuryEvenWithEnoughPersonalMoney() {
+        UUID s = create();
+        var q = expansion(owner, s, 1);
+        assertEquals(ClaimQuote.Payer.TREASURY, q.payer());
+        assertEquals(s, q.payerId());
+        rejected(() -> settlements.purchase(owner, q.id()).join());
+        assertEquals(975, balance(owner));
+        assertEquals(1, used(owner));
+        assertFalse(settlements.quote(owner, q.id()).join().purchased());
+        deposit(s, 50);
+        settlements.purchase(owner, q.id()).join();
+        assertEquals(925, balance(owner));
+        assertEquals(0, treasury(s));
+        assertEquals(2, used(owner));
+    }
+
+    @Test
+    void governorQuoteRejectsOwnerPortfolioChangeWithoutSpendingAllowance() {
+        UUID s = create();
+        promote(s);
+        deposit(s, 100);
+        ledger.setAllowance(
+                        new LedgerService.Actor(owner, false), s, governor, 100, UUID.randomUUID())
+                .join();
+        var q = expansion(governor, s, 1);
+        var separate = founding(owner, 10);
+        settlements.purchase(owner, separate.id()).join();
+        rejected(() -> settlements.purchase(governor, q.id()).join());
+        assertEquals(100, treasury(s));
+        assertEquals(
+                100,
+                ledger.allowance(new LedgerService.Actor(governor, false), s, governor).join());
+        assertEquals(0, used(governor));
+    }
+
+    @Test
+    void claimThenUnclaimCannotReviveAnOldSameAreaQuote() {
+        UUID s = create();
+        promote(s);
+        deposit(s, 100);
+        ledger.setAllowance(
+                        new LedgerService.Actor(owner, false), s, governor, 100, UUID.randomUUID())
+                .join();
+        var stale = expansion(governor, s, 1);
+        var otherEdge = expansion(owner, s, -1);
+        settlements.purchase(owner, otherEdge.id()).join();
+        settlements.unclaim(owner, s, new ChunkPosition(-1, 0)).join();
+        rejected(() -> settlements.purchase(governor, stale.id()).join());
+        assertEquals(50, treasury(s));
+        assertEquals(2, used(owner));
+        assertEquals(65, expansion(owner, s, 1).amount());
+    }
+
+    @Test
+    void oldUnpurchasedWalletQuoteRejectsButPaidReceiptStillReplaysAfterRestart() {
+        var first = founding(owner, 0);
+        settlements.purchase(owner, first.id()).join();
+        deposit(first.settlementId(), 100);
+        var pending = expansion(owner, first.settlementId(), 1);
+        // Recreate the actual pre-Phase-1 unversioned context and Owner-wallet payer.
+        db.transact(
+                        tx -> {
+                            var c = xdu.undarubra.esmp.core.storage.DatabaseAccess.context(tx);
+                            for (var q : List.of(first, pending)) {
+                                String legacy =
+                                        q.context()
+                                                .substring(q.context().indexOf('|') + 1)
+                                                .replace(
+                                                        "|TREASURY|" + first.settlementId(),
+                                                        "|WALLET|" + owner);
+                                c.update(CLAIM_QUOTES)
+                                        .set(CLAIM_QUOTES.CONTEXT, legacy)
+                                        .set(CLAIM_QUOTES.PAYER_KIND, "WALLET")
+                                        .set(CLAIM_QUOTES.PAYER_UUID, owner)
+                                        .where(CLAIM_QUOTES.QUOTE_ID.eq(q.id()))
+                                        .execute();
+                            }
+                            return null;
+                        })
+                .join();
+        db.close();
+        open();
+        settlements.purchase(owner, first.id()).join();
+        rejected(() -> settlements.purchase(owner, pending.id()).join());
+        assertEquals(875, balance(owner));
+        assertEquals(100, treasury(first.settlementId()));
+        assertEquals(1, used(owner));
     }
 
     @Test

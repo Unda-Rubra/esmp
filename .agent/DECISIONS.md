@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-12 — Frozen roadmap Phase 1 completed
+
+Every expansion now selects Settlement Treasury regardless of whether the actor is Owner or Governor; founding remains founder Wallet. Current Owner remains the assessed portfolio/subsidy identity. Governor allowance enforcement uses the existing Economy API within the same UnitOfWork; no wallet fallback, new fee or price coefficient change was introduced.
+
+`PlayerLandProgress` makes the existing `claims_used` counter's revision role explicit. Every supported mutation consumes a purchase and increments this counter; first-founding state changes in that same operation. Therefore it is an equivalent monotonic revision, not an additional column that could diverge. Failed/replayed purchases and ownership transfers do not change it. No released Liquibase baseline was edited.
+
+New quote contexts carry a treasury-expansion format version. All prior unpurchased quotes reject safely and can be replaced by a new quote; completed receipts remain idempotently replayable. This avoids destructive quote/data migration and preserves historical wallet-funded payments as history.
+
+Validation: ordinary clean/no-cache check/build passed 87 tests. New cases defend Owner treasury funding, owner-portfolio changes behind Governor quotes, claim/unclaim same-area staleness and old quote/paid-receipt restart compatibility. Actual Paper generated a legacy wallet quote before upgrading, rejected it afterward, rejected treasury insufficiency despite a rich Owner wallet, accepted a funded treasury payment and replayed without duplication. SIGKILL after committed purchase preserved all 369 non-clock rows; restart reconstructed four Claims, blocked a Public break and allowed the same Owner action.
+
+Scope: Phase 1 only. No certification, acquisition, Local Activity or Building code. Phase 2 is next; its first new forward migration must preserve the known Phase 0 bridge baseline rather than synchronize future changeSets as already applied.
+
 ## 2026-09-12 — Frozen roadmap Phase 0 implemented
 
 Pinned Liquibase Community 5.0.4, JUnit 6.1.2 and ArchUnit 1.5.0 alongside the frozen runtime/codegen pins. Canonical XML changelogs construct temporary SQLite before official jOOQ generation; dependency locks and SHA-256 verification metadata accompany the cutover. No prices, payer rules or roles changed.

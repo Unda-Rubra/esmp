@@ -159,10 +159,7 @@ final class ClaimPricing {
                 land != null,
                 "No natural land value is captured for this chunk; purchase is unavailable.");
         UUID owner = s == null ? actor : s.owner();
-        var payer =
-                s == null || owner.equals(actor)
-                        ? ClaimQuote.Payer.WALLET
-                        : ClaimQuote.Payer.TREASURY;
+        var payer = s == null ? ClaimQuote.Payer.WALLET : ClaimQuote.Payer.TREASURY;
         UUID payerId = payer == ClaimQuote.Payer.WALLET ? actor : s.id();
         var owned = SETTLEMENTS.as("owned");
         var chunks = SETTLEMENT_CHUNKS.as("chunks");
@@ -203,8 +200,12 @@ final class ClaimPricing {
                 c.selectFrom(PLAYER_LAND_PROGRESS)
                         .where(PLAYER_LAND_PROGRESS.PLAYER_UUID.eq(owner))
                         .fetchOne();
-        long used = progress == null ? 0 : progress.getClaimsUsed();
-        boolean founded = progress != null && progress.getFirstFoundingUsed() != 0;
+        var personal =
+                new PlayerLandProgress(
+                        progress != null && progress.getFirstFoundingUsed() != 0,
+                        progress == null ? 0 : progress.getClaimsUsed());
+        long used = personal.claimsUsed();
+        boolean founded = personal.firstFoundingUsed();
         boolean active = s == null || activity.active(DatabaseAccess.transaction(c), s.id());
         int size = s == null ? 0 : s.chunks().size();
         long amount =
@@ -238,7 +239,8 @@ final class ClaimPricing {
                             + security;
         }
         String context =
-                policy
+                "treasury-expansion-v1|"
+                        + policy
                         + "|"
                         + owner
                         + "|"
@@ -260,7 +262,7 @@ final class ClaimPricing {
                         + "|"
                         + distance
                         + "|"
-                        + used
+                        + personal.revision()
                         + "|"
                         + founded
                         + "|"

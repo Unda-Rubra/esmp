@@ -6,7 +6,7 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 ## 2026-09-12 frozen-MVP supersession
 
-This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence as implemented. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phase 0 infrastructure is implemented/verified; Phase 1 remains next. Agent execution results are not user sign-off.
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–1 are implemented/verified; Phase 2 is next. Agent execution results are not user sign-off.
 
 In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
 
@@ -185,3 +185,13 @@ Agent proof: 83 tests pass, including native empty/legacy/mismatched-constraint 
 
 - [ ] On a disposable existing world/database copy, full stop/start into Phase 0. Confirm bridge/schema validation, retained IDs/balances/Claims/Parcels/history and no unprotected startup. The Owner-wallet expansion behavior must remain unchanged in this phase.
 - [ ] From a fresh installation, exercise first grant, quoted purchase and replay, treasury allowance and Parcel consent, then restart. Confirm no duplicate money and retained protection/Holder state. These checks do not approve Phase 1 treasury-only expansion or any later feature.
+
+## Frozen roadmap Phase 1 — treasury-funded expansion
+
+Implemented: founding remains founder-wallet; ALL expansions use Treasury and current Owner assessment. PlayerLandProgress exposes the existing monotonically consumed purchase counter as progression revision. New quote-context format rejects old unpurchased quotes without rewriting paid receipts or adding redundant schema columns. Phase 0 Liquibase baseline/config versions remain unchanged.
+
+Agent proof: clean no-cache build/check passed 87 tests. Four new cases cover Owner treasury insufficiency despite personal funds, Governor quote staleness from Owner portfolio changes, claim/unclaim same-area staleness and prior-format quote versus paid-receipt restart compatibility. A genuine Phase 0 wallet quote was created with the prior JAR and rejected by the new JAR. Owner wallet 1005 could not cover treasury 55 against price 80; deposit 25 permitted the treasury payment, leaving wallet 980/treasury 0. Replay did not debit. SIGKILL after commit retained all 369 non-clock rows; restart loaded four Claims. Public break was denied, the identical Owner break succeeded, and the test block was restored.
+
+- [ ] As Owner, confirm expansion uses Treasury even when your personal wallet has enough money. Fund the treasury explicitly, purchase, and verify only the treasury is charged at confirmation. Founding must still use the founder's wallet.
+- [ ] Verify Governor allowance/Owner assessment and old pending quote invalidation; paid receipts remain replayable. Changing portfolio/topology/progression must reject stale consent without spending money or allowance.
+- [ ] On a disposable fixture, restart after a committed purchase. Verify Claims/protection, balances, receipt replay and personal progression. No subsidy resets after unclaim, abandonment or transfer.
