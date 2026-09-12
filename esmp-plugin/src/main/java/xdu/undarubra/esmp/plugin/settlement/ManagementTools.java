@@ -222,7 +222,9 @@ public final class ManagementTools implements Listener, AutoCloseable {
         if (tag.getType() != Material.NAME_TAG
                 || !tag.hasItemMeta()
                 || !tag.getItemMeta().hasDisplayName()) return "";
-        return PlainTextComponentSerializer.plainText().serialize(tag.getItemMeta().displayName());
+        return PlainTextComponentSerializer.plainText()
+                .serialize(tag.getItemMeta().displayName())
+                .strip();
     }
 
     private Aim aim(Player player) {
@@ -351,7 +353,10 @@ public final class ManagementTools implements Listener, AutoCloseable {
                 Component.text("Settlement Management\n", NamedTextColor.BLACK)
                         .append(link("Create here", "/settlement create", false))
                         .append(link("My Settlements", "/settlement list", false))
-                        .append(link("First claim price", "/settlement price", false))
+                        .append(link("Wallet", "/balance", false))
+                        .append(link("Transactions", "/esmp economy history", false))
+                        .append(link("Founding quote", "/settlement price", false))
+                        .append(link("Natural land value", "/settlement landvalue", false))
                         .append(link("Parcel Wand", "/esmp tools parcel_wand", false));
         if (settlement == null) {
             player.openBook(
@@ -365,11 +370,11 @@ public final class ManagementTools implements Listener, AutoCloseable {
                             .build());
             return;
         }
-        String ref = settlement.name();
+        String ref = settlement.id().toString();
         var land = runtime.land(settlement.id());
         Component governance =
                 Component.text(
-                                ref
+                                settlement.name()
                                         + " (#"
                                         + land.number()
                                         + ")\nRole: "
@@ -378,7 +383,13 @@ public final class ManagementTools implements Listener, AutoCloseable {
                                         + "\n")
                         .append(link("Status", "/settlement info " + ref, false))
                         .append(link("Activity", "/settlement activity " + ref, false))
-                        .append(link("Next claim price", "/settlement price " + ref, false))
+                        .append(link("Expansion quote", "/settlement price " + ref, false))
+                        .append(link("Treasury", "/esmp treasury " + ref + " balance", false))
+                        .append(
+                                link(
+                                        "Treasury history",
+                                        "/esmp treasury " + ref + " history",
+                                        false))
                         .append(link("Claim here", "/settlement claim " + ref, false))
                         .append(link("Unclaim here", "/settlement unclaim", false))
                         .append(link("Borders", "/settlement view " + ref, false));
@@ -454,6 +465,7 @@ public final class ManagementTools implements Listener, AutoCloseable {
 
     private ParcelView parcel(SettlementView s, String input) {
         var land = runtime.land(s.id());
+        input = input.strip();
         for (var p : land.parcels().values())
             if (p.name().equalsIgnoreCase(input) || p.id().toString().equals(input)) return p;
         throw new SettlementException("Parcel not found");
@@ -546,7 +558,8 @@ public final class ManagementTools implements Listener, AutoCloseable {
         return result;
     }
 
-    private void previewAdd(Player player, SettlementView settlement, String name) {
+    private void previewAdd(Player player, SettlementView settlement, String rawName) {
+        String name = LandName.normalize(rawName);
         var selection = selections.get(player.getUniqueId());
         if (selection == null || selection.first() == null || selection.second() == null)
             throw new SettlementException("Set both corners first.");
@@ -867,8 +880,8 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         "/settlement parcel pos1|pos2 [blockX blockY blockZ] | clear",
                         "/settlement parcel add <settlement> <name> | commit",
                         "/settlement parcel list <settlement> | info|view <settlement> <parcel>",
-                        "/settlement parcel remove <settlement> <parcel> <blockX blockY blockZ> |"
-                                + " commit",
+                        "/settlement parcel remove <settlement> <parcel> <blockX> <blockY> <blockZ>"
+                            + " | commit",
                         "/settlement parcel holders <settlement> <parcel> <player,player|none>",
                         "/settlement parcel policy <settlement> <parcel> <action>"
                                 + " <OWNER,GOVERNOR,CITIZEN,HOLDER,PUBLIC|none>",

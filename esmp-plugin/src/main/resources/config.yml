@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 4
+config-version: 8
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -16,9 +16,40 @@ settlements:
   transfer-ticks: 36000
   promotion-ticks: 1728000
   abandon-ticks: 1200
-  # Numeric price = base + step * current claimed chunks. No currency/items are charged.
-  claim-base-price: 100
-  claim-price-step: 25
+
+# Create/claim/price request a quote; purchase confirms and pays atomically.
+# Natural profiles must already be committed, including for the first founding (25).
+# No command forces chunk loads. Owner pays from wallet; Governor uses treasury allowance.
+# Threshold lists start at 0, increase strictly, and contain 'threshold:basisPoints' strings.
+# Basis points and activity factors are positive integers (10000 = 100%).
+# Discounts are integer factors from 1 to 10000; an empty list disables early discounts.
+# Assessment/subsidies follow the settlement owner. Prices round up once at the end.
+claim-pricing:
+  quote-ticks: 1200
+  settlements:
+    - '0:10000'
+    - '2:12000'
+    - '4:15000'
+  portfolio-chunks:
+    - '0:10000'
+    - '16:11000'
+    - '64:13000'
+    - '128:16000'
+  settlement-size:
+    - '0:10000'
+    - '8:11000'
+    - '32:12500'
+  # Minimum Manhattan distance to the owner's chunks in the same world.
+  proximity:
+    - '0:20000'
+    - '4:16000'
+    - '8:13000'
+    - '16:11000'
+    - '32:10000'
+  # After the first founding; subsequent purchases use 10000 once exhausted.
+  early-discounts: [5000, 6500, 8000, 9000]
+  active-factor: 10000
+  inactive-factor: 10500
 
 # All durations use shared reckoning ticks; 24000 ticks = one game day.
 # Changing an installed Activity policy requires an explicit score migration.
@@ -35,3 +66,30 @@ activity:
   settlement-daily-cap: 20.0
   grace-ticks: 72000
   action-cooldown-ticks: 200
+
+# One ledger currency. Display fields may change; identity and period length require migration.
+economy:
+  currency:
+    id: esmp:coin
+    singular-name: coin
+    plural-name: coins
+    symbol: "¤"
+    format: "{amount} {name}"
+  period-ticks: 168000
+  # First-time players only; an enrolled grant keeps its original amount until paid.
+  starting-funds: 100
+  # Operators select a tier from observed genuine activity; online counts do not select it.
+  issuance-tier: small
+  issuance-tiers:
+    small: 2000
+    medium: 5000
+    large: 10000
+    very_large: 20000
+
+# Applied only to new natural captures; changing coefficients requires a new version.
+land-values:
+  version: 1
+  base-value: 100
+  relief-penalty: 2
+  max-relief-penalty: 50
+  shore-bonus: 25

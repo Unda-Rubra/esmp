@@ -12,10 +12,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
+import xdu.undarubra.esmp.civilization.settlement.ClaimQuote;
 import xdu.undarubra.esmp.civilization.settlement.Role;
 import xdu.undarubra.esmp.civilization.settlement.SettlementException;
 import xdu.undarubra.esmp.civilization.settlement.SettlementOffer;
 import xdu.undarubra.esmp.civilization.settlement.SettlementView;
+import xdu.undarubra.esmp.plugin.CommandArguments;
 
 import java.util.Comparator;
 import java.util.List;
@@ -27,6 +29,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
             List.of(
                     "create",
                     "claim",
+                    "purchase",
                     "unclaim",
                     "info",
                     "list",
@@ -48,6 +51,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "history",
                     "activity",
                     "price",
+                    "landvalue",
                     "ban",
                     "unban",
                     "bans",
@@ -57,14 +61,18 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "help");
     private final JavaPlugin plugin;
     private final SettlementRuntime runtime;
+    private final LandValueRuntime landValues;
 
-    public SettlementCommands(JavaPlugin plugin, SettlementRuntime runtime) {
+    public SettlementCommands(
+            JavaPlugin plugin, SettlementRuntime runtime, LandValueRuntime landValues) {
         this.plugin = plugin;
         this.runtime = runtime;
+        this.landValues = landValues;
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(
+            CommandSender sender, Command command, String label, String[] rawArgs) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(
                     Component.text(
@@ -76,6 +84,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
             return true;
         }
         try {
+            String[] args = CommandArguments.parse(rawArgs);
             if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
                 help(player);
                 return true;
@@ -87,21 +96,53 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> {
                     exact(args, 1, "create");
-                    UUID world = mainWorld(player);
-                    requireUnclaimedHere(player);
-                    ChunkPosition chunk = chunk(player);
-                    runtime.mutate(
-                            player,
-                            null,
-                            new SettlementRuntime.Reservation(world, chunk),
-                            () -> runtime.service().create(actor, world, chunk));
+                    requestQuote(player, null);
                 }
                 case "parcel" -> runtime.tools().command(player, args);
+                case "landvalue" -> {
+                    exact(args, 1, "landvalue");
+                    landValues.inspect(player);
+                }
                 case "price" -> {
                     optionalName(args, "price");
-                    int area = args.length == 2 ? named(args[1]).chunks().size() : 0;
-                    player.sendMessage(
-                            Component.text("Next claim: " + runtime.service().claimPrice(area)));
+                    requestQuote(player, args.length == 2 ? named(args[1]) : null);
+                }
+                case "purchase" -> {
+                    exact(args, 2, "purchase <quoteUUID>");
+                    UUID quoteId = parseUuid(args[1]);
+                    runtime.rememberAdministrator(actor);
+                    runtime.query(
+                            player,
+                            () -> runtime.service().quote(actor, quoteId),
+                            q -> {
+                                Player current = plugin.getServer().getPlayer(actor);
+                                if (current == null) return;
+                                if (!current.hasPermission("esmp.settlement")) {
+                                    throw new SettlementException(
+                                            "You do not have permission to use Settlements.");
+                                }
+                                // Receipts are replayable even after the player has moved.
+                                if (!q.purchased()
+                                        && (!q.worldInstance()
+                                                        .equals(
+                                                                runtime.mainInstance(
+                                                                        current.getWorld()))
+                                                || !q.chunk().equals(chunk(current)))) {
+                                    throw new SettlementException(
+                                            "Return to the quoted world and chunk ("
+                                                    + q.chunk().x()
+                                                    + ", "
+                                                    + q.chunk().z()
+                                                    + ") before purchasing, or request a new"
+                                                    + " quote.");
+                                }
+                                runtime.mutate(
+                                        current,
+                                        q.founding() ? null : q.settlementId(),
+                                        new SettlementRuntime.Reservation(
+                                                q.worldInstance(), q.chunk()),
+                                        () -> runtime.service().purchase(actor, q.id()));
+                            });
                 }
                 case "ban", "unban" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
@@ -148,16 +189,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 }
                 case "claim" -> {
                     exact(args, 2, "claim <settlement>");
-                    SettlementView settlement = named(args[1]);
-                    manage(player, settlement);
-                    requireUnclaimedHere(player);
-                    UUID world = mainWorld(player);
-                    ChunkPosition chunk = chunk(player);
-                    runtime.mutate(
-                            player,
-                            settlement.id(),
-                            new SettlementRuntime.Reservation(world, chunk),
-                            () -> runtime.service().claim(actor, settlement.id(), world, chunk));
+                    requestQuote(player, named(args[1]));
                 }
                 case "unclaim" -> {
                     exact(args, 1, "unclaim");
@@ -182,7 +214,10 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     int count = settlement.chunks().size();
                     player.sendMessage(
                             Component.text(
-                                    displayLabel + " · " + count + (count == 1 ? " chunk" : " chunks")));
+                                    displayLabel
+                                            + " · "
+                                            + count
+                                            + (count == 1 ? " chunk" : " chunks")));
                     player.sendMessage(Component.text("Role: " + roleName(settlement.role(actor))));
                     player.sendMessage(Component.text("Owner: " + playerName(settlement.owner())));
                     settlement.members().entrySet().stream()
@@ -462,6 +497,52 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private void requestQuote(Player player, SettlementView settlement) {
+        UUID actor = player.getUniqueId();
+        runtime.rememberAdministrator(actor);
+        if (settlement != null) manage(player, settlement);
+        UUID world = mainWorld(player);
+        requireUnclaimedHere(player);
+        ChunkPosition chunk = chunk(player);
+        // The service requires a committed natural profile. Do not force a chunk load/capture.
+        runtime.query(
+                player,
+                () ->
+                        settlement == null
+                                ? runtime.service().quoteCreate(actor, world, chunk)
+                                : runtime.service()
+                                        .quoteClaim(actor, settlement.id(), world, chunk),
+                q -> {
+                    Player current = plugin.getServer().getPlayer(actor);
+                    if (current != null) showQuote(current, q);
+                });
+    }
+
+    private static void showQuote(Player player, ClaimQuote q) {
+        player.sendMessage(
+                Component.text(
+                        (q.founding() ? "Founding quote" : "Expansion quote")
+                                + " | Price: "
+                                + q.amount()
+                                + " | Payer: "
+                                + q.payer()
+                                + " "
+                                + q.payerId()));
+        player.sendMessage(Component.text(q.summary()));
+        player.sendMessage(
+                Component.text(
+                        "Chunk: "
+                                + q.chunk().x()
+                                + ", "
+                                + q.chunk().z()
+                                + " | expires at game tick "
+                                + q.expiresTick()
+                                + (q.purchased() ? " | Purchased receipt" : "")));
+        player.sendMessage(
+                Component.text("[Confirm]")
+                        .clickEvent(ClickEvent.suggestCommand("/settlement purchase " + q.id())));
+    }
+
     static String roleName(Role role) {
         return switch (role) {
             case OWNER -> "Owner";
@@ -602,6 +683,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 List.of(
                         "/settlement create | price [settlement] | claim <settlement> | unclaim |"
                                 + " view [name]",
+                        "/settlement purchase <quoteUUID> (confirm a quoted claim at its chunk)",
+                        "Create, claim and price request quotes only; payment occurs on purchase.",
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
                         "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",
@@ -610,9 +693,12 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 + " <true|false> (admin)",
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
                         "/esmp tools <parcel_wand|management_book>",
+                        "/settlement landvalue (natural base of the current chunk)",
                         "/settlement parcel help | abandon <settlement> | confirm <offer-id>")) {
             player.sendMessage(Component.text(line));
         }
+        player.sendMessage(
+                Component.text("Put multiword names in double quotes, e.g. \"New Haven\"."));
     }
 
     @Override
@@ -631,6 +717,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         if (args.length == 2
                 && List.of(
                                 "claim",
+                                "price",
                                 "info",
                                 "activity",
                                 "members",
@@ -653,6 +740,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                             .startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .sorted()
                     .limit(50)
+                    .map(CommandArguments::quote)
                     .toList();
         }
         if (args.length == 3

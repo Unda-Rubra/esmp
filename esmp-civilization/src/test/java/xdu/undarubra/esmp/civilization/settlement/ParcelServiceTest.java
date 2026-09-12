@@ -6,6 +6,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 import xdu.undarubra.esmp.civilization.activity.*;
+import xdu.undarubra.esmp.civilization.land.*;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.core.world.*;
@@ -18,6 +19,7 @@ class ParcelServiceTest {
     @TempDir Path directory;
     WorldStore db;
     GameClock clock;
+    LandValueService landValues;
     SettlementService settlements;
     ParcelService parcels;
     UUID source = UUID.randomUUID(),
@@ -28,6 +30,7 @@ class ParcelServiceTest {
             world,
             id;
     Set<UUID> admins = new HashSet<>();
+    Map<UUID, UUID> creationReceipts = new HashMap<>();
 
     @BeforeEach
     void open() {
@@ -44,12 +47,90 @@ class ParcelServiceTest {
                         .instanceId();
         clock = new GameClock(db);
         clock.initialize(source, 0, true).join();
+        landValues =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.land(
+                        db, LandValuePolicy.defaults());
+        landValues.initialize().join();
         admins.add(admin);
-        settlements =
-                new SettlementService(db, SettlementPolicy.defaults(), clock, admins::contains);
+        settlements = governanceSettlements();
         settlements.initialize().join();
-        parcels = new ParcelService(db, clock, admins::contains);
-        id = settlements.create(owner, world, new ChunkPosition(0, 0)).join().settlementId();
+        parcels =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.parcel(
+                        db, clock, admins::contains);
+        id = create(owner, world, new ChunkPosition(0, 0)).settlementId();
+    }
+
+    void restartForLegacyMigration() {
+        // Reopen so DatabaseSchema detects the legacy fixture without Liquibase metadata.
+        // Unlike open(), do not initialize settlements or create another settlement/receipt.
+        db.close();
+        db = new WorldStore(directory.resolve("parcels.db"));
+        var reopenedWorld =
+                db.initialize(
+                                List.of(
+                                        new WorldDefinition(
+                                                "MAIN", "civilization", WorldEnvironment.NORMAL)),
+                                List.of(new WorldBinding("MAIN", source, "world")))
+                        .join()
+                        .instances()
+                        .getFirst()
+                        .instanceId();
+        assertEquals(world, reopenedWorld);
+        clock = new GameClock(db);
+        clock.initialize(source, 0, true).join();
+        landValues =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.land(
+                        db, LandValuePolicy.defaults());
+        landValues.initialize().join();
+        settlements = governanceSettlements();
+        parcels =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.parcel(
+                        db, clock, admins::contains);
+        // Leave migration unfinished: the test still has to initialize the domain tables.
+    }
+
+    SettlementService governanceSettlements() {
+        // These tests exercise parcel governance, not currency or activity pricing.
+        // Natural profiles and the production quote/purchase path are still required.
+        return xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
+                db,
+                SettlementPolicy.defaults(),
+                clock,
+                admins::contains,
+                (c, settlement) -> {},
+                ClaimPricingPolicy.defaults(),
+                (c, quote) -> {},
+                (c, settlement) -> true);
+    }
+
+    void profile(UUID worldInstance, ChunkPosition chunk) {
+        // Identical immutable valuation inputs at each distinct requested location.
+        // LandValueService.capture also verifies repeated captures are identical.
+        landValues
+                .capture(
+                        List.of(
+                                new LandValueProfile(
+                                        worldInstance,
+                                        chunk.x(),
+                                        chunk.z(),
+                                        landValues.policy().version(),
+                                        landValues.policy().baseValue(),
+                                        LandValueProfile.Terrain.values()[0])))
+                .join();
+    }
+
+    SettlementChange create(UUID actor, UUID worldInstance, ChunkPosition chunk) {
+        profile(worldInstance, chunk);
+        var quote = settlements.quoteCreate(actor, worldInstance, chunk).join();
+        var change = settlements.purchase(actor, quote.id()).join();
+        creationReceipts.put(change.settlementId(), quote.id());
+        return change;
+    }
+
+    SettlementChange claim(UUID actor, UUID settlement, UUID worldInstance, ChunkPosition chunk) {
+        profile(worldInstance, chunk);
+        var quote = settlements.quoteClaim(actor, settlement, worldInstance, chunk).join();
+        return settlements.purchase(actor, quote.id()).join();
     }
 
     @AfterEach
@@ -81,6 +162,31 @@ class ParcelServiceTest {
     }
 
     @Test
+    void spacedNamesTrimEdgesAndSurviveApprovalWithUniquenessIntact() {
+        settlements.certify(admin, id, true).join();
+        settlements.rename(admin, id, "  New  Haven  ").join();
+        assertEquals("New  Haven", parcels.land(id).join().officialName());
+        UUID second = create(owner, world, new ChunkPosition(2, 0)).settlementId();
+        settlements.certify(admin, second, true).join();
+        rejected(() -> settlements.rename(admin, second, "new  haven").join());
+        parcels.add(owner, id, "  Tool  Store  ", Set.of(new ParcelCell(0, 0, 0)), -64, 320).join();
+        assertEquals("Tool  Store", current().name());
+        assign(Set.of(holder));
+        parcels.rename(owner, id, current().id(), "  Public  Workshop  ").join();
+        parcels.resolve(holder, id, request(), true).join();
+        assertEquals("Public  Workshop", current().name());
+        parcels.add(owner, id, "public  workshop", Set.of(new ParcelCell(1, 0, 0)), -64, 320)
+                .join();
+        parcels.resolve(holder, id, request(), true).join();
+        assertEquals(1, parcels.land(id).join().parcels().size());
+        assertEquals(2, current().cells().size());
+        assertThrows(SettlementException.class, () -> settlements.rename(admin, id, "   "));
+        assertThrows(
+                SettlementException.class,
+                () -> parcels.rename(owner, id, current().id(), "Bad\\nName"));
+    }
+
+    @Test
     void geometryRejectsDiagonalOverlapBoundsAndParentRelease() {
         create();
         UUID parcel = current().id();
@@ -98,7 +204,7 @@ class ParcelServiceTest {
                         parcels.add(owner, id, "Home", Set.of(new ParcelCell(0, -9, 0)), -64, 320)
                                 .join());
         assertEquals(2, current().cells().size());
-        settlements.claim(owner, id, world, new ChunkPosition(1, 0)).join();
+        claim(owner, id, world, new ChunkPosition(1, 0));
         rejected(() -> settlements.unclaim(owner, id, new ChunkPosition(0, 0)).join());
         var warning =
                 settlements.offer(owner, id, owner, SettlementOffer.Type.ABANDON).join().offer();
@@ -129,10 +235,16 @@ class ParcelServiceTest {
                 .join();
         clock = new GameClock(db);
         clock.initialize(source, 0, true).join();
-        settlements =
-                new SettlementService(db, SettlementPolicy.defaults(), clock, admins::contains);
+        landValues =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.land(
+                        db, LandValuePolicy.defaults());
+        landValues.initialize().join();
+        settlements = governanceSettlements();
         settlements.initialize().join();
-        parcels = new ParcelService(db, clock, admins::contains);
+        parcels =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.parcel(
+                        db, clock, admins::contains);
+        assertTrue(settlements.quote(owner, creationReceipts.get(id)).join().purchased());
         assertTrue(parcels.requests(id).join().getFirst().approvals().contains(owner));
         parcels.resolve(other, id, request, true).join();
         assertTrue(parcels.land(id).join().parcels().isEmpty());
@@ -153,7 +265,9 @@ class ParcelServiceTest {
         assertTrue(p.allows(holder, Role.PUBLIC, ParcelAction.BUILD));
         assertTrue(p.allows(holder, Role.CITIZEN, ParcelAction.BUILD));
         assertFalse(p.allows(owner, Role.OWNER, ParcelAction.BUILD));
-        var activity = new ActivityService(db, clock, ActivityPolicy.defaults(), admins::contains);
+        var activity =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
+                        db, clock, ActivityPolicy.defaults(), admins::contains);
         activity.initialize().join();
         long revision = parcels.land(id).join().securityRevision();
         activity.contribute(
@@ -204,7 +318,7 @@ class ParcelServiceTest {
         UUID parcel = current().id();
         parcels.delete(owner, id, parcel).join();
         UUID stale = request();
-        settlements.claim(owner, id, world, new ChunkPosition(1, 0)).join();
+        claim(owner, id, world, new ChunkPosition(1, 0));
         rejected(() -> parcels.resolve(holder, id, stale, true).join());
         parcels.resolve(owner, id, stale, false).join();
         assertTrue(parcels.requests(id).join().isEmpty());
@@ -221,14 +335,37 @@ class ParcelServiceTest {
     }
 
     @Test
-    void numericPricesAndAdministratorNamingDoNotInventCurrency() {
+    void pendingRequestsRetainInsertionOrderAndDuplicateApprovalsAreHarmless() {
+        create();
+        assign(Set.of(holder, other));
+        UUID parcel = current().id();
+        parcels.rename(owner, id, parcel, "First proposal").join();
+        UUID first = request();
+        parcels.rename(owner, id, parcel, "Second proposal").join();
+        var pending = parcels.requests(id).join();
+        assertEquals(2, pending.size());
+        UUID second = pending.get(1).id();
+        assertNotEquals(first, second);
+        assertEquals(
+                List.of(first, second), pending.stream().map(ParcelService.Request::id).toList());
+        parcels.resolve(owner, id, first, true).join();
+        parcels.resolve(owner, id, first, true).join();
+        assertEquals(Set.of(owner), parcels.requests(id).join().getFirst().approvals());
+        assertEquals("Home", current().name());
+        parcels.resolve(holder, id, first, true).join();
+        assertEquals("Home", current().name());
+        parcels.resolve(other, id, first, true).join();
+        assertEquals("First proposal", current().name());
+        assertTrue(parcels.requests(id).join().isEmpty());
+        rejected(() -> parcels.resolve(holder, id, second, true).join());
+    }
+
+    @Test
+    void purchasedClaimsPreserveNumberAndAdministratorNamingRequiresCertification() {
         var land = parcels.land(id).join();
         assertEquals(1, land.number());
         assertNull(land.officialName());
-        var pricing = new SettlementPolicy(true, 64, 24000, 1200, 24000, 1200, 7, 3);
-        assertEquals(7, pricing.claimPrice(0));
-        assertEquals(10, pricing.claimPrice(1));
-        var claimed = settlements.claim(owner, id, world, new ChunkPosition(1, 0)).join();
+        var claimed = claim(owner, id, world, new ChunkPosition(1, 0));
         assertEquals(2, claimed.current().chunks().size());
         rejected(() -> settlements.rename(owner, id, "Home").join());
         rejected(() -> settlements.rename(admin, id, "Home").join());
@@ -236,19 +373,13 @@ class ParcelServiceTest {
         settlements.rename(admin, id, "Home").join();
         assertEquals("Home", parcels.land(id).join().officialName());
         assertEquals(land.number(), parcels.land(id).join().number());
-        assertTrue(
-                settlements.history(id).join().stream()
-                        .anyMatch(
-                                e ->
-                                        e.detail()
-                                                .contains(
-                                                        "numeric_price="
-                                                                + settlements.claimPrice(1)
-                                                                + ";charged=false")));
     }
 
     @Test
-    void legacyRolesAndNamesMigrateWithoutDroppingMembersOrOffers() {
+    void legacyRolesAndNamesMigrateWithoutDroppingMembersOffersOrClaimReceipts() {
+        UUID receiptId = creationReceipts.get(id);
+        var receipt = settlements.quote(owner, receiptId).join();
+        assertTrue(receipt.purchased());
         var invitation =
                 settlements.offer(owner, id, holder, SettlementOffer.Type.INVITE).join().offer();
         settlements.accept(holder, invitation.id(), false).join();
@@ -259,44 +390,71 @@ class ParcelServiceTest {
                 settlements.offer(owner, id, other, SettlementOffer.Type.INVITE).join().offer();
         db.transact(
                         c -> {
-                            try (var q = c.createStatement()) {
-                                for (var table :
-                                        List.of(
-                                                "parcel_approvals",
-                                                "parcel_requests",
-                                                "parcel_policy",
-                                                "parcel_holders",
-                                                "parcel_cells",
-                                                "parcels",
-                                                "settlement_bans",
-                                                "settlement_details"))
-                                    q.executeUpdate("DROP TABLE " + table);
-                                q.executeUpdate(
-                                        "ALTER TABLE settlement_members RENAME TO"
+                            // Deliberate legacy migration fixture: these historical tables cannot
+                            // be represented by the current generated schema. Raw SQL stays here.
+                            // A true legacy database has no Liquibase metadata; retaining it while
+                            // downgrading domain tables would describe corruption, not migration.
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE IF EXISTS DATABASECHANGELOG");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE IF EXISTS DATABASECHANGELOGLOCK");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("PRAGMA user_version=1");
+                            // Preserve claim_pricing migration state, progress and receipts: this
+                            // exercises legacy governance migration, not a pre-pricing database.
+                            for (var table :
+                                    List.of(
+                                            "parcel_approvals",
+                                            "parcel_requests",
+                                            "parcel_policy",
+                                            "parcel_holders",
+                                            "parcel_cells",
+                                            "parcels",
+                                            "settlement_bans",
+                                            "settlement_details"))
+                                xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                        .execute("DROP TABLE " + table);
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute(
+                                            "ALTER TABLE settlement_members RENAME TO"
                                                 + " migrated_members");
-                                q.executeUpdate(
-                                        "CREATE TABLE settlement_members(settlement_id TEXT NOT"
-                                            + " NULL,player_uuid TEXT NOT NULL,role TEXT NOT NULL"
-                                            + " CHECK(role IN ('MANAGER','MEMBER')),PRIMARY"
-                                            + " KEY(settlement_id,player_uuid))");
-                                q.executeUpdate(
-                                        "INSERT INTO settlement_members SELECT"
-                                            + " settlement_id,player_uuid,CASE role WHEN 'GOVERNOR'"
-                                            + " THEN 'MANAGER' ELSE 'MEMBER' END FROM"
-                                            + " migrated_members");
-                                q.executeUpdate("DROP TABLE migrated_members");
-                                q.executeUpdate(
-                                        "UPDATE settlements SET name='Legacy',name_key='legacy'");
-                                q.executeUpdate("UPDATE civilization_schema SET version=2");
-                            }
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute(
+                                            "CREATE TABLE settlement_members(settlement_id TEXT NOT"
+                                                + " NULL,player_uuid TEXT NOT NULL,role TEXT NOT"
+                                                + " NULL CHECK(role IN"
+                                                + " ('MANAGER','MEMBER')),PRIMARY"
+                                                + " KEY(settlement_id,player_uuid))");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute(
+                                            "INSERT INTO settlement_members SELECT"
+                                                + " settlement_id,player_uuid,CASE role WHEN"
+                                                + " 'GOVERNOR' THEN 'MANAGER' ELSE 'MEMBER' END"
+                                                + " FROM migrated_members");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE migrated_members");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute(
+                                            "UPDATE settlements SET"
+                                                + " name='Legacy',name_key='legacy'");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("UPDATE civilization_schema SET version=2");
                             return null;
                         })
                 .join();
+        restartForLegacyMigration();
         var restored = settlements.initialize().join().getFirst();
         assertEquals(id, restored.id());
         assertEquals(Role.GOVERNOR, restored.role(holder));
         assertEquals("Legacy", parcels.land(id).join().officialName());
         assertEquals(pending.id(), settlements.inspectOffer(pending.id()).join().id());
+        assertEquals(receipt, settlements.quote(owner, receiptId).join());
+        var history = settlements.history(id).join();
+        var replay = settlements.purchase(owner, receiptId).join();
+        assertEquals(id, replay.settlementId());
+        assertEquals(restored.chunks(), replay.current().chunks());
+        assertEquals(Role.GOVERNOR, replay.current().role(holder));
+        assertEquals(history, settlements.history(id).join());
         settlements.accept(other, pending.id(), false).join();
         assertEquals(Role.CITIZEN, settlements.initialize().join().getFirst().role(other));
     }

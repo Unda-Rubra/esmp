@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!-- The bridge enables foreign_keys on the migration connection before update.
+         This baseline neither changes PRAGMA user_version nor adopts existing tables. -->
+    <preConditions onFail="HALT" onError="HALT">
+        <dbms type="sqlite"/>
+    </preConditions>
+    <include file="core.xml" relativeToChangelogFile="true"/>
+    <include file="economy.xml" relativeToChangelogFile="true"/>
+    <include file="civilization.xml" relativeToChangelogFile="true"/>
+</databaseChangeLog>

@@ -1,0 +1,47 @@
+
+digraph G {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.35", ranksep="0.5",
+         fontname="Helvetica", label="ESMP MVP Boundary", labelloc="t", fontsize=20];
+  node [shape=box, style="rounded", fontname="Helvetica", fontsize=11, margin="0.15,0.09"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_mvp {
+    label="MVP v1.0 — FROZEN";
+    style="rounded";
+    a [label="World Identity\nPersistence / GameClock"];
+    b [label="Settlement / Claim\nParcel / Protection"];
+    c [label="Currency / LandValue\nPaid Claims"];
+    d [label="Certification\nOwnership Transfer"];
+    e [label="Aggregate + Local Activity"];
+    f [label="Registered Building\nBaseline / Geometry"];
+    g [label="Decay"];
+    h [label="Repair"];
+    i [label="History / Era"];
+    a -> b -> c -> d -> e -> f -> g -> h -> i;
+  }
+
+  subgraph cluster_next {
+    label="MVP+1 — MANDATORY NEXT";
+    style="rounded,dashed";
+    j [label="Dynamic Settlement Cycle"];
+    k [label="Peripheral Claim Release"];
+    l [label="Spatial City Succession"];
+    j -> k -> l;
+  }
+
+  subgraph cluster_later {
+    label="Later / Need-driven";
+    style="rounded,dashed";
+    m [label="Server Trade / Facilities"];
+    n [label="Resource Reset Automation"];
+    o [label="Transport / Seasons / Culture"];
+    p [label="Disasters / Epochs\nWorld Evolution"];
+  }
+
+  e -> j [style=dashed, label="spatial support data"];
+  i -> j;
+  j -> m [style=dashed];
+  j -> n [style=dashed];
+  j -> o [style=dashed];
+  j -> p [style=dashed];
+}

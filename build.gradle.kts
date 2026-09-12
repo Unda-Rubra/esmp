@@ -9,9 +9,15 @@ allprojects {
 
 subprojects {
     apply(plugin = "java-library")
+    dependencies.add("compileOnly", "jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     extensions.configure<JavaPluginExtension> {
         toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+    }
+    if (name == "esmp-core") {
+        extensions.configure<SourceSetContainer> {
+            named("main") { resources.srcDir(rootProject.file("schema")) }
+        }
     }
 
     tasks.withType<JavaCompile>().configureEach {
@@ -28,6 +34,27 @@ subprojects {
     }
     dependencyLocking {
         lockAllConfigurations()
+    }
+}
+
+listOf(
+    "esmp-core" to "world_definitions|world_instances|game_clock",
+    "esmp-civilization" to "civilization_schema|settlements|settlement_.*|parcel.*|activity_.*|land_value_.*|claim_.*|player_land_progress",
+    "esmp-economy" to "economy_.*"
+).forEach { (module, tables) ->
+    project(":$module") {
+        val generated = tasks.register<GenerateJooq>("generateJooq") {
+            repositoryRoot.set(rootProject.layout.projectDirectory)
+            migrations.from(rootProject.fileTree("schema") { include("**/*.xml") })
+            targetPackage.set("xdu.undarubra.esmp.${module.removePrefix("esmp-")}.generated")
+            realColumns.set(module == "esmp-civilization")
+            includes.set(tables)
+            outputDirectory.set(layout.buildDirectory.dir("generated-src/jooq"))
+        }
+        extensions.configure<SourceSetContainer> {
+            named("main") { java.srcDir(generated.flatMap { it.outputDirectory }) }
+        }
+        tasks.named("compileJava") { dependsOn(generated) }
     }
 }
 

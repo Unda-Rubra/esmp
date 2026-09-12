@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="economy-baseline" author="esmp" dbms="sqlite">
+        <!-- Each economy table has CHECK constraints. These exact CREATE TABLE
+             statements are isolated exceptions: Community createTable does not
+             emit these CHECKs, and SQLite has no ALTER TABLE ADD CONSTRAINT.
+             No runtime currency, period, account or policy data is inserted. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_metadata (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    schema_version INTEGER NOT NULL,
+    currency_id TEXT NOT NULL UNIQUE,
+    period_ticks INTEGER NOT NULL CHECK(period_ticks>0)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_accounts (
+    account_key TEXT PRIMARY KEY,
+    currency_id TEXT NOT NULL REFERENCES economy_metadata(currency_id),
+    kind TEXT NOT NULL CHECK(kind IN ('WALLET','TREASURY')),
+    owner_uuid TEXT NOT NULL,
+    balance INTEGER NOT NULL DEFAULT 0 CHECK(typeof(balance)='integer' AND balance>=0),
+    UNIQUE(currency_id,kind,owner_uuid)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_budgets (
+    period INTEGER PRIMARY KEY CHECK(period>=0),
+    budget_limit INTEGER NOT NULL CHECK(typeof(budget_limit)='integer' AND budget_limit>=0),
+    issued INTEGER NOT NULL DEFAULT 0
+        CHECK(typeof(issued)='integer' AND issued>=0 AND issued<=budget_limit)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_transactions (
+    transaction_id TEXT PRIMARY KEY,
+    currency_id TEXT NOT NULL REFERENCES economy_metadata(currency_id),
+    movement TEXT NOT NULL CHECK(movement IN ('TRANSFER','ISSUANCE','SINK')),
+    actor TEXT NOT NULL,
+    source_account TEXT REFERENCES economy_accounts(account_key),
+    target_account TEXT REFERENCES economy_accounts(account_key),
+    amount INTEGER NOT NULL CHECK(typeof(amount)='integer' AND amount>0),
+    reason TEXT NOT NULL,
+    note TEXT NOT NULL,
+    game_tick INTEGER NOT NULL,
+    budget_period INTEGER REFERENCES economy_budgets(period),
+    source_after INTEGER,
+    target_after INTEGER,
+    CHECK(
+        (movement='TRANSFER' AND source_account IS NOT NULL AND target_account IS NOT NULL
+            AND source_account<>target_account AND budget_period IS NULL)
+        OR (movement='ISSUANCE' AND source_account IS NULL AND target_account IS NOT NULL
+            AND budget_period IS NOT NULL)
+        OR (movement='SINK' AND source_account IS NOT NULL AND target_account IS NULL
+            AND budget_period IS NULL)
+    )
+)
+        ]]></sql>
+        <createIndex tableName="economy_transactions" indexName="economy_transactions_source">
+            <column name="source_account"/>
+            <column name="game_tick"/>
+        </createIndex>
+        <createIndex tableName="economy_transactions" indexName="economy_transactions_target">
+            <column name="target_account"/>
+            <column name="game_tick"/>
+        </createIndex>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_allowances (
+    treasury_uuid TEXT NOT NULL,
+    governor_uuid TEXT NOT NULL,
+    ownership_revision INTEGER NOT NULL,
+    promotion_id TEXT,
+    remaining INTEGER NOT NULL CHECK(typeof(remaining)='integer' AND remaining>=0),
+    PRIMARY KEY(treasury_uuid,governor_uuid)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_allowance_events (
+    operation_id TEXT PRIMARY KEY,
+    actor TEXT NOT NULL,
+    treasury_uuid TEXT NOT NULL,
+    governor_uuid TEXT NOT NULL,
+    amount INTEGER NOT NULL CHECK(typeof(amount)='integer' AND amount>=0),
+    ownership_revision INTEGER NOT NULL,
+    promotion_id TEXT,
+    game_tick INTEGER NOT NULL
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE economy_starting_grants (
+    player_uuid TEXT PRIMARY KEY,
+    amount INTEGER NOT NULL CHECK(typeof(amount)='integer' AND amount>0),
+    eligible_tick INTEGER NOT NULL,
+    next_period INTEGER NOT NULL CHECK(next_period>=0),
+    transaction_id TEXT UNIQUE REFERENCES economy_transactions(transaction_id)
+)
+        ]]></sql>
+        <!-- Partial-index exception: createIndex has no SQLite WHERE predicate. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE INDEX economy_starting_grants_due
+    ON economy_starting_grants(next_period,eligible_tick)
+    WHERE transaction_id IS NULL
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

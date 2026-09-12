@@ -42,8 +42,11 @@ public final class ParcelDraft {
             return fail(cells, "Choose land inside a settlement.");
         if (name == null || name.isBlank())
             return fail(cells, "Hold a named tag in your off hand.");
-        if (!name.matches("[\\p{L}\\p{N}_-]{1,32}"))
-            return fail(cells, "Use 1–32 letters, numbers, _ or - for the name.");
+        try {
+            name = LandName.normalize(name);
+        } catch (SettlementException invalid) {
+            return fail(cells, invalid.getMessage());
+        }
         ParcelView existing = null;
         for (var parcel : land.parcels().values())
             if (parcel.name().equalsIgnoreCase(name)) {

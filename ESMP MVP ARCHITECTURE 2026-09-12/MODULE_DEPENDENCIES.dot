@@ -1,0 +1,27 @@
+
+digraph G {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.6",
+         fontname="Helvetica", label="ESMP Module Dependencies", labelloc="t", fontsize=20];
+  node [shape=box, style="rounded", fontname="Helvetica", fontsize=11, margin="0.18,0.10"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  paper [label="Paper Server"];
+  plugin [label="esmp-plugin\nPaper adapters / bootstrap\ncommands / UI"];
+  core [label="esmp-core\nWorld identity / GameClock\nDB infrastructure / scheduling"];
+  economy [label="esmp-economy\nWallet / Treasury / Ledger\nIssuance"];
+  civ [label="esmp-civilization\nSettlement / Activity / Building\nDecay / Repair / History"];
+  resource [label="esmp-resource\nResource world lifecycle"];
+
+  paper -> plugin;
+  plugin -> core;
+  plugin -> economy;
+  plugin -> civ;
+  plugin -> resource;
+  economy -> core;
+  civ -> core;
+  resource -> core;
+  civ -> economy [label="public Economy API only"];
+
+  bad1 [shape=note, label="FORBIDDEN:\nCore → gameplay\ncross-domain persistence access\nPlugin listeners → DB tables", fontsize=10];
+  bad1 -> core [style=dotted, arrowhead=none];
+}

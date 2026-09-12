@@ -1,30 +1,40 @@
 # Evolve: SMP（ESMP）
 
-ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务器。完整设计见 [ARCHITECTURE.md](ARCHITECTURE.md)。工厂世界不在当前范围内。
+ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-## 当前可玩功能
+**冻结路线图 Phase 0 已实现并通过基础设施验收；Phase 1 尚未开始。** 现有玩法保持不变，尤其 Owner 扩张仍用钱包。下一阶段才统一为金库付款；不要跳到认证或建筑。基础设施验收不等同于整个 MVP 已完成。
+
+## 当前基线功能（待按冻结要求重新验收）
 
 - 创建、扩展、取消区块认领；四方向连通、默认 64 区块上限、相邻聚落保持独立。
 - Owner / Governor / Citizen / Public，邀请、接受、升降级、转让、退出及聚落级禁令。Holder 是独立的 Parcel 关系，不自动成为 Citizen。
-- 当前 JAR 的认领价格仍为 `100 + 25 × 当前认领区块数`，仅显示和记录数字。新架构已选定虚拟账本货币；真实扣款、土地估值和补贴将在后续实现中迁移。
+- 付费认领：先报价再确认；首次建镇固定 25，后续按不可变地价、土地组合、规模、活跃度和个人优惠计价。缺失自然估值时拒绝购买。
 - 聚落内 8×8×8 单元组成的 Parcel，四类权限、零个或多个 Holder、持久化协商批准，以及命令和书/木棍工具。
 - 共享游戏时钟、活跃度、历史、重启恢复，以及直接操作和活塞/漏斗等间接边界保护。
+- 整数钱包、聚落金库、转账、预算内发行及首次加入资金已存在。当前旧代码仍由 Owner 钱包付扩张费用；冻结目标要求所有扩张都从金库付款，这项差异在 Phase 1 修正，不能混入 Phase 0。
+- 新生成主世界区块的自然估值固定保存；`/settlement landvalue` 查看当前区块。后续挖填建造不改估值，未捕获的旧区块明确显示未知。
 
 新聚落显示 `S#编号`，命令可用编号、`#编号`、当前名称或内部 UUID 定位。内部 UUID 不变；旧名称在迁移时保留为已认证正式名称。新正式名需管理员先认证命名资格，再批准名称。
 
-**建筑识别、侵蚀修复、生产、完整经济、资源重置和季节表现尚未启用。** MVP 不会因低活跃度或废墟状态自动释放聚落；动态聚落周期是 MVP 稳定后必须推进的下一大阶段。
+**尚无注册建筑、Local Activity、Decay、Repair 或 Era 闭环。** 旧认证命名开关和两方转让尚非冻结目标。旧测试通过只证明当时的基线，不代表新阶段已经完成。
 
-## 已接受的下一阶段设计
+## 冻结 MVP 的执行顺序
 
-- **单一整数账本货币**：玩家钱包与聚落金库，余额非负；发行、转账、销毁分开记账并使用稳定交易 ID。所有发行受周期预算约束，新玩家启动资金目标约 100，普通生存与合成仍可正常进行。
-- **土地定价**：主世界区块首次生成时保存不可被后续改造影响的基础估值。价格结合个人土地组合、聚落规模、小幅活跃度修正和个人早期优惠；只有另建附近聚落才加邻近附加价。玩家第一次建镇 Claim 固定 25，优惠不能靠转让、放弃或另建重置。
-- **两态认证与转让**：UNVERIFIED/VERIFIED 取代经济等级。满足活跃度/实际发展门槛后申请管理员认证，再获得正式命名和公开地图命名资格。所有权转让新增管理员批准及接收方支付的简单土地购置费；私人补偿由玩家协商。
+| 阶段 | 交付目标 |
+|---|---|
+| Phase 0 | Liquibase 5.0.4 结构化 changelog、已验证旧库桥接、临时 SQLite → jOOQ 生成、UnitOfWork/Repository 边界、JUnit 6.1.2、ArchUnit 和依赖校验元数据 |
+| Phase 1 | 重验付费认领；建镇从钱包付款，所有扩张从金库付款，按当前 Owner 评估 |
+| Phase 2 | UNVERIFIED/VERIFIED 申请与审核；默认年龄 3 游戏日、当前非 INACTIVE、终身有效活跃贡献 20 |
+| Phase 3 | 接收方接受、土地购置费报价、管理员批准、费用与所有权原子提交 |
+| Phase 4 | Claim 区块级 Local Activity、有限邻近支持、派生 ActivityRegion；不释放土地 |
+| Phase 5 | Owner/Governor 显式注册有体积上限的建筑，建立可随合法改造更新的基线和几何 |
+| Phase 6 | 仅注册建筑的 WEATHER/DROP/CAVE_IN，持久化任务、冲突检查、不强加载、不掉落物 |
+| Phase 7 | 整栋建筑修复站＋真实材料＋游戏时间；RUINED 经修复回到 INTACT 后每周期 Era 仅加一次 |
+| Phase 8 | 不加功能，完成完整验收、性能、配套世界/数据库恢复、迁移和发布门禁 |
 
-执行顺序是：**账本/发行预算 → 启动资金与余额反馈 → 不可变土地估值/付费认领/补贴 → 认证与转让审核 → 建筑身份/基线/几何 → 侵蚀修复历史 → 动态聚落周期。** Server Trade 与轻量设施识别随后推进，资源重置先允许安全的管理员流程，再按需要自动化。
+每一阶段通过 clean check、迁移、持久化/架构测试及相关 Paper 场景后才进入下一阶段。Phase 0 必须识别当前已经存在的付费认领/补贴数据，不能按过时快照把它们删除或退回免费认领。
 
-建筑复杂变更可退役旧身份并重新识别，保留明显前驱关系与历史；不以完美拆分/合并算法为前提。修复先采用修复点、材料和游戏时间，Era 保持轻量历史语义。四级经济等级已移除；文化排名、完整生产、货运、公共传送和玩法季节均后移。
-
-以上是已接受的目标，当前命令和存档版本仍按下文运行。现有命名开关不等同于新的认证申请/发展门槛流程。
+自动认领释放／Dynamic Settlement Cycle 是 **MVP v1.0 验收并打标签后的强制 MVP+1**，不是当前任务。Server Trade、设施、自动资源重置、传送、货运、季节、灾害、自动全城建筑发现等均不进入 MVP；不建占位表或模块。资源世界 MVP 使用经过验证的管理员维护流程。
 
 ## 构建
 
@@ -34,7 +44,8 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 | 插件语言 / 包名 | Java / `xdu.undarubra.esmp` |
 | JDK | 25；验证使用 Temurin 25.0.4.1+1 |
 | 构建 | Gradle Wrapper 9.7.1，Kotlin DSL |
-| SQLite JDBC / 测试 | 3.53.4.0 / JUnit Jupiter 5.12.2 |
+| SQLite JDBC / 测试 | 3.53.4.0 / JUnit 6.1.2 / ArchUnit 1.5.0 |
+| 类型化持久化 / schema 源 | jOOQ 3.21.8 / Liquibase Community 5.0.4 XML changelog |
 
 设置 `JAVA_HOME` 指向 JDK 25，然后运行：
 
@@ -44,17 +55,20 @@ ESMP 面向永久文明主世界和周期更新资源世界的长期生存服务
 
 产物为 `esmp-plugin/build/libs/esmp-0.1.0-SNAPSHOT.jar`。只部署这个 JAR，不单独安装内部模块。
 
+`build`/`check` 会先在临时 SQLite 中应用 `schema/db/changelog/db.changelog-master.xml`，再生成各模块的 `build/generated-src/jooq`。不要手改/提交生成目录。完整验收运行 `./gradlew clean check build`；依赖版本锁和 `gradle/verification-metadata.xml` 校验文件须随更新提交。新增 schema 变更写结构化 Liquibase changeSet，不再添加旧 SQL 迁移。
+
 ```sh
-./gradlew :esmp-core:test :esmp-civilization:test
+./gradlew :esmp-core:test :esmp-civilization:test :esmp-economy:test
 ```
 
 测试包含原有聚落/时钟/活跃度行为，以及角色迁移、数字价格、命名认证、Parcel 连通/重叠、多人协商、陈旧/过期提案和禁令。
+账本回归覆盖供给守恒、销毁、预算、重复交易、启动资金防重、溢出、并发透支、事务回滚、权限及重启。
 
 ## 现在进入游戏验证
 
 1. 已运行的开发服先输入 `stop`，不要热重载。阅读并接受 [Minecraft EULA](https://aka.ms/MinecraftEULA)，运行 `ESMP_ACCEPT_EULA=true ./scripts/run-dev.sh`。
 2. 等到控制台出现 `ESMP READY` 和 `Settlement protection enabled`。使用 **Minecraft Java 26.2** 连接 **`127.0.0.1:25579`**。
-3. 输入 `/settlement create`，记下返回编号。走到相邻区块后输入 `/settlement price 1` 和 `/settlement claim 1`；将示例 `1` 换成自己的编号。
+3. 到有自然估值的新区域输入 `/settlement create`，查看价格，点击 `[Confirm]` 并执行 `/settlement purchase <报价UUID>`。记下聚落编号；到相邻区块用 `/settlement claim 1` 报价后再次确认，将示例 `1` 换成自己的编号。
 4. 输入 `/esmp tools management_book` 获取管理书；等待至少 40 个推进中的游戏刻后，用 `/esmp tools parcel_wand` 获取 Parcel 木棍。普通玩家可以领取，不需要 OP。
 5. 完成后控制台 `stop`。再次启动后，角色、Parcel、提案、时钟与活跃度继续保留。
 
@@ -119,11 +133,11 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 
 ## 命令
 
-聚落参数接受编号/名称/UUID。官方名和 Parcel 名使用 1–32 个字母、汉字、数字、下划线或连字符。玩家名仅解析在线/已缓存账号；其他情况使用 UUID，不进行阻塞网络查询。
+聚落参数接受编号/名称/UUID。官方名和 Parcel 名使用 1–32 个字母、汉字、数字、空格、下划线或连字符。只修剪首尾空白，中间的连续空格保留，重名比较仍不区分大小写。命令中的多词名称用双引号，例如 `/settlement rename 1 "New Haven"`、`/settlement parcel info "New Haven" "Tool Store"`；Name Tag 直接命名为 `Tool Store`，无需引号。玩家名仅解析在线/已缓存账号；其他情况使用 UUID，不进行阻塞网络查询。
 
 | 操作 | 命令 |
 |---|---|
-| 创建/认领 | `/settlement create`、`price [聚落]`、`claim <聚落>`、`unclaim` |
+| 报价/购买/退地 | `/settlement create`、`price [聚落]`、`claim <聚落>`、`purchase <报价UUID>`、`unclaim` |
 | 查看 | `/settlement info [聚落]`、`activity [聚落]`、`list`、`members [聚落]`、`view [聚落]` |
 | 成员与治理 | `/settlement invite\|promote\|demote\|kick\|transfer <聚落> <玩家>`、`leave <聚落>` |
 | 禁令 | `/settlement ban\|unban <聚落> <玩家>`、`bans <聚落>` |
@@ -136,7 +150,50 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 | Holder/权限 | `/settlement parcel holders <聚落> <Parcel> <玩家逗号列表\|none>`、`policy <聚落> <Parcel> <权限域> <关系逗号列表\|none>` |
 | Parcel 提案 | `/settlement parcel requests <聚落>`、`approve\|reject <聚落> <提案UUID>` |
 
+
+## 付费认领与个人优惠
+
+`create`、`claim` 和 `price` 都只生成报价，不扣款；确认购买才提交。报价默认有效 1200 游戏刻，换报价会替换本人之前未购买的报价。购买时须在原世界/区块；过期、权限/土地/配置变动或余额不足会拒绝，不能部分扣款。已成功的报价可以重试，不会重复收费。
+
+首次建镇 25；之后第 2–5 次购地默认乘 .50/.65/.80/.90，后续无优惠。另建附近聚落才加邻近系数；普通扩张没有邻近附加。取消认领、放弃、转让均不退款、不重置个人已用次数。Governor 操作按 Owner 的土地组合和优惠计价，从金库付款，不使用 Governor 的个人优惠。
+
+`claim-pricing` 用整数基点配置系数（10000=1倍）；最终金额只向上取整一次。报价显示主要原因和付款账户。已有开发存档按旧 FOUNDED/CHUNK_CLAIMED 事件的操作者迁移已用次数，不追扣旧认领费用。完整默认配置见插件 `config.yml`。
 表格省略前缀的命令继承所在行的 `/esmp`、`/settlement` 或 `/settlement parcel`。工具只能由玩家领取，使用 `esmp.settlement` 权限（默认开放）；`/esmp status` 仍仅限管理员。旧领取入口和物品材质名参数不再作为别名保留；已有工具继续可用。
+
+`/esmp status` 在状态行之后立即显示累计游戏日（从第 0 日开始）、当日刻数、总 Game tick，以及 `advancing`/`paused`。下一行是主世界昼夜时钟 `HH:mm`（原版 tick 0 对应 06:00）。累计时间与天空时间不是同一概念：冻结或回拨天空时间不会倒扣累计时间。这里尚未启用公元日期或季节日历。
+
+## 钱包、金库与发行预算
+
+```text
+/balance
+/pay Bob 25
+/esmp economy history
+/esmp treasury 1 balance
+/esmp treasury 1 deposit 30
+/esmp treasury 1 withdraw 10
+/esmp treasury 1 pay Bob 5
+/esmp treasury 1 history
+/esmp treasury 1 budget GovernorName 50
+/esmp treasury 1 allowance
+```
+
+钱包只能由本人支出；金库提款仅限 Owner。Governor 支付需要 Owner 用 `budget` 设置剩余额度（不是增加额度），每次支付消耗额度；换 Owner 或降级后重新晋升都会使旧额度失效。金库有余额时不能放弃聚落。普通玩家不能发行货币。
+
+管理员测试发放：`/esmp economy grant Alice 100`；直接发给金库用 `grant-treasury 1 100`。查看发行与总供给用 `/esmp economy budget`。金额必须是正整数；额度允许设为 0。转账、发放、存取、金库支付和额度变更可在末尾附交易/操作 UUID；重复提交同一 UUID 和同一内容只返回旧凭据，不重复扣款。点击成功消息可复制凭据 UUID。
+
+`economy.currency` 配置显示名称、符号和格式；默认货币 ID 为 `esmp:coin`。默认预算周期为七游戏日，管理员按实际活跃规模选择 `issuance-tier`：small 2000、medium 5000、large 10000、very_large 20000。预算不自动发完、不结转，跳过周期不补发；首次访问周期时固定该期额度，后续配置变更只影响尚未建立的周期。冻结游戏时间也冻结周期。
+
+首次加入服务器的玩家默认自动领取 100 启动资金（`economy.starting-funds`，正整数）；以加入事件中的 `hasPlayedBefore` 判断，不给已有玩家补发。每个 UUID 只发一次，重连或重启不会重复领取。预算不足时显示待发提示，并在后续货币周期自动重试，离线也能到账；已登记的金额不受后续配置改动影响。到账消息显示金额、最终余额和 `[Balance]` 链接；离线到账可回来后查钱包/流水。时间冻结不会生成新周期，挂机和在线人数不会自动增加发行额度。
+
+## 自然土地估值
+
+输入 `/settlement landvalue`，或使用管理书的 `Natural land value` 链接，查看当前主世界区块的基础数值、类型和估值版本。其他维度不参与。这个数值还不是认领报价，也不会扣款。
+
+捕获从 `ESMP READY` 后的新区块生成完成事件开始；此前生成的出生区等旧地形显示 `unknown`，不会拿玩家改造过的地形补算。请走到真正未生成的新区域测试。
+
+初始规则采样每区块 4×4 个地表点：默认 `100 - min(高差 × 2, 50)`；部分采样点有水时加 25，全水区不加。只保存结果及版本，不扫描所有方块。`land-values` 可配置 `version`、`base-value`、`relief-penalty`、`max-relief-penalty`、`shore-bonus`；最大扣减必须小于基础值。改变系数必须使用新版本，只影响以后生成的区块。
+
+捕获同时写入区块 PDC 日志，再异步保存到 SQLite。加载或查看区块会重放已有日志，不重新采样；已有估值出现冲突时拒绝覆盖。正常保存/备份仍须同时保留世界与数据库。没有日志且没有 SQL 记录的区块保持未知，不能伪装成已有自然估值。
 
 ## 活跃度与保护边界
 
@@ -148,10 +205,10 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 ## 配置与数据
 
-当前 config version 为 4，Core 世界 schema 为 1，Civilization schema 为 3。旧配置备份到 `config-before-parcels.yml`；迁移替换角色名称并保留 UUID、待处理邀请和历史，同时分配稳定数字编号。旧正式名称保留，新聚落先无正式名。
+当前 config 8；Core schema 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1。升级备份为 `config-before-paid-claims.yml`，移除旧 `claim-base-price`/`claim-price-step` 并启用 `claim-pricing`。旧余额、土地和历史保留，不追扣旧费用。
 
 ```yaml
-config-version: 4
+config-version: 8
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -164,18 +221,28 @@ settlements:
   transfer-ticks: 36000
   promotion-ticks: 1728000
   abandon-ticks: 1200
-  claim-base-price: 100
-  claim-price-step: 25
 ```
 
 `activity.public-credit` 替代旧 `visitor-credit`，数值等价的策略会安全迁移。所有玩法期限使用共享游戏刻；睡眠和向前时间跳转计入，回拨不倒扣，停服不补算。正常关闭刷新时钟/待提交观察；崩溃仍可能丢失未检查点的纯计时进度和未提交观察，必须配套备份世界与数据库。
 
 数据库仍是 `plugins/ESMP/esmp.db`。新增 `settlement_details`、`settlement_bans`、`parcels`、`parcel_cells`、`parcel_holders`、`parcel_policy`、`parcel_requests`、`parcel_approvals`。所有治理/Parcel变更经过 SQLite 事务和主线程提交后快照发布，不能绕过保护发布门槛。
+账本使用同一数据库中的 `economy_metadata`、`economy_accounts`、`economy_budgets`、`economy_transactions`、`economy_allowances`、`economy_allowance_events` 和 `economy_starting_grants`。余额、预算消费、凭据及启动资金完成状态在同一 SQL 事务提交。已安装的货币 ID 或预算周期长度不能直接修改；需显式迁移，否则启动拒绝。
+自然估值保存在 `land_value_metadata`、`land_value_policies` 和 `land_value_profiles`；区块 PDC 中的 `esmp:natural_land_value` 保留原始捕获结果，供持久化恢复使用。
+
+## 持久化开发约定
+
+Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务传递不透明的 `UnitOfWork.Transaction`；只有持久化适配器能访问作用域中的 jOOQ context，事务关闭或跨线程使用会拒绝。ArchUnit 检查 Core/玩法/Paper 依赖、跨领域持久化访问及 jOOQ 类型泄漏。
+
+新数据库通过 Liquibase 创建；旧数据库先由隔离的 legacy 迁移器到达已知版本，验证实际列、类型亲和性、主外键、索引与 CHECK 约束后，才建立 Liquibase baseline。`finishMigration` 完成前不开放玩法。旧迁移器只作兼容，不再接收新变更。
+
+`SQLiteConfig`/`SQLiteDataSource` 配置外键、WAL 与超时；jOOQ 拥有数据库事务。Liquibase 在独立的启动迁移边界运行，并显式使用插件 classloader，避免 Paper 线程找不到迁移服务。SQLite 无法由结构化 changeType 表达的旧 CHECK/复合约束保留为 changelog 内注释说明的少量厂商例外，并由实际 SQLite 对照/拒绝测试约束，不能照此扩展普通业务 SQL。
+
+升级前备份世界与数据库，完整 stop/start。若 schema 与桥接版本不匹配，服务器停止而不是无条件 changelogSync。不要删除校验文件、放宽校验或手动把损坏库标记为已迁移；保留副本和错误供检查。
 
 ## 下一步与协作
 
-下一步先定义并实现单一整数账本及预算安全的交易服务，再接入生成时土地估值、首块 25 的个人补贴、真实 Claim 扣款、两态认证和管理员批准的土地购置。核心建筑/侵蚀修复/历史完成后直接推进动态聚落周期；Server Trade、设施识别和自动重置随后，复杂生产/运输/季节按实际需要另行设计。
+下一步只做路线图 Phase 1 的差异收敛与验收：所有扩张从 Settlement Treasury 付款，仍按当前 Owner 评估；重验报价、补贴、重复提交、余额不足和重启后保护。Phase 0 未改变这项旧付款行为，也没有实现认证、转让审核、Local Activity、建筑、Decay 或 Repair。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
-[架构](ARCHITECTURE.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [未决事项](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [测试清单](.agent/TEST_CHECKLIST.md)
+[冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

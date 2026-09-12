@@ -1,7 +1,11 @@
-# Gameplay Extension — Integrated
+# Gameplay Extension — Historical Navigation
 
-The user approved architecture integration on 2026-09-09 after reviewing the consolidated “ESMP — Gameplay Systems Architecture Extension, Draft v0.1” discussion.
+The 2026-09-09 proposal and subsequent pre-freeze economy addenda are historical. They do not authorize implementation under the current MVP freeze.
 
-The current accepted specification lives in [ARCHITECTURE.md §16A](../ARCHITECTURE.md#16a-economy-currency-and-land), including the later economy addendum and razor review. See [§26 for remaining gates](../ARCHITECTURE.md#26-deferred-and-open-design), [§27 for development order](../ARCHITECTURE.md#27-recommended-development-order), [§28 for the execution plan](../ARCHITECTURE.md#28-immediate-architecture-and-execution-plan), and [DECISIONS.md](DECISIONS.md) for dated rationale. [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) indexes implementation decisions.
+Current authority:
 
-This is a navigation record, not a second architecture. Current runtime has Settlement/Parcel governance, tools, numeric-only quotes, GameClock and Activity. The target currency is now a scarce integer ledger, followed by immutable land valuation, personal subsidies, paid Claims and two-state certification/admin acquisition. Building and durable Decay/Repair/History complete the core MVP; required Dynamic Settlement Cycles come immediately next. Server Trade/lightweight recognition, Resource automation and optional advanced systems follow. Prior four-stage progression and near-term production/freight/teleport/season commitments are superseded, not parallel specifications.
+- [Frozen MVP architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)
+- [Frozen requirements](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)
+- [Strict implementation roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)
+
+See [DECISIONS.md](DECISIONS.md) for historical rationale and [HANDOFF.md](HANDOFF.md) for the current roadmap phase (Phase 0 infrastructure is now verified; Phase 1 is next). Automatic discovery, Server Trade, Facilities, transport, seasons, culture and world evolution remain outside MVP. Dynamic Settlement Cycle starts only after MVP acceptance/tag; this file is not a competing backlog.

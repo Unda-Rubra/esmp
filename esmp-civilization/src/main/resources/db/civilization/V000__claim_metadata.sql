@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS claim_pricing_schema(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL);

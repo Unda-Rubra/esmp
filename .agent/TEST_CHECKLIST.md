@@ -4,6 +4,12 @@ Purpose: accumulate completed implementation milestones and what the user should
 
 Maintenance: append each completed gameplay change with its commit, player-visible checks and known limits. Keep automated/agent verification separate from user acceptance. Check boxes only after the user reports the corresponding result; carry unresolved checks through handoffs. Retain this temporary document until the user confirms the batch is tested and requests removal or archival.
 
+## 2026-09-12 frozen-MVP supersession
+
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence as implemented. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phase 0 infrastructure is implemented/verified; Phase 1 remains next. Agent execution results are not user sign-off.
+
+In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
+
 ## Version coverage
 
 Sections 1–5 preserve the `f8a9f50` clock/Activity baseline checks and their pending user outcomes. Its Manager/Member/Visitor, player-naming and config-version-3 expectations are historical. **The current Settlement/Parcel implementation is `d14bb63`; use section 6 for the new roles, numeric-only prices, tools, consent, naming and config/schema migration.** No automated result below is a user sign-off.
@@ -12,9 +18,9 @@ Tool command routing is updated by `7aaccd6`: current examples use `/esmp tools 
 
 Current text and Parcel visuals are updated by `f675a15` and `e823189`. Use the blue preview/target, green existing-border and red invalid-selection expectations below; they supersede the earlier corner-only palette.
 
-Inactivity-driven automatic release remains outside MVP. Existing pending checks are retained rather than marked passed or silently rewritten. Real currency integration is deliberately absent: current prices are numbers, not deductions or mock balances.
+Inactivity-driven automatic release remains outside MVP. Existing pending checks retain their version-specific scope. Current Claims are paid quote-confirmation operations; section 14 supersedes old numeric-only/no-payment expectations.
 
-**Economy addendum — planning boundary:** the target now includes a real integer ledger, starting funds, immutable land valuation, first-ever founding price 25, UNVERIFIED/VERIFIED applications and administrator-approved acquisition fees. These are accepted design changes, not current runtime behavior. The existing 30 checks retain their implementation-version scope, including numeric-only quotes, direct naming toggles and two-party transfer. Add or explicitly supersede checks when the corresponding implementation ships; no new gameplay milestone is completed by this document merge.
+Ledger, first-join grants, natural values and paid Claims/subsidies are implemented. Certification applications and administrator-approved acquisition remain planned. No check is automatically marked accepted.
 
 ## Completed implementation awaiting user acceptance
 
@@ -30,6 +36,12 @@ Inactivity-driven automatic release remains outside MVP. Existing pending checks
 | Semantic `/esmp tools` routing | `7aaccd6` | Live non-OP issuance/completion, status permission gate, invalid/legacy route rejection, existing-item compatibility and updated book link | Pending |
 | Short action text and refreshed tool descriptions | `f675a15` | Build and live refreshed-lore/confirmation checks | Pending |
 | Live Parcel targets, surfaces and wire borders | `e823189` | Six geometry/ray regressions; live particle colors/positions, block/air clicks, invalid previews and boundary cases | Pending |
+| Integer ledger, monetary budgets and treasury commands | Working tree, not committed | Build; 10 ledger regressions; isolated Paper commands and persisted replay | Pending |
+| Spaced names, quoted commands and readable time | Working tree, not committed | 46-test build; live quoted names, natural Name Tag/wand, pause/advance display and restart | Pending |
+| Automatic first-join starting funds | Working tree, not committed | 49-test build; live first join, reconnect, exhausted budget, frozen time, restart and offline deferred payment | Pending |
+| Immutable natural land values and inspection | Working tree, not committed | 53-test build; live generation/edit stability, non-Main exclusion, chunk-journal recovery and future-only policy version | Pending |
+| Generated-type jOOQ persistence cutover | Working tree, not committed | Clean generation/build: 67 tests; exact old/fresh data preservation and live Paper query/mutation paths | Pending |
+| Paid Claims, durable quotes and personal subsidies | Working tree, not committed | 74-test build; real Paper debit, insufficient funds/retry, receipt replay, unclaim progression and policy-stale restart | Pending |
 
 Earlier Settlement claiming/protection/team functionality was already user-confirmed. Its existing [README checklist](../README.md#两名玩家的验证清单) remains available for optional regressions; do not reopen it as untested work.
 
@@ -80,7 +92,7 @@ Use disposable copied data and a native 26.2 client. Keep ordinary governance te
 
 ### Numeric prices and naming
 
-- [ ] Run `/settlement create`, then `/settlement price 1` and claim an adjacent chunk. Defaults show 100 for creation and 125 for the next chunk; no items, real currency or artificial wallet balance are deducted. History records the quoted number and `charged=false`.
+- [ ] Use a fresh player on naturally valued land: `/settlement create` quotes 25 without charging; confirm with `purchase <UUID>`. Quote and confirm adjacent expansion; default first expansion is 50 on base-100 active land. History and balance must reflect the real payment. This supersedes the historical 100/125 numeric-only check.
 - [ ] New Settlements start as `S#number`. An ordinary Owner cannot rename one. An administrator uses `/settlement certify 1 true` and `/settlement rename 1 Harbor`; number/UUID stay stable and history retains the naming event. Existing pre-migration names remain usable.
 
 ### Roles and bans
@@ -116,3 +128,60 @@ Visual verification now includes decoded live particle positions/colors. The fix
 - [ ] Existing and newly issued tools show short purpose/instruction text. Check claim/Parcel confirmations and Activity information for concise, readable wording. Old tool descriptions refresh when joining, changing the held item or using it.
 - [ ] Aim at a reachable block: the blue surface encloses its voxel. Aim into air or beyond block reach: the target is the first voxel in your facing direction outside your occupied camera/body cells. Check up/down, negative coordinates and standing exactly on voxel boundaries. Left/right air clicks and no-coordinate position commands select the highlighted cell.
 - [ ] Set a first corner and turn: the blue preview follows promptly. Valid selections stay blue; invalid/outside/disconnected selections remain visibly red and reject confirmation. Existing Parcel outlines stay green. Right-click completion plus its swing animation must preserve the first corner. Check responsiveness with frozen calendar time, confirmation cleanup, and readability of larger selections.
+
+## 9. Integer ledger and treasury — current working tree
+
+Agent proof: Gradle build and 10 ledger regressions passed. Isolated Paper 26.2 accepted budgeted grants, wallet transfers/replay, overdraw rejection, treasury deposit/withdrawal, Public debit denial and non-admin issuance denial. Restart preserved balances (75/25), zero treasury and the original four receipts. No user dev world was upgraded. The older protocol client emitted particle decoding errors during the first run; native book layout, clipboard interaction and sound remain unverified.
+
+- [ ] With two players, record both balances, grant Alice 100 as administrator, then transfer Bob 25. Confirm net changes of +75/+25 and recent history. Retry the same transfer UUID: no second debit; an overdraw and non-admin grant must reject. Account for any first-join funds before taking the initial balances.
+- [ ] Deposit into a Settlement treasury. Public/Citizen cannot debit; Owner may withdraw. Set a Governor allowance, spend within it, exceed it, then demote/re-promote: unused old authority must not revive. A funded treasury must prevent abandonment.
+- [ ] Stop/start and inspect balances, history, allowances and issuance budget. With disposable data, freeze/skip periods and confirm no unused-budget carry-over; display-name changes preserve balances.
+- [ ] Open the Management Book and use wallet/treasury links. Check native layout, receipt hover/copy and payment feedback. Claim quotes require purchase confirmation; starting funds are covered in section 11.
+
+## 10. Spaced names and visible time — current working tree
+
+Agent verification: quoted Settlement/Parcel commands preserved repeated interior spaces after edge trimming; actual named off-hand tag plus wand interaction created `Tag  Store` without quotes. Quoted treasury lookup and malformed-quote rejection passed. Status reported paused tick 11440 across a frozen forward edit, MAIN 12:00 at source tick 6000, and advancing tick 35453 after resumed +24000. Native visual layout remains user acceptance.
+
+- [ ] As administrator, rename a certified Settlement with `/settlement rename 1 "  New  Haven  "`. Its stored/displayed title is `New  Haven` with two internal spaces and no outer spaces. Quoted references and management-book links continue to work.
+- [ ] Name an off-hand Name Tag `  Tool Store  ` without quote characters. Use the Parcel Wand and confirm: the resulting Parcel is `Tool Store`. Verify quoted Parcel info/rename commands and existing consent/duplicate-name rules.
+- [ ] Use `/esmp status` as administrator: reckoning day/progress/total tick and advancing/paused state appear near the top, followed by the separate MAIN clock. With a disposable world, freeze time and confirm reckoning remains fixed while direct sky-time changes can affect HH:mm.
+
+## 11. First-join starting funds — current working tree
+
+Agent verification: 49 tests passed, including 13 ledger tests. Actual Paper first join credited NewFundsA 100; reconnect/restart retained 100 without a second welcome grant. Existing LedgerAlice retained 75 before explicit administrative funding. At 2000/2000 issuance, NewFundsB stayed pending with zero balance; a frozen forward sky-time edit did not refresh the budget. After restart and one advancing monetary period, NewFundsB received 100 while offline and returned with one STARTING_FUNDS receipt. NewFundsC's welcome showed both +100 and final balance 100.
+
+- [ ] Join with a genuinely new player UUID: receive the configured 100 once, with currency, final balance and `[Balance]` link. Reconnect and restart: no second grant. Existing test players must not receive retroactive grants.
+- [ ] On a disposable test world, exhaust the monetary budget and join with another new UUID. The grant stays pending at zero balance; frozen time does not refresh it. Restart, advance a monetary period with time enabled, and confirm the pending player receives exactly one grant even while offline.
+- [ ] With a pending grant, change `economy.starting-funds` and restart: its original amount remains, while new players use the new amount. Current config is 8; Economy schema remains 2 and its prior configuration backup remains.
+
+## 12. Immutable natural land values — current working tree
+
+Agent verification: all 53 tests passed. On actual Paper, old spawn chunk (-1,-1) remained unknown; new chunk (625,625) captured 100/FLAT/v1 and retained it after a surface-height edit. Nether inspection rejected. After clean stop, one test SQL profile was deliberately removed while its saved chunk journal remained; restart restored exactly the original SQL tuple, not the edited surface. A new policy v2/base 200 applied to new chunk (1250,1250), while the original stayed 100/v1 and old spawn stayed unknown. This was isolated test data, not the user's development world.
+
+- [ ] Use `/settlement landvalue` and the management-book link on old spawn terrain and genuinely new Main chunks. Old uncaptured terrain shows unknown; new terrain shows base/class/version. Other dimensions reject inspection.
+- [ ] Build a tall column or excavate inside a captured chunk and restart: its original value/version remains unchanged. Inspection itself never charges; Claim purchase charges separately after confirmation.
+- [ ] On disposable data, change coefficients under the same valuation version: startup must reject. A new version affects only new chunks. Current config is 8; retain `config-before-land-values.yml`.
+
+## 13. jOOQ persistence migration — current working tree
+
+Agent proof: clean build regenerated all schema bindings from canonical migrations and passed 67 tests. Existing-data Paper startup preserved 30 non-clock tables/319 rows exactly; existing balances, spaced names, Parcels and both land-value versions loaded. Fresh Paper exercised first grants, replay/overdraw, treasury allowances, roles, Holder consent, bans, real Activity credit and new land capture. Its stop/start preserved all 328 non-clock rows and balances 107/93; no repeat starting grant occurred. One temporary smoke assertion initially expected the wrong approval wording; continuation verified the persisted Holder and completed behavior.
+
+- [ ] On a disposable copy of existing world/database data, install the new JAR with a full stop/start. Check the same Settlement IDs/names/claims, Parcel Holders/policies, balances/history and land-value versions; perform a small transfer and verify it after restart. Schema/config versions and gameplay rules must remain unchanged.
+
+## 14. Paid Claims and personal subsidies — current working tree
+
+Agent evidence: 74 tests passed, including seven real-ledger paid-Claim tests (rollback after debit, insufficient funds, Governor allowance/owner assessment, expiry, missing values, ownership/Activity staleness, no-reset progression, exact rounding). Actual Paper confirmed 25 founding, 50/65 expansions, insufficient-funds rejection then successful same-quote retry after funding, and balance 10 afterward. Unclaim did not refund or reset progress; the next quote was 80. After restart, paid replay did not debit and a changed pricing policy invalidated the pending quote. Missing-profile rejection was proven by domain test; the initially chosen live spawn locations already had valid profiles and were not used as missing-profile evidence.
+
+- [ ] On a new UUID with 100 starting units and captured land, verify quoting leaves 100, first founding confirmation leaves 75 and first base-100 active expansion leaves 25. Retry the paid quote; no second debit or Claim mutation.
+- [ ] Request a purchase beyond available funds; rejection preserves balance/land/subsidy. Fund the payer and retry before expiry. Move away from the quoted chunk, expire the quote or alter its context: confirmation must reject.
+- [ ] As Governor, quote expansion: payer is the treasury, assessment is Owner's portfolio/subsidy. Without sufficient approved allowance it rejects; successful payment consumes allowance and Owner usage only. Demotion, ban or ownership changes invalidate authorization.
+- [ ] Unclaim/abandon/transfer and restart: no refund or personal discount reset. Paid receipts remain idempotent; a new pricing configuration invalidates pending quotes. Check config 8 and `config-before-paid-claims.yml`; existing pre-cutover Claims are not retroactively billed.
+
+## Frozen roadmap Phase 0 — persistence/build stabilization
+
+Implemented: Liquibase 5.0.4 XML baseline and verified legacy handoff, jOOQ schema from temporary migrated SQLite, opaque scoped UnitOfWork, repository/adapter separation, SQLiteConfig/DataSource, JUnit 6.1.2, ArchUnit 1.5.0 and SHA-256 dependency verification.
+
+Agent proof: 83 tests pass, including native empty/legacy/mismatched-constraint migration, exact long balance and transaction lifetime/thread tests. Copied real development data preserved 25 existing non-clock tables exactly, with only the Economy version marker advancing 1→2 through its legacy migration. Original dev DB hash stayed unchanged. Fresh Paper exercised existing paid quotes, Owner-wallet expansion, Governor treasury/allowance, Holders/consent, bans, real Activity and land capture; restart preserved all 352 non-clock rows, wallets 5/100, treasury 55, Holder identity and zero remaining allowance. Liquibase SPI plugin-loader startup failure was reproduced and fixed before these passes.
+
+- [ ] On a disposable existing world/database copy, full stop/start into Phase 0. Confirm bridge/schema validation, retained IDs/balances/Claims/Parcels/history and no unprotected startup. The Owner-wallet expansion behavior must remain unchanged in this phase.
+- [ ] From a fresh installation, exercise first grant, quoted purchase and replay, treasury allowance and Parcel consent, then restart. Confirm no duplicate money and retained protection/Holder state. These checks do not approve Phase 1 treasury-only expansion or any later feature.

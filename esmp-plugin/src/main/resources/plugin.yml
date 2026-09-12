@@ -6,16 +6,27 @@ description: Persistent-world SMP with protected Settlements and durable members
 load: POSTWORLD
 commands:
   esmp:
-    description: Request ESMP tools or inspect operational state
-    usage: /esmp tools <parcel_wand|management_book> | /esmp status
+    description: Manage ESMP tools, treasuries and currency
+    usage: /esmp tools | treasury | economy | status
   settlement:
     description: Claim and manage a protected Settlement
     usage: /settlement help
     permission: esmp.settlement
+  balance:
+    description: View your currency balance
+    usage: /balance
+    permission: esmp.economy
+  pay:
+    description: Send currency to a player
+    usage: /pay <player> <amount> [transaction-id]
+    permission: esmp.economy
 permissions:
   esmp.admin:
-    description: View ESMP status and explicitly toggle protection bypass
+    description: Inspect ESMP, manage currency issuance and use protection overrides
     default: op
   esmp.settlement:
     description: Use Settlement gameplay commands
+    default: true
+  esmp.economy:
+    description: Use wallets and authorized treasury operations
     default: true

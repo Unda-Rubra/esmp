@@ -2,22 +2,30 @@ package xdu.undarubra.esmp.civilization.activity;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import static xdu.undarubra.esmp.civilization.generated.Tables.*;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
+import xdu.undarubra.esmp.civilization.land.LandValuePolicy;
+import xdu.undarubra.esmp.civilization.land.LandValueProfile;
+import xdu.undarubra.esmp.civilization.land.LandValueService;
 import xdu.undarubra.esmp.civilization.settlement.*;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.core.world.*;
 
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 class ActivityServiceTest {
     @TempDir Path directory;
     WorldStore db;
     GameClock clock;
+    LandValueService landValues;
     SettlementService settlements;
     ActivityService activity;
     UUID source = UUID.randomUUID(), owner = UUID.randomUUID(), world, id;
@@ -38,17 +46,63 @@ class ActivityServiceTest {
                         .instanceId();
         clock = new GameClock(db);
         clock.initialize(source, 0, true).join();
+        landValues =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.land(
+                        db, LandValuePolicy.defaults());
+        landValues.initialize().join();
+        activity =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
+                        db, clock, ActivityPolicy.defaults(), ignored -> false);
         settlements =
-                new SettlementService(db, SettlementPolicy.defaults(), clock, ignored -> false);
+                xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
+                        db,
+                        SettlementPolicy.defaults(),
+                        clock,
+                        ignored -> false,
+                        (c, settlement) -> {},
+                        ClaimPricingPolicy.defaults(),
+                        // These activity/governance fixtures do not exercise money transfers.
+                        (c, quote) -> {},
+                        activity::isActive);
         settlements.initialize().join();
-        activity = new ActivityService(db, clock, ActivityPolicy.defaults(), ignored -> false);
         activity.initialize().join();
-        id = settlements.create(owner, world, new ChunkPosition(0, 0)).join().settlementId();
+        id = create(owner, world, 0, 0).settlementId();
     }
 
     @AfterEach
     void close() {
         db.close();
+    }
+
+    void captureProfile(UUID worldInstance, int x, int z) {
+        var policy = LandValuePolicy.defaults();
+        // Every location uses the same immutable valuation. Repeated capture is idempotent.
+        landValues
+                .capture(
+                        List.of(
+                                new LandValueProfile(
+                                        worldInstance,
+                                        x,
+                                        z,
+                                        policy.version(),
+                                        policy.baseValue(),
+                                        LandValueProfile.Terrain.values()[0])))
+                .join();
+    }
+
+    SettlementChange create(UUID actor, UUID worldInstance, int x, int z) {
+        captureProfile(worldInstance, x, z);
+        var quote = settlements.quoteCreate(actor, worldInstance, new ChunkPosition(x, z)).join();
+        return settlements.purchase(actor, quote.id()).join();
+    }
+
+    SettlementChange claim(UUID actor, UUID settlement, UUID worldInstance, int x, int z) {
+        captureProfile(worldInstance, x, z);
+        var quote =
+                settlements
+                        .quoteClaim(actor, settlement, worldInstance, new ChunkPosition(x, z))
+                        .join();
+        return settlements.purchase(actor, quote.id()).join();
     }
 
     void advance(long ticks) {
@@ -85,7 +139,7 @@ class ActivityServiceTest {
         advance(crossing + 72000 - clock.ticks());
         assertTrue(activity.status(id).join().productionPaused());
         assertEquals(crossing + 72000, activity.pauseIntervals(id).join().getFirst().fromTick());
-        var other = settlements.create(owner, world, new ChunkPosition(1, 0)).join().settlementId();
+        var other = create(owner, world, 1, 0).settlementId();
         assertEquals(30, activity.status(other).join().score(), 1e-9);
     }
 
@@ -110,7 +164,9 @@ class ActivityServiceTest {
                 .join();
         clock = new GameClock(db);
         clock.initialize(source, raw + 1_000_000, true).join();
-        activity = new ActivityService(db, clock, ActivityPolicy.defaults(), ignored -> false);
+        activity =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
+                        db, clock, ActivityPolicy.defaults(), ignored -> false);
         activity.initialize().join();
         activity.contribute(List.of(build)).join();
         assertEquals(31, activity.status(id).join().score());
@@ -125,7 +181,7 @@ class ActivityServiceTest {
         activity.contribute(List.of(action(visitor, ActivityContribution.Category.INTERACTION)))
                 .join();
         assertEquals(30.02, activity.status(id).join().score(), 1e-9);
-        settlements.claim(owner, id, world, new ChunkPosition(1, 0)).join();
+        claim(owner, id, world, 1, 0);
         activity.contribute(List.of(action(owner, ActivityContribution.Category.BUILD))).join();
         assertEquals(.02, activity.status(id).join().creditedToday(), 1e-9);
     }
@@ -150,5 +206,68 @@ class ActivityServiceTest {
         assertEquals(ActivityStatus.State.ACTIVE, activity.status(id).join().state());
         assertFalse(activity.status(id).join().productionPaused());
         assertNotNull(activity.pauseIntervals(id).join().getFirst().untilTick());
+    }
+
+    @Test
+    void legacyVisitorPolicyNameIsNormalizedWithoutChangingScoresOrCaps() {
+        activity.contribute(List.of(action(owner, ActivityContribution.Category.BUILD))).join();
+        var before = activity.status(id).join();
+        String current = ActivityPolicy.defaults().toString();
+        String legacy = current.replace("publicCredit=", "visitorCredit=");
+        assertNotEquals(current, legacy);
+        db.transact(
+                        c -> {
+                            assertEquals(
+                                    1,
+                                    xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                            .update(ACTIVITY_POLICY)
+                                            .set(ACTIVITY_POLICY.DEFINITION, legacy)
+                                            .where(ACTIVITY_POLICY.ID.eq(1L))
+                                            .execute());
+                            return null;
+                        })
+                .join();
+        activity.initialize().join();
+        activity.initialize().join();
+        assertEquals(before, activity.status(id).join());
+        assertEquals(
+                current,
+                db.transact(
+                                c ->
+                                        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                                .select(ACTIVITY_POLICY.DEFINITION)
+                                                .from(ACTIVITY_POLICY)
+                                                .where(ACTIVITY_POLICY.ID.eq(1L))
+                                                .fetchSingle(ACTIVITY_POLICY.DEFINITION))
+                        .join());
+    }
+
+    @Test
+    void incompatiblePersistedPolicyIsRejectedWithoutOverwritingIt() {
+        String incompatible = ActivityPolicy.defaults() + ";incompatible";
+        db.transact(
+                        c -> {
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .update(ACTIVITY_POLICY)
+                                    .set(ACTIVITY_POLICY.DEFINITION, incompatible)
+                                    .where(ACTIVITY_POLICY.ID.eq(1L))
+                                    .execute();
+                            return null;
+                        })
+                .join();
+        var failure = assertThrows(CompletionException.class, () -> activity.initialize().join());
+        assertInstanceOf(SQLException.class, failure.getCause());
+        assertTrue(failure.getCause().getMessage().startsWith("Activity policy changed:"));
+        assertEquals(
+                incompatible,
+                db.transact(
+                                c ->
+                                        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                                .select(ACTIVITY_POLICY.DEFINITION)
+                                                .from(ACTIVITY_POLICY)
+                                                .where(ACTIVITY_POLICY.ID.eq(1L))
+                                                .fetchSingle(ACTIVITY_POLICY.DEFINITION))
+                        .join());
+        assertEquals(30, activity.status(id).join().score());
     }
 }

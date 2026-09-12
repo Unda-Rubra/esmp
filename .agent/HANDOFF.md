@@ -2,49 +2,53 @@
 
 ## State
 
-- The user-supplied `ARCHITECTURE_ADDENDUM.md` is merged into canonical `ARCHITECTURE.md`. The final razor review (§§21–23 of the source) governs conflicts with earlier provisional economy scope; all 18 explicit merge requirements are accounted for in `.agent/DECISIONS.md`.
-- Target currency is now selected: one scarce integer ledger unit, non-negative Wallet/Treasury accounts, typed idempotent transactions and budgeted issuance. LandValueProfile-based paid Claims, personal subsidies, two-state certification and administrator-approved acquisition are next implementation work.
-- Current runtime remains the existing Settlement/Parcel/GameClock/Activity implementation, including `f675a15`/`e823189` UI fixes. Core schema 1, Civilization schema 3, config 4; actual Claims are still numeric-only, naming uses the existing toggle, and ownership transfer still uses the existing two-party flow. This work changes documentation only.
-- The core sequence is economic land foundations → Building identity/baseline/geometry → durable Decay/Repair/History → required Dynamic Settlement Cycle. Server Trade/lightweight Facility recognition, Resource automation and optional advanced systems follow afterward.
-- All 30 pending player checks and prior acceptance facts remain. New economy/certification/acquisition behavior has not been added as completed gameplay. The supplied source addendum and runtime/server data were left intact.
+- Frozen roadmap **Phase 0 is implemented and verified**. Phase 1 is next and has not started. The supplied `ESMP MVP ARCHITECTURE 2026-09-12/` bundle remains canonical and unchanged; root ARCHITECTURE.md remains deleted.
+- Liquibase Community 5.0.4, JUnit 6.1.2, ArchUnit 1.5.0 and SHA-256 Gradle dependency verification are integrated alongside Java 25, Gradle 9.7.1, jOOQ 3.21.8, SQLite JDBC 3.53.4.0 and Paper 26.2 build 121.
+- Application service façades depend on repository ports. Cross-module callbacks carry opaque UnitOfWork.Transaction, not DSLContext. Persistence adapters alone use generated tables and guarded Core persistence SPI. jOOQ owns transactions on the existing bounded serial writer; SQLiteConfig/DataSource configures the driver.
+- Canonical schema is `schema/db/changelog/db.changelog-master.xml` plus core/economy/civilization XML includes. Current gameplay schema tuple remains Core 1/Civilization 3/Economy 2/land-value 1/Claim-pricing 1, config 8. Liquibase adds only migration metadata. Old SQL resources and legacy adapters remain compatibility-only.
+- Gameplay is deliberately unchanged, including Owner-wallet expansion and Governor-treasury expansion. Phase 1 must migrate every expansion to Treasury; no later certification/acquisition/Local Activity/Building/Decay/Repair code was added.
+- The original development DB/world was not modified or started. A copied development fixture and a fresh fixture were used, then stopped. Historical 48 pending checks remain plus two Phase 0 player checks; agent verification is not user sign-off.
 
 ## Completed
 
-- Replaced the provisional currency-choice wait and area-only target pricing with one low-denomination ledger currency, separate display identity, non-negative integer accounts, TRANSFER/ISSUANCE/SINK, stable transaction IDs/reasons, budgeted issuance and development/service sinks.
-- Added first-generation immutable minimal LandValueProfile, configurable land/portfolio/size/light-Activity pricing, founding-only own-nearby surcharge, fixed first-ever founding price 25 and non-resettable/non-transferable personal subsidies. Approximately 100 starting funds and other example scales remain tuning targets, not wealth caps.
-- Added UNVERIFIED/VERIFIED eligibility/application/admin review and naming/public named-listing gates. Removed the global economic-stage ladder and deferred Cultural Standing.
-- Replaced initial autonomous ownership acquisition with recipient acceptance, a simple land-based fee and administrator approval before atomic transfer. Kept private compensation social, treasury attached to the Settlement, and strong receiving-capacity/full revaluation models deferred.
-- Reduced Building topology continuity to obvious identity preservation or retire/rediscover with lightweight links. Kept renovation safety/history, reduced collapse to DROP/CAVE_IN, made live villagers optional and Era lightweight. Facility begins as site identity/capability, not production/workforce/depot simulation.
-- Deferred freight, public teleport and gameplay seasons; retained GameClock and optional calendar presentation. Permitted verified operator-driven Resource procedures before full automation. Kept outbox semantics without speculative event-class catalogues.
-- Defined post-core Server Trade as finite normalized categories/lots with simultaneous budget/quota/stock admission, periodic discrete bands/spread and observational monitoring. Continuous pricing/hysteresis/automatic policy remain evidence-driven later options.
-- Rewrote the canonical execution order and memory gates, updated Chinese onboarding summaries/agent invariants/navigation links, and marked existing acceptance checks as version-specific rather than pretending the target has shipped.
+- Added structured Liquibase baseline with explicit comments for SQLite-only CHECK/composite/partial-index constraints that standard change types cannot preserve. SchemaMigrationTest compares native shapes, rejects an altered legacy CHECK before baselining, verifies native negative-balance rejection and exact Long.MAX_VALUE preservation.
+- Added startup legacy handoff: old adapters first reach known versions, then DatabaseSchema verifies columns/SQLite affinities/PK/FK/index/CHECK shape against a Liquibase-created reference before changeLogSync. Unknown/mismatched schemas fail closed; current Liquibase schemas validate on reopen. No blind baseline or destructive rebaseline.
+- Build-time generation now applies Liquibase to a disposable real SQLite database, then official jOOQ generation. SQLite metadata parser accepts vendor-function syntax without dropping parsed constraints/keys; previous typeof parser diagnostics are absent in the final clean build. Long/UUID/enum storage semantics stay unchanged.
+- Added Core UnitOfWork, guarded transaction scope and ClockRepository. Closed/cross-thread context access rejects; nested owning work rejects rather than deadlocking. Completion chaining outside an active transaction remains supported. Removed SqlWork and public DSLContext gameplay callbacks.
+- Split Civilization services into façades/ports, pure rules/projections and persistence adapters; moved ClaimPricing under persistence. Split Economy likewise. Public API factories compose adapters without exposing persistence types. Core world-definition lookup avoids Civilization imports of Core generated tables.
+- Added ArchUnit gates for Core/gameplay/Paper directions, cross-domain persistence/generated imports, public gameplay jOOQ leakage and JDBC statement isolation. Canonical schemas are packaged once, avoiding duplicate Liquibase classpath resources.
+- Fixed Paper-only Liquibase SPI discovery: migration runs under the plugin classloader/Scope, restored afterward. Initial attempts failed closed; corrected fresh and copied-legacy startup and reopen succeeded.
 
 ## Changed files
 
-- `ARCHITECTURE.md` — merged economy rules, certification/acquisition, scope reductions, state ownership, glossary and §§27–28 execution order; obsolete positive commitments replaced instead of kept as parallel designs.
-- `AGENTS.md` — selected target invariants, lean core dependencies and revised read-order heading.
-- `README.md` — current numeric-only runtime versus accepted ledger target, key economic rules and Chinese execution summary.
-- `.agent/DECISIONS.md` — dated rationale, supersession and an 18-item source-to-canonical merge map.
-- `.agent/OPEN_QUESTIONS.md` — remaining concrete ledger/valuation/certification/migration gates, lean Building/Repair scope and post-core sequencing; retained useful research leads.
-- `.agent/GAMEPLAY_EXTENSION_PROPOSAL.md` — canonical economy/land and execution-plan pointers; old currency-wait/near-term optional-system assumptions retired.
-- `.agent/TEST_CHECKLIST.md` — planning-boundary notice; 30 existing unchecked player tests preserved, no unimplemented milestone added.
-- `.agent/HANDOFF.md` — this current plan/state and verification evidence.
+- Root/module build files, buildSrc/GenerateJooq.java, new buildSrc/EsmpSQLiteDatabase.java, lockfiles and gradle/verification-metadata.xml — frozen pins, Liquibase schema generation, checked artifact inputs and vendor-function-aware metadata parsing.
+- `schema/db/changelog/{db.changelog-master,core,economy,civilization}.xml` — canonical baseline; legacy SQL files retained only for compatibility.
+- Core storage UnitOfWork/DatabaseAccess/DatabaseSchema/WorldStore; time GameClock/ClockRepository; persistence JooqClockRepository and legacy LegacyWorldMigration; removed SqlWork — scope, driver, migration and transaction ownership.
+- Civilization public services/repository ports/api factories/GovernanceQueries, pure SettlementRules/ParcelRules/ActivityProjection, `.persistence` and `.persistence.legacy` implementations — no generated/jOOQ types in public gameplay APIs.
+- Economy LedgerService/LedgerRepository/api factory and `.persistence`/legacy implementation — same monetary invariants through opaque transaction scopes.
+- Plugin bootstrap/runtime construction and tests — API factory wiring, finishMigration before gameplay admission, migrated fixtures and architecture/schema tests. No command syntax/price/payer behavior changed.
+- AGENTS.md, README.md and .agent memory — Phase 0 completion, operational migration policy, preserved historical evidence and Phase 1 next action. Frozen source bundle not edited.
 
 ## Verification
 
-- Read the full 1575-line addendum, including final razor amendments and the explicit 18-item merge checklist, and the affected canonical architecture/notes.
-- Inline document validation passed all 18 merge requirements plus ledger invariants, superseded-positive-wording checks and Dynamic-cycle-before-Server-Trade ordering.
-- Local Markdown targets/heading anchors and fenced blocks passed checks across seven updated documents preceding this handoff. Acceptance check count remains exactly 30.
-- Source addendum SHA-256: `721755c0ef71c3208e36dfc8ccbd28d1bf25a884d60334f8a0d0e081b1050cc0`.
-- No compilation, gameplay scenario, monetary grant, schema migration or server operation was performed for this documentation integration. Earlier runtime proof remains in history and the versioned player checklist.
+- Final clean no-cache command: `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain --init-script .tooling/maven-transport.init.gradle` passed, 32 tasks executed/1 up-to-date, **83 tests, zero failures/errors/skips**. Dependency verification remained enabled. The init script was a temporary local transport, not committed build configuration.
+- Maven Central Java TLS HEAD/GET calls intermittently failed; curl HTTPS to the same artifacts worked. A temporary loopback proxy fetched Maven Central artifacts via verified HTTPS to bootstrap dependencies. Standard repositories and pinned bytes were unchanged. Plain clean/no-cache invocation reached the final test compile but failed retrieving slf4j-api-2.0.18 over TLS; do not misreport that invocation as a passing run. Temporary tooling is removed after use; caches/verification metadata remain.
+- Google Java Format 1.28.0 ran on changed Java sources. Final schema generation had no Unknown function/ParserException output. Source audit found no TODO/FIXME/stubs for this phase.
+- Native schema tests: empty→Liquibase, genuine old fixtures→legacy migrations, matching bridge→Liquibase baseline, malformed constraint rejection before baseline, exact 64-bit balance, and stale/cross-thread/nested UnitOfWork behavior. Existing paid/governance/Activity tests remain passing under JUnit 6.
+- Real `.run/dev` database/world copied to `.run/mvp-phase0-upgrade`. Original DB SHA-256 unchanged. Of 26 existing non-clock tables, 25 remained byte-for-value identical; economy_metadata changed only schema version 1→2 through the retained legacy migration. Liquibase recorded the three baseline changeSets, loaded existing Settlements/Claims and reached ESMP READY.
+- Fresh `.run/mvp-phase0-fresh` real Paper: first grants 100/100; founding 25; duplicate receipt no charge; Owner expansion 50 from wallet (intentionally preserved); Governor expansion 65 from treasury rejected without allowance, then succeeded after allowance. Parcel Holder consent, bans/denied treasury action, actual block-break Activity +1 and immutable land capture all passed.
+- Fresh stop/start with final formatted JAR preserved all **352 non-clock rows**, including Liquibase metadata, quotes/ledger/progress/Holders/Activity. Live rejoin showed wallets 5/100, treasury 55, retained Holder/revision and allowance 0, without another first grant.
+- Initial fresh/copy Paper attempts failed because Liquibase SPI used the server loader (`No executor jdbc`/unknown validate command), not due to schema mismatch. Explicit plugin-loader Scope fixed the cause; failures stopped protection fail-closed. Subsequent runs passed.
+- Evidence retained only under ignored .run: phase0-live.log, phase0-restart.log and both server directories. The older protocol client's known particle decoding errors do not constitute native visual acceptance; relevant server interactions/messages/state were exercised.
 
 ## Next action
 
-Specify the bounded integer account/transaction/budget contract, then implement the first ledger slice with non-negative balances, stable IDs, typed movements, authorization and audit. Budget enforcement belongs with the first issuance; starting funds/balance feedback follow. Resolve legacy grant eligibility before enabling onboarding, and legacy natural-land backfill before charging Claims.
+Begin frozen roadmap Phase 1 only: make ALL expansion Treasury-funded and Owner-assessed, migrate/invalidate obsolete pending quote payer context safely, preserve paid receipts/progress, and re-run the frozen atomicity/staleness/permission/restart matrix. Do not skip to certification or Building work.
 
 ## Risks or blockers
 
-- Starting-fund treatment for existing players, monetary period/tier/carry-over behavior, transaction reversal rules and checked integer rounding need implementation choices. The currency model itself is settled; do not reopen physical-item versus ledger currency.
-- LandValueProfile cannot be reconstructed honestly by silently sampling already player-modified legacy chunks. Define approved backfill/versioning and missing-profile behavior before paid Claims.
-- Governor payer versus assessed-player/subsidy identity, distance metric, quote revisions, current naming-toggle migration and pending-transfer migration must be explicit. Preserve history and avoid resetting personal subsidy usage.
-- Final razor choices supersede earlier alternatives: no permanent peer receiving ceiling, no mandatory continuous price/hysteresis model, no automatic monetary policy, no perfect Building split/merge solver, no villager prerequisite, and no optional production/transport/season dependency ahead of Dynamic Settlement Cycles.
+- Phase 0 is not full MVP acceptance. Existing Owner-wallet expansion is still a known Phase 1 difference, intentionally unchanged here.
+- SQLite baseline SQL exceptions are justified/tested for missing structured constraint support; do not extend them to ordinary gameplay queries or new legacy migrations.
+- Maven Java TLS failures are environmental; final validation used temporary local transport with unchanged HTTPS artifacts and checksum enforcement. Keep production repository configuration standard and never disable dependency verification to bypass corruption.
+- Liquibase 5.0.4's published artifact is under FSL-1.1-ALv2; it is the explicitly frozen Community dependency. No license substitution or dependency-version deviation was made.
+- Native client UI acceptance remains pending. Do not copy isolated fixture data/config into the real development server.

@@ -19,4 +19,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "esmp"
-include("esmp-core", "esmp-civilization", "esmp-resource", "esmp-plugin")
+include("esmp-core", "esmp-civilization", "esmp-economy", "esmp-resource", "esmp-plugin")

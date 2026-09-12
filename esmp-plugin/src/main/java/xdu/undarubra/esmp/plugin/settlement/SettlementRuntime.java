@@ -71,15 +71,31 @@ public final class SettlementRuntime implements AutoCloseable {
             SettlementPolicy policy,
             GameClock clock,
             ActivityPolicy activityPolicy,
-            Consumer<Throwable> fatal) {
+            Consumer<Throwable> fatal,
+            SettlementService.ReleaseGuard releaseGuard,
+            ClaimPricingPolicy pricingPolicy,
+            SettlementService.ClaimPayment payment) {
         this.plugin = plugin;
         this.database = database;
         this.mainWorldName = mainWorldName;
         this.fatal = fatal;
         this.clock = clock;
-        service = new SettlementService(database, policy, clock, administrators::contains);
-        parcels = new ParcelService(database, clock, administrators::contains);
-        activity = new ActivityService(database, clock, activityPolicy, administrators::contains);
+        activity =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
+                        database, clock, activityPolicy, administrators::contains);
+        service =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
+                        database,
+                        policy,
+                        clock,
+                        administrators::contains,
+                        releaseGuard,
+                        pricingPolicy,
+                        payment,
+                        activity::isActive);
+        parcels =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.parcel(
+                        database, clock, administrators::contains);
         activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
@@ -147,6 +163,7 @@ public final class SettlementRuntime implements AutoCloseable {
     }
 
     public SettlementView find(String reference) {
+        reference = reference.strip();
         var found = index.byName(reference);
         if (found != null) return found;
         try {

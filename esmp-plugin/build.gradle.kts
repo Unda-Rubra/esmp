@@ -5,10 +5,14 @@ plugins {
 dependencies {
     implementation(project(":esmp-core"))
     implementation(project(":esmp-civilization"))
+    implementation(project(":esmp-economy"))
     implementation(project(":esmp-resource"))
     compileOnly("io.papermc.paper:paper-api:26.2.build.121-stable")
-    testImplementation(platform("org.junit:junit-bom:5.12.2"))
+    testImplementation(platform("org.junit:junit-bom:6.1.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("com.tngtech.archunit:archunit:1.5.0")
+    testImplementation("org.liquibase:liquibase-core:5.0.4")
+    testRuntimeOnly("org.xerial:sqlite-jdbc:3.53.4.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

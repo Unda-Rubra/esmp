@@ -1,0 +1,33 @@
+
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.4", ranksep="0.6",
+         fontname="Helvetica", label="Persistence and World-Mutation Boundary", labelloc="t", fontsize=20];
+  node [shape=box, style="rounded", fontname="Helvetica", fontsize=10, margin="0.15,0.09"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  paper [label="Paper world context"];
+  app [label="Application services"];
+  ports [label="Repository / domain ports"];
+  jooq [label="jOOQ adapters\n(type-safe generated schema)"];
+  dbx [label="Bounded DB executor\nUnitOfWork"];
+  sqlite [label="SQLite"];
+
+  paper -> app;
+  app -> ports;
+  ports -> jooq;
+  jooq -> dbx;
+  dbx -> sqlite;
+
+  liq [label="Liquibase YAML/XML\ncanonical schema"];
+  temp [label="Temporary migrated\nSQLite schema"];
+  gen [label="jOOQ codegen"];
+  liq -> sqlite [label="startup migrations"];
+  liq -> temp [label="build"];
+  temp -> gen;
+  gen -> jooq [label="generated types"];
+
+  intent [label="Durable world job:\npersist intent → loaded chunk\n→ revalidate → mutate → persist outcome", shape=note];
+  app -> intent [style=dashed];
+  intent -> paper [style=dashed];
+  intent -> dbx [style=dashed];
+}

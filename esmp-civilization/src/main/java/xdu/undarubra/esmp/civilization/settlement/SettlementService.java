@@ -1,1204 +1,170 @@
 package xdu.undarubra.esmp.civilization.settlement;
 
-import xdu.undarubra.esmp.core.storage.WorldStore;
-import xdu.undarubra.esmp.core.time.GameClock;
+import xdu.undarubra.esmp.core.storage.UnitOfWork.Transaction;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/** Owns Settlement invariants and SQL. All work runs in the core database worker. */
+/** Public Settlement operations; persistence and transaction ownership belong to the repository. */
 public final class SettlementService {
-    private final WorldStore database;
-    private final SettlementPolicy policy;
-    private final GameClock clock;
-    private final java.util.function.Predicate<UUID> administrator;
+    @FunctionalInterface
+    public interface ReleaseGuard {
+        void check(Transaction transaction, UUID settlement) throws SQLException;
+    }
 
-    public SettlementService(
-            WorldStore database,
-            SettlementPolicy policy,
-            GameClock clock,
-            java.util.function.Predicate<UUID> administrator) {
-        this.database = database;
-        this.policy = policy;
-        this.clock = clock;
-        this.administrator = administrator;
+    @FunctionalInterface
+    public interface ClaimPayment {
+        void debit(Transaction transaction, ClaimQuote quote) throws SQLException;
+    }
+
+    @FunctionalInterface
+    public interface ClaimActivity {
+        boolean active(Transaction transaction, UUID settlement) throws SQLException;
+    }
+
+    public record TreasuryPermission(Role role, long ownershipRevision, UUID promotionId) {}
+
+    /** Domain port. Transaction-taking operations participate in the caller's transaction. */
+    public interface Repository {
+        CompletableFuture<List<SettlementView>> initialize();
+
+        TreasuryPermission treasuryPermission(Transaction transaction, UUID actor, UUID id)
+                throws SQLException;
+
+        CompletableFuture<ClaimQuote> quoteCreate(UUID actor, UUID world, ChunkPosition chunk);
+
+        CompletableFuture<ClaimQuote> quoteClaim(
+                UUID actor, UUID id, UUID world, ChunkPosition chunk);
+
+        CompletableFuture<ClaimQuote> quote(UUID actor, UUID quoteId);
+
+        CompletableFuture<SettlementChange> purchase(UUID actor, UUID quoteId);
+
+        CompletableFuture<SettlementChange> unclaim(UUID actor, UUID id, ChunkPosition chunk);
+
+        CompletableFuture<SettlementChange> rename(UUID actor, UUID id, String rawName);
+
+        CompletableFuture<SettlementChange> certify(UUID actor, UUID id, boolean certified);
+
+        CompletableFuture<SettlementChange> ban(UUID actor, UUID id, UUID target, boolean banned);
+
+        CompletableFuture<SettlementChange> offer(
+                UUID actor, UUID id, UUID recipient, SettlementOffer.Type type);
+
+        CompletableFuture<SettlementChange> accept(
+                UUID actor, UUID offerId, boolean abandonmentConfirmation);
+
+        CompletableFuture<SettlementChange> resolveOffer(UUID actor, UUID offerId, boolean decline);
+
+        CompletableFuture<SettlementChange> remove(
+                UUID actor, UUID id, UUID target, boolean voluntary);
+
+        CompletableFuture<SettlementChange> demote(UUID actor, UUID id, UUID target);
+
+        CompletableFuture<List<SettlementOffer>> offers(UUID actor);
+
+        CompletableFuture<SettlementOffer> inspectOffer(UUID id);
+
+        CompletableFuture<List<SettlementEvent>> history(UUID settlementId);
+
+        CompletableFuture<List<SettlementEvent>> pendingEvents();
+
+        CompletableFuture<Void> acknowledgeEvents(List<UUID> ids);
+    }
+
+    private final Repository repository;
+
+    public SettlementService(Repository repository) {
+        this.repository = Objects.requireNonNull(repository);
     }
 
     public CompletableFuture<List<SettlementView>> initialize() {
-        return database.transact(
-                connection -> {
-                    migrate(connection);
-                    clock.checkpoint(connection);
-                    return loadAll(connection);
-                });
+        return repository.initialize();
     }
 
-    public long claimPrice(int area) {
-        return policy.claimPrice(area);
+    public TreasuryPermission treasuryPermission(Transaction transaction, UUID actor, UUID id)
+            throws SQLException {
+        return repository.treasuryPermission(transaction, actor, id);
     }
 
-    public CompletableFuture<SettlementChange> create(UUID actor, UUID world, ChunkPosition chunk) {
-        return database.transact(
-                connection -> {
-                    requireMainWorld(connection, world);
-                    long number;
-                    try (var q = connection.createStatement();
-                            var rows =
-                                    q.executeQuery(
-                                            "SELECT coalesce(max(number),0)+1 FROM"
-                                                    + " settlement_details")) {
-                        rows.next();
-                        number = rows.getLong(1);
-                    }
-                    String name = "S#" + number;
-                    requireUnclaimed(connection, world, chunk);
-                    UUID id = UUID.randomUUID();
-                    execute(
-                            connection,
-                            """
-                            INSERT INTO settlements(settlement_id,world_instance_id,name,name_key,owner_uuid,created_at,
-                                ownership_revision,chunk_revision,status) VALUES(?,?,?,?,?,?,1,1,'OWNED')
-                            """,
-                            id,
-                            world,
-                            name,
-                            key(name),
-                            actor,
-                            Instant.now().toEpochMilli());
-                    execute(
-                            connection,
-                            "UPDATE settlements SET founded_tick=? WHERE settlement_id=?",
-                            clock.ticks(),
-                            id);
-                    execute(
-                            connection,
-                            "INSERT INTO settlement_details VALUES(?,?,NULL,0,0)",
-                            id,
-                            number);
-                    insertChunk(connection, id, world, chunk);
-                    event(
-                            connection,
-                            id,
-                            actor,
-                            "FOUNDED",
-                            name
-                                    + " at "
-                                    + chunk.x()
-                                    + ","
-                                    + chunk.z()
-                                    + ";numeric_price="
-                                    + claimPrice(0)
-                                    + ";charged=false");
-                    return changed(
-                            connection,
-                            id,
-                            null,
-                            "Created " + name + ". Claim price: " + claimPrice(0) + ".");
-                });
+    public CompletableFuture<ClaimQuote> quoteCreate(UUID actor, UUID world, ChunkPosition chunk) {
+        return repository.quoteCreate(actor, world, chunk);
     }
 
-    public CompletableFuture<SettlementChange> claim(
+    public CompletableFuture<ClaimQuote> quoteClaim(
             UUID actor, UUID id, UUID world, ChunkPosition chunk) {
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    require(
-                            settlement.role(actor).canManage(),
-                            "Only the Owner or a Governor may claim chunks.");
-                    require(
-                            settlement.worldInstanceId().equals(world),
-                            "Claims cannot cross world instances.");
-                    requireMainWorld(connection, world);
-                    requireUnclaimed(connection, world, chunk);
-                    require(
-                            !policy.chunkCapEnabled()
-                                    || settlement.chunks().size() < policy.maxChunks(),
-                            "Settlement chunk cap reached.");
-                    require(
-                            neighbors(chunk).stream().anyMatch(settlement.chunks()::contains),
-                            "The new chunk must share an edge with this Settlement.");
-                    insertChunk(connection, id, world, chunk);
-                    execute(
-                            connection,
-                            "UPDATE settlements SET chunk_revision=chunk_revision+1 WHERE"
-                                    + " settlement_id=?",
-                            id);
-                    long price = claimPrice(settlement.chunks().size());
-                    event(
-                            connection,
-                            id,
-                            actor,
-                            "CHUNK_CLAIMED",
-                            chunk.x()
-                                    + ","
-                                    + chunk.z()
-                                    + ";numeric_price="
-                                    + price
-                                    + ";charged=false");
-                    return changed(
-                            connection,
-                            id,
-                            null,
-                            "Claimed chunk for " + settlement.name() + ". Price: " + price + ".");
-                });
+        return repository.quoteClaim(actor, id, world, chunk);
+    }
+
+    public CompletableFuture<ClaimQuote> quote(UUID actor, UUID quoteId) {
+        return repository.quote(actor, quoteId);
+    }
+
+    public CompletableFuture<SettlementChange> purchase(UUID actor, UUID quoteId) {
+        return repository.purchase(actor, quoteId);
     }
 
     public CompletableFuture<SettlementChange> unclaim(UUID actor, UUID id, ChunkPosition chunk) {
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    require(
-                            settlement.role(actor).canManage(),
-                            "Only the Owner or a Governor may unclaim chunks.");
-                    require(
-                            settlement.chunks().contains(chunk),
-                            "This chunk does not belong to that Settlement.");
-                    require(
-                            settlement.chunks().size() > 1,
-                            "The last chunk requires the Owner's explicit abandon confirmation.");
-                    try (var q =
-                                    prepare(
-                                            connection,
-                                            "SELECT x,z FROM parcel_cells WHERE settlement_id=?",
-                                            id);
-                            var rows = q.executeQuery()) {
-                        while (rows.next())
-                            require(
-                                    Math.floorDiv(rows.getInt(1), 2) != chunk.x()
-                                            || Math.floorDiv(rows.getInt(2), 2) != chunk.z(),
-                                    "Remove affected Parcels through their consent workflow before"
-                                            + " unclaiming");
-                    }
-                    Set<ChunkPosition> remaining = new HashSet<>(settlement.chunks());
-                    remaining.remove(chunk);
-                    require(
-                            connected(remaining),
-                            "Unclaiming this chunk would split the Settlement.");
-                    execute(
-                            connection,
-                            "DELETE FROM settlement_chunks WHERE settlement_id=? AND chunk_x=? AND"
-                                    + " chunk_z=?",
-                            id,
-                            chunk.x(),
-                            chunk.z());
-                    execute(
-                            connection,
-                            "UPDATE settlements SET chunk_revision=chunk_revision+1 WHERE"
-                                    + " settlement_id=?",
-                            id);
-                    event(connection, id, actor, "CHUNK_UNCLAIMED", chunk.x() + "," + chunk.z());
-                    return changed(
-                            connection,
-                            id,
-                            null,
-                            "Unclaimed chunk from " + settlement.name() + ".");
-                });
+        return repository.unclaim(actor, id, chunk);
     }
 
     public CompletableFuture<SettlementChange> rename(UUID actor, UUID id, String rawName) {
-        String name = validName(rawName);
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    require(
-                            administrator.test(actor),
-                            "Only a server administrator may approve an official name");
-                    try (var q =
-                                    prepare(
-                                            connection,
-                                            "SELECT certified FROM settlement_details WHERE"
-                                                    + " settlement_id=?",
-                                            id);
-                            var rows = q.executeQuery()) {
-                        require(
-                                rows.next() && rows.getInt(1) != 0,
-                                "Naming certification is required");
-                    }
-                    requireNameAvailable(connection, name, id);
-                    execute(
-                            connection,
-                            "UPDATE settlements SET name=?,name_key=? WHERE settlement_id=?",
-                            name,
-                            key(name),
-                            id);
-                    execute(
-                            connection,
-                            "UPDATE settlement_details SET official_name=? WHERE settlement_id=?",
-                            name,
-                            id);
-                    event(connection, id, actor, "RENAMED", settlement.name() + " -> " + name);
-                    return changed(connection, id, null, "Renamed Settlement to " + name + ".");
-                });
+        return repository.rename(actor, id, rawName);
     }
 
     public CompletableFuture<SettlementChange> certify(UUID actor, UUID id, boolean certified) {
-        return database.transact(
-                c -> {
-                    require(administrator.test(actor), "Administrator required");
-                    owned(c, id, actor);
-                    execute(
-                            c,
-                            "UPDATE settlement_details SET certified=? WHERE settlement_id=?",
-                            certified ? 1 : 0,
-                            id);
-                    event(c, id, actor, "NAMING_CERTIFICATION", Boolean.toString(certified));
-                    return changed(c, id, null, "Naming certification=" + certified);
-                });
+        return repository.certify(actor, id, certified);
     }
 
     public CompletableFuture<SettlementChange> ban(
             UUID actor, UUID id, UUID target, boolean banned) {
-        return database.transact(
-                c -> {
-                    var settlement = owned(c, id, actor);
-                    require(
-                            administrator.test(actor) || settlement.role(actor).canManage(),
-                            "Owner or Governor required");
-                    require(
-                            !banned || !administrator.test(target),
-                            "Server administrators cannot be banned");
-                    if (banned)
-                        execute(
-                                c,
-                                "INSERT INTO settlement_bans VALUES(?,?,?,?) ON"
-                                    + " CONFLICT(settlement_id,player_uuid) DO UPDATE SET"
-                                    + " banned_by=excluded.banned_by,created_tick=excluded.created_tick",
-                                id,
-                                target,
-                                actor,
-                                clock.ticks());
-                    else
-                        execute(
-                                c,
-                                "DELETE FROM settlement_bans WHERE settlement_id=? AND"
-                                        + " player_uuid=?",
-                                id,
-                                target);
-                    execute(
-                            c,
-                            "UPDATE settlement_details SET security_revision=security_revision+1"
-                                    + " WHERE settlement_id=?",
-                            id);
-                    execute(
-                            c,
-                            "UPDATE parcel_requests SET state='STALE' WHERE settlement_id=? AND"
-                                    + " state='PENDING'",
-                            id);
-                    event(c, id, actor, banned ? "BANNED" : "UNBANNED", target.toString());
-                    return changed(c, id, null, banned ? "Player banned." : "Ban removed.");
-                });
+        return repository.ban(actor, id, target, banned);
     }
 
     public CompletableFuture<SettlementChange> offer(
             UUID actor, UUID id, UUID recipient, SettlementOffer.Type type) {
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    require(
-                            administrator.test(recipient)
-                                    || !ParcelService.banned(connection, id, recipient),
-                            "Recipient is banned");
-                    Role issuerRole = settlement.role(actor);
-                    Role targetRole = settlement.role(recipient);
-                    require(
-                            type == SettlementOffer.Type.INVITE
-                                    ? issuerRole.canManage()
-                                    : issuerRole == Role.OWNER,
-                            "You do not have authority for this offer.");
-                    switch (type) {
-                        case INVITE ->
-                                require(
-                                        targetRole == Role.PUBLIC,
-                                        "That player is already in the Settlement.");
-                        case PROMOTE ->
-                                require(
-                                        targetRole == Role.CITIZEN,
-                                        "Only an existing Citizen can be promoted.");
-                        case TRANSFER ->
-                                require(
-                                        targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
-                                        "The new Owner must already be a Citizen or Governor.");
-                        case ABANDON ->
-                                require(
-                                        actor.equals(recipient),
-                                        "Only the Owner may confirm abandonment.");
-                    }
-                    execute(
-                            connection,
-                            "UPDATE settlement_offers SET state='EXPIRED' WHERE settlement_id=? AND"
-                                    + " state='PENDING' AND expires_at<=?",
-                            id,
-                            clock.ticks());
-                    if (type == SettlementOffer.Type.ABANDON) {
-                        execute(
-                                connection,
-                                "UPDATE settlement_offers SET state='CANCELLED' WHERE"
-                                        + " settlement_id=? AND type='ABANDON' AND state='PENDING'",
-                                id);
-                    }
-                    try (PreparedStatement query =
-                                    prepare(
-                                            connection,
-                                            "SELECT offer_id FROM settlement_offers WHERE"
-                                                + " settlement_id=? AND recipient_uuid=? AND type=?"
-                                                + " AND state='PENDING'",
-                                            id,
-                                            recipient,
-                                            type);
-                            ResultSet result = query.executeQuery()) {
-                        require(
-                                !result.next(),
-                                "A pending offer already exists; inspect /settlement offers.");
-                    }
-                    SettlementOffer offer =
-                            new SettlementOffer(
-                                    UUID.randomUUID(),
-                                    id,
-                                    type,
-                                    actor,
-                                    recipient,
-                                    Math.addExact(clock.ticks(), policy.lifetimeTicks(type)),
-                                    settlement.ownershipRevision(),
-                                    settlement.chunkRevision());
-                    execute(
-                            connection,
-                            """
-                            INSERT INTO settlement_offers(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,
-                                ownership_revision,chunk_revision,state) VALUES(?,?,?,?,?,?,?,?,'PENDING')
-                            """,
-                            offer.id(),
-                            id,
-                            type,
-                            actor,
-                            recipient,
-                            offer.expiresAtTick(),
-                            offer.ownershipRevision(),
-                            offer.chunkRevision());
-                    event(
-                            connection,
-                            id,
-                            actor,
-                            type + "_OFFERED",
-                            "recipient=" + recipient + ";offer=" + offer.id());
-                    return new SettlementChange(
-                            id,
-                            settlement,
-                            offer,
-                            type == SettlementOffer.Type.ABANDON
-                                    ? "WARNING: abandonment removes all claim protection for "
-                                            + settlement.name()
-                                            + "."
-                                    : type + " offer created for " + settlement.name() + ".");
-                });
+        return repository.offer(actor, id, recipient, type);
     }
 
     public CompletableFuture<SettlementChange> accept(
             UUID actor, UUID offerId, boolean abandonmentConfirmation) {
-        return database.transact(
-                connection -> {
-                    SettlementOffer offer = pendingOffer(connection, offerId);
-                    require(
-                            offer.recipient().equals(actor),
-                            "Only the nominated recipient may accept this offer.");
-                    require(
-                            (offer.type() == SettlementOffer.Type.ABANDON)
-                                    == abandonmentConfirmation,
-                            "Use /settlement confirm for abandonment, and /settlement accept for"
-                                    + " other offers.");
-                    SettlementView settlement = owned(connection, offer.settlementId(), actor);
-                    require(
-                            administrator.test(offer.issuer())
-                                    || !ParcelService.banned(
-                                            connection, settlement.id(), offer.issuer()),
-                            "Issuer is banned");
-                    Role issuerRole = settlement.role(offer.issuer());
-                    Role targetRole = settlement.role(actor);
-                    if (offer.type() == SettlementOffer.Type.INVITE) {
-                        require(issuerRole.canManage(), "The inviter no longer has authority.");
-                        require(
-                                targetRole == Role.PUBLIC,
-                                "Existing membership cannot be overwritten by an invitation.");
-                    } else {
-                        require(
-                                issuerRole == Role.OWNER
-                                        && settlement.ownershipRevision()
-                                                == offer.ownershipRevision(),
-                                "Ownership changed; request a fresh offer.");
-                    }
-                    switch (offer.type()) {
-                        case INVITE -> addCitizen(connection, settlement.id(), actor, Role.CITIZEN);
-                        case PROMOTE -> {
-                            require(
-                                    targetRole == Role.CITIZEN,
-                                    "The recipient is no longer a Citizen.");
-                            execute(
-                                    connection,
-                                    "UPDATE settlement_members SET role='GOVERNOR' WHERE"
-                                            + " settlement_id=? AND player_uuid=?",
-                                    settlement.id(),
-                                    actor);
-                        }
-                        case TRANSFER -> {
-                            require(
-                                    targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
-                                    "The recipient is no longer eligible for ownership.");
-                            execute(
-                                    connection,
-                                    "DELETE FROM settlement_members WHERE settlement_id=? AND"
-                                            + " player_uuid=?",
-                                    settlement.id(),
-                                    actor);
-                            execute(
-                                    connection,
-                                    "UPDATE settlements SET"
-                                        + " owner_uuid=?,ownership_revision=ownership_revision+1"
-                                        + " WHERE settlement_id=?",
-                                    actor,
-                                    settlement.id());
-                            addCitizen(
-                                    connection, settlement.id(), settlement.owner(), Role.CITIZEN);
-                        }
-                        case ABANDON -> {
-                            require(
-                                    targetRole == Role.OWNER
-                                            && settlement.chunkRevision() == offer.chunkRevision(),
-                                    "Ownership or claims changed; request a fresh abandonment"
-                                            + " warning.");
-                            try (var q =
-                                            prepare(
-                                                    connection,
-                                                    "SELECT 1 FROM parcels WHERE settlement_id=?",
-                                                    settlement.id());
-                                    var rows = q.executeQuery()) {
-                                require(
-                                        !rows.next(),
-                                        "Remove Parcels through their consent workflow before"
-                                                + " abandoning");
-                            }
-                            execute(
-                                    connection,
-                                    "DELETE FROM settlement_chunks WHERE settlement_id=?",
-                                    settlement.id());
-                            execute(
-                                    connection,
-                                    "DELETE FROM settlement_members WHERE settlement_id=?",
-                                    settlement.id());
-                            execute(
-                                    connection,
-                                    "UPDATE settlements SET"
-                                        + " owner_uuid=NULL,status='RELEASED',ownership_revision=ownership_revision+1,chunk_revision=chunk_revision+1"
-                                        + " WHERE settlement_id=?",
-                                    settlement.id());
-                        }
-                    }
-                    execute(
-                            connection,
-                            "UPDATE settlement_offers SET state='ACCEPTED' WHERE offer_id=? AND"
-                                    + " state='PENDING'",
-                            offerId);
-                    if (offer.type() == SettlementOffer.Type.TRANSFER
-                            || offer.type() == SettlementOffer.Type.ABANDON) {
-                        execute(
-                                connection,
-                                "UPDATE settlement_offers SET state='CANCELLED' WHERE"
-                                        + " settlement_id=? AND state='PENDING'",
-                                settlement.id());
-                    }
-                    String eventType =
-                            switch (offer.type()) {
-                                case INVITE -> "CITIZEN_JOINED";
-                                case PROMOTE -> "GOVERNOR_PROMOTED";
-                                case TRANSFER -> "OWNERSHIP_TRANSFERRED";
-                                case ABANDON -> "RELEASED";
-                            };
-                    event(
-                            connection,
-                            settlement.id(),
-                            actor,
-                            eventType,
-                            "issuer=" + offer.issuer() + ";recipient=" + actor);
-                    return changed(
-                            connection,
-                            settlement.id(),
-                            null,
-                            offer.type() == SettlementOffer.Type.ABANDON
-                                    ? "Released "
-                                            + settlement.name()
-                                            + "; claim protection removed."
-                                    : "Accepted "
-                                            + offer.type()
-                                            + " for "
-                                            + settlement.name()
-                                            + ".");
-                });
+        return repository.accept(actor, offerId, abandonmentConfirmation);
     }
 
     public CompletableFuture<SettlementChange> resolveOffer(
             UUID actor, UUID offerId, boolean decline) {
-        return database.transact(
-                connection -> {
-                    SettlementOffer offer = pendingOffer(connection, offerId);
-                    SettlementView settlement = owned(connection, offer.settlementId(), actor);
-                    if (decline) {
-                        require(offer.recipient().equals(actor), "Only the recipient may decline.");
-                    } else {
-                        Role role = settlement.role(actor);
-                        require(
-                                offer.type() == SettlementOffer.Type.INVITE
-                                        ? role.canManage()
-                                        : role == Role.OWNER,
-                                "You cannot cancel this offer.");
-                    }
-                    String state = decline ? "DECLINED" : "CANCELLED";
-                    execute(
-                            connection,
-                            "UPDATE settlement_offers SET state=? WHERE offer_id=?",
-                            state,
-                            offerId);
-                    event(
-                            connection,
-                            settlement.id(),
-                            actor,
-                            "OFFER_" + state,
-                            offer.type() + ":" + offer.id());
-                    return new SettlementChange(
-                            settlement.id(),
-                            settlement,
-                            null,
-                            "Offer " + state.toLowerCase(Locale.ROOT) + ".");
-                });
+        return repository.resolveOffer(actor, offerId, decline);
     }
 
     public CompletableFuture<SettlementChange> remove(
             UUID actor, UUID id, UUID target, boolean voluntary) {
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    Role actorRole = settlement.role(actor);
-                    Role targetRole = settlement.role(target);
-                    require(
-                            targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
-                            "Only Citizens or Governors can be removed; an Owner must transfer or"
-                                    + " abandon.");
-                    if (voluntary) {
-                        require(actor.equals(target), "You may only leave for yourself.");
-                    } else {
-                        require(
-                                actorRole == Role.OWNER
-                                        || (actorRole == Role.GOVERNOR
-                                                && targetRole == Role.CITIZEN),
-                                "You do not have permission to remove this player.");
-                    }
-                    execute(
-                            connection,
-                            "DELETE FROM settlement_members WHERE settlement_id=? AND"
-                                    + " player_uuid=?",
-                            id,
-                            target);
-                    execute(
-                            connection,
-                            "UPDATE settlement_offers SET state='CANCELLED' WHERE settlement_id=?"
-                                + " AND state='PENDING' AND (issuer_uuid=? OR recipient_uuid=?)",
-                            id,
-                            target,
-                            target);
-                    event(
-                            connection,
-                            id,
-                            actor,
-                            voluntary ? "CITIZEN_LEFT" : "CITIZEN_REMOVED",
-                            target.toString());
-                    return changed(
-                            connection,
-                            id,
-                            null,
-                            "Player is now a Public of " + settlement.name() + ".");
-                });
+        return repository.remove(actor, id, target, voluntary);
     }
 
     public CompletableFuture<SettlementChange> demote(UUID actor, UUID id, UUID target) {
-        return database.transact(
-                connection -> {
-                    SettlementView settlement = owned(connection, id, actor);
-                    require(
-                            settlement.role(actor) == Role.OWNER,
-                            "Only the Owner may demote Governors.");
-                    require(
-                            settlement.role(target) == Role.GOVERNOR,
-                            "That player is not a Governor.");
-                    execute(
-                            connection,
-                            "UPDATE settlement_members SET role='CITIZEN' WHERE settlement_id=? AND"
-                                    + " player_uuid=?",
-                            id,
-                            target);
-                    execute(
-                            connection,
-                            "UPDATE settlement_offers SET state='CANCELLED' WHERE settlement_id=?"
-                                    + " AND issuer_uuid=? AND state='PENDING'",
-                            id,
-                            target);
-                    event(connection, id, actor, "GOVERNOR_DEMOTED", target.toString());
-                    return changed(connection, id, null, "Governor demoted to Citizen.");
-                });
+        return repository.demote(actor, id, target);
     }
 
     public CompletableFuture<List<SettlementOffer>> offers(UUID actor) {
-        return database.transact(
-                connection -> {
-                    var result = new ArrayList<SettlementOffer>();
-                    try (PreparedStatement query =
-                                    prepare(
-                                            connection,
-                                            """
-                                            SELECT o.* FROM settlement_offers o JOIN settlements s ON s.settlement_id=o.settlement_id
-                                            WHERE o.state='PENDING' AND o.expires_at>? AND s.status='OWNED' AND
-                                            (o.recipient_uuid=? OR o.issuer_uuid=? OR s.owner_uuid=? OR
-                                             (o.type='INVITE' AND EXISTS(SELECT 1 FROM settlement_members m
-                                              WHERE m.settlement_id=s.settlement_id AND m.player_uuid=? AND m.role='GOVERNOR')))
-                                            ORDER BY o.expires_at LIMIT 50
-                                            """,
-                                            clock.ticks(),
-                                            actor,
-                                            actor,
-                                            actor,
-                                            actor);
-                            ResultSet rows = query.executeQuery()) {
-                        while (rows.next()) {
-                            result.add(offerFrom(rows));
-                        }
-                    }
-                    return List.copyOf(result);
-                });
+        return repository.offers(actor);
     }
 
     public CompletableFuture<SettlementOffer> inspectOffer(UUID id) {
-        return database.transact(connection -> pendingOffer(connection, id));
+        return repository.inspectOffer(id);
     }
 
     public CompletableFuture<List<SettlementEvent>> history(UUID settlementId) {
-        return database.transact(
-                connection ->
-                        events(
-                                connection,
-                                "SELECT * FROM settlement_events WHERE settlement_id=? ORDER BY"
-                                        + " occurred_at DESC,rowid DESC LIMIT 50",
-                                settlementId));
+        return repository.history(settlementId);
     }
 
     public CompletableFuture<List<SettlementEvent>> pendingEvents() {
-        return database.transact(
-                connection ->
-                        events(
-                                connection,
-                                "SELECT * FROM settlement_events WHERE delivered=0 ORDER BY rowid"
-                                        + " LIMIT 128"));
+        return repository.pendingEvents();
     }
 
     public CompletableFuture<Void> acknowledgeEvents(List<UUID> ids) {
-        List<UUID> captured = List.copyOf(ids);
-        return database.transact(
-                connection -> {
-                    for (UUID id : captured) {
-                        execute(
-                                connection,
-                                "UPDATE settlement_events SET delivered=1 WHERE event_id=?",
-                                id);
-                    }
-                    return null;
-                });
-    }
-
-    private SettlementChange changed(
-            Connection connection, UUID id, SettlementOffer offer, String message)
-            throws SQLException {
-        return new SettlementChange(id, load(connection, id), offer, message);
-    }
-
-    private void event(Connection connection, UUID id, UUID actor, String type, String detail)
-            throws SQLException {
-        execute(
-                connection,
-                "INSERT INTO settlement_events VALUES(?,?,?,?,?,?,0,?)",
-                UUID.randomUUID(),
-                id,
-                actor,
-                type,
-                detail,
-                Instant.now().toEpochMilli(),
-                clock.ticks());
-        clock.checkpoint(connection);
-    }
-
-    private static List<SettlementEvent> events(
-            Connection connection, String sql, Object... parameters) throws SQLException {
-        var events = new ArrayList<SettlementEvent>();
-        try (PreparedStatement query = prepare(connection, sql, parameters);
-                ResultSet result = query.executeQuery()) {
-            while (result.next()) {
-                Number gameTick = (Number) result.getObject("game_tick");
-                events.add(
-                        new SettlementEvent(
-                                UUID.fromString(result.getString("event_id")),
-                                UUID.fromString(result.getString("settlement_id")),
-                                UUID.fromString(result.getString("actor_uuid")),
-                                result.getString("type"),
-                                result.getString("detail"),
-                                Instant.ofEpochMilli(result.getLong("occurred_at")),
-                                gameTick == null ? null : gameTick.longValue()));
-            }
-        }
-        return List.copyOf(events);
-    }
-
-    private SettlementOffer pendingOffer(Connection connection, UUID id) throws SQLException {
-        try (PreparedStatement query =
-                        prepare(
-                                connection,
-                                "SELECT * FROM settlement_offers WHERE offer_id=? AND"
-                                        + " state='PENDING'",
-                                id);
-                ResultSet result = query.executeQuery()) {
-            require(result.next(), "Offer not found or already resolved.");
-            SettlementOffer offer = offerFrom(result);
-            require(clock.ticks() < offer.expiresAtTick(), "Offer expired; request a new one.");
-            return offer;
-        }
-    }
-
-    private static SettlementOffer offerFrom(ResultSet row) throws SQLException {
-        return new SettlementOffer(
-                UUID.fromString(row.getString("offer_id")),
-                UUID.fromString(row.getString("settlement_id")),
-                SettlementOffer.Type.valueOf(row.getString("type")),
-                UUID.fromString(row.getString("issuer_uuid")),
-                UUID.fromString(row.getString("recipient_uuid")),
-                row.getLong("expires_at"),
-                row.getLong("ownership_revision"),
-                row.getLong("chunk_revision"));
-    }
-
-    private static void addCitizen(Connection connection, UUID id, UUID player, Role role)
-            throws SQLException {
-        execute(connection, "INSERT INTO settlement_members VALUES(?,?,?)", id, player, role);
-    }
-
-    private static void insertChunk(Connection connection, UUID id, UUID world, ChunkPosition chunk)
-            throws SQLException {
-        execute(
-                connection,
-                "INSERT INTO settlement_chunks VALUES(?,?,?,?)",
-                world,
-                chunk.x(),
-                chunk.z(),
-                id);
-    }
-
-    private static void requireMainWorld(Connection connection, UUID world) throws SQLException {
-        try (PreparedStatement query =
-                        prepare(
-                                connection,
-                                "SELECT 1 FROM world_instances WHERE world_instance_id=? AND"
-                                        + " world_definition_id='MAIN'",
-                                world);
-                ResultSet rows = query.executeQuery()) {
-            require(rows.next(), "Settlements may only claim registered Main World instances.");
-        }
-    }
-
-    private static void requireUnclaimed(Connection connection, UUID world, ChunkPosition chunk)
-            throws SQLException {
-        try (PreparedStatement query =
-                        prepare(
-                                connection,
-                                "SELECT 1 FROM settlement_chunks WHERE world_instance_id=? AND"
-                                        + " chunk_x=? AND chunk_z=?",
-                                world,
-                                chunk.x(),
-                                chunk.z());
-                ResultSet rows = query.executeQuery()) {
-            require(!rows.next(), "This chunk is already claimed.");
-        }
-    }
-
-    private static void requireNameAvailable(Connection connection, String name, UUID self)
-            throws SQLException {
-        try (PreparedStatement query =
-                        prepare(
-                                connection,
-                                "SELECT settlement_id FROM settlements WHERE name_key=? AND"
-                                        + " status='OWNED'",
-                                key(name));
-                ResultSet rows = query.executeQuery()) {
-            require(
-                    !rows.next() || rows.getString(1).equals(String.valueOf(self)),
-                    "An owned Settlement already uses that name.");
-        }
-    }
-
-    private static String validName(String name) {
-        require(
-                name != null && name.matches("[\\p{L}\\p{N}_-]{1,32}"),
-                "Use 1-32 letters, digits, underscores, or hyphens for a name.");
-        return name;
-    }
-
-    private static String key(String name) {
-        return name.toLowerCase(Locale.ROOT);
-    }
-
-    private static void require(boolean condition, String message) {
-        if (!condition) {
-            throw new SettlementException(message);
-        }
-    }
-
-    private static List<ChunkPosition> neighbors(ChunkPosition chunk) {
-        return List.of(
-                new ChunkPosition(chunk.x() + 1, chunk.z()),
-                new ChunkPosition(chunk.x() - 1, chunk.z()),
-                new ChunkPosition(chunk.x(), chunk.z() + 1),
-                new ChunkPosition(chunk.x(), chunk.z() - 1));
-    }
-
-    private static boolean connected(Set<ChunkPosition> chunks) {
-        var queue = new ArrayDeque<ChunkPosition>();
-        var visited = new HashSet<ChunkPosition>();
-        queue.add(chunks.iterator().next());
-        while (!queue.isEmpty()) {
-            ChunkPosition current = queue.removeFirst();
-            if (!visited.add(current)) {
-                continue;
-            }
-            for (ChunkPosition next : neighbors(current)) {
-                if (chunks.contains(next) && !visited.contains(next)) {
-                    queue.addLast(next);
-                }
-            }
-        }
-        return visited.size() == chunks.size();
-    }
-
-    private static PreparedStatement prepare(
-            Connection connection, String sql, Object... parameters) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(sql);
-        try {
-            for (int i = 0; i < parameters.length; i++) {
-                Object value = parameters[i];
-                statement.setObject(
-                        i + 1,
-                        value instanceof UUID || value instanceof Enum<?>
-                                ? value.toString()
-                                : value);
-            }
-            return statement;
-        } catch (SQLException failure) {
-            statement.close();
-            throw failure;
-        }
-    }
-
-    private static int execute(Connection connection, String sql, Object... parameters)
-            throws SQLException {
-        try (PreparedStatement statement = prepare(connection, sql, parameters)) {
-            return statement.executeUpdate();
-        }
-    }
-
-    private SettlementView owned(Connection connection, UUID id, UUID actor) throws SQLException {
-        SettlementView result = load(connection, id);
-        require(result != null, "Settlement is no longer owned or does not exist.");
-        require(
-                administrator.test(actor) || !ParcelService.banned(connection, id, actor),
-                "You are banned from this Settlement");
-        return result;
-    }
-
-    static SettlementView load(Connection connection, UUID id) throws SQLException {
-        try (PreparedStatement query =
-                        prepare(
-                                connection,
-                                "SELECT * FROM settlements WHERE settlement_id=? AND"
-                                        + " status='OWNED'",
-                                id);
-                ResultSet row = query.executeQuery()) {
-            if (!row.next()) {
-                return null;
-            }
-            var members = new HashMap<UUID, Role>();
-            var chunks = new HashSet<ChunkPosition>();
-            try (PreparedStatement m =
-                            prepare(
-                                    connection,
-                                    "SELECT * FROM settlement_members WHERE settlement_id=?",
-                                    id);
-                    ResultSet rows = m.executeQuery()) {
-                while (rows.next()) {
-                    members.put(
-                            UUID.fromString(rows.getString("player_uuid")),
-                            Role.valueOf(rows.getString("role")));
-                }
-            }
-            try (PreparedStatement c =
-                            prepare(
-                                    connection,
-                                    "SELECT chunk_x,chunk_z FROM settlement_chunks WHERE"
-                                            + " settlement_id=?",
-                                    id);
-                    ResultSet rows = c.executeQuery()) {
-                while (rows.next()) {
-                    chunks.add(new ChunkPosition(rows.getInt(1), rows.getInt(2)));
-                }
-            }
-            return viewFrom(row, members, chunks);
-        }
-    }
-
-    private static List<SettlementView> loadAll(Connection connection) throws SQLException {
-        var members = new HashMap<UUID, Map<UUID, Role>>();
-        var chunks = new HashMap<UUID, Set<ChunkPosition>>();
-        try (Statement query = connection.createStatement();
-                ResultSet rows = query.executeQuery("SELECT * FROM settlement_members")) {
-            while (rows.next()) {
-                members.computeIfAbsent(
-                                UUID.fromString(rows.getString("settlement_id")),
-                                ignored -> new HashMap<>())
-                        .put(
-                                UUID.fromString(rows.getString("player_uuid")),
-                                Role.valueOf(rows.getString("role")));
-            }
-        }
-        try (Statement query = connection.createStatement();
-                ResultSet rows = query.executeQuery("SELECT * FROM settlement_chunks")) {
-            while (rows.next()) {
-                chunks.computeIfAbsent(
-                                UUID.fromString(rows.getString("settlement_id")),
-                                ignored -> new HashSet<>())
-                        .add(new ChunkPosition(rows.getInt("chunk_x"), rows.getInt("chunk_z")));
-            }
-        }
-        var result = new ArrayList<SettlementView>();
-        try (Statement query = connection.createStatement();
-                ResultSet rows =
-                        query.executeQuery(
-                                "SELECT * FROM settlements WHERE status='OWNED' ORDER BY"
-                                        + " name_key")) {
-            while (rows.next()) {
-                UUID id = UUID.fromString(rows.getString("settlement_id"));
-                Set<ChunkPosition> claimed = chunks.getOrDefault(id, Set.of());
-                if (claimed.isEmpty() || !connected(claimed)) {
-                    throw new SQLException("Invalid persisted Settlement topology: " + id);
-                }
-                Map<UUID, Role> team = members.getOrDefault(id, Map.of());
-                if (team.containsKey(UUID.fromString(rows.getString("owner_uuid")))) {
-                    throw new SQLException("Owner is duplicated in membership: " + id);
-                }
-                result.add(viewFrom(rows, team, claimed));
-            }
-        }
-        return List.copyOf(result);
-    }
-
-    private static SettlementView viewFrom(
-            ResultSet row, Map<UUID, Role> members, Set<ChunkPosition> chunks) throws SQLException {
-        return new SettlementView(
-                UUID.fromString(row.getString("settlement_id")),
-                UUID.fromString(row.getString("world_instance_id")),
-                row.getString("name"),
-                UUID.fromString(row.getString("owner_uuid")),
-                Instant.ofEpochMilli(row.getLong("created_at")),
-                row.getLong("ownership_revision"),
-                row.getLong("chunk_revision"),
-                members,
-                chunks);
-    }
-
-    private void migrate(Connection connection) throws SQLException {
-        try (var q = connection.createStatement();
-                var tables =
-                        q.executeQuery(
-                                "SELECT 1 FROM sqlite_master WHERE type='table' AND"
-                                        + " name='civilization_schema'")) {
-            if (tables.next())
-                try (var s = connection.createStatement();
-                        var r =
-                                s.executeQuery(
-                                        "SELECT version FROM civilization_schema WHERE id=1")) {
-                    if (r.next() && r.getInt(1) == 3) return;
-                }
-        }
-        migrateClock(connection);
-        execute(
-                connection,
-                "CREATE TABLE settlement_details(settlement_id TEXT PRIMARY KEY REFERENCES"
-                        + " settlements(settlement_id),number INTEGER NOT NULL UNIQUE,official_name"
-                        + " TEXT,certified INTEGER NOT NULL,security_revision INTEGER NOT NULL)");
-        execute(
-                connection,
-                "INSERT INTO settlement_details SELECT settlement_id,row_number() OVER(ORDER BY"
-                        + " rowid),name,1,0 FROM settlements");
-        execute(
-                connection,
-                "CREATE TABLE settlement_members_new(settlement_id TEXT NOT NULL REFERENCES"
-                        + " settlements(settlement_id),player_uuid TEXT NOT NULL,role TEXT NOT NULL"
-                        + " CHECK(role IN ('GOVERNOR','CITIZEN')),PRIMARY"
-                        + " KEY(settlement_id,player_uuid))");
-        execute(
-                connection,
-                "INSERT INTO settlement_members_new SELECT settlement_id,player_uuid,CASE role WHEN"
-                    + " 'MANAGER' THEN 'GOVERNOR' WHEN 'MEMBER' THEN 'CITIZEN' ELSE role END FROM"
-                    + " settlement_members");
-        execute(connection, "DROP TABLE settlement_members");
-        execute(connection, "ALTER TABLE settlement_members_new RENAME TO settlement_members");
-        ParcelService.migrate(connection);
-        execute(connection, "UPDATE civilization_schema SET version=3 WHERE id=1");
-    }
-
-    private void migrateClock(Connection connection) throws SQLException {
-        try (var statement = connection.createStatement();
-                var tables =
-                        statement.executeQuery(
-                                "SELECT 1 FROM sqlite_master WHERE type='table' AND"
-                                        + " name='civilization_schema'")) {
-            if (tables.next()) {
-                try (var query = connection.createStatement();
-                        var version =
-                                query.executeQuery(
-                                        "SELECT version FROM civilization_schema WHERE id=1")) {
-                    if (version.next() && version.getInt(1) == 2) {
-                        return;
-                    }
-                }
-            }
-        }
-        migrateLegacy(connection);
-        execute(
-                connection,
-                "ALTER TABLE settlements ADD COLUMN founded_tick INTEGER NOT NULL DEFAULT 0");
-        execute(connection, "UPDATE settlements SET founded_tick=?", clock.ticks());
-        execute(connection, "ALTER TABLE settlement_events ADD COLUMN game_tick INTEGER");
-        // One-time conversion of legacy absolute deadlines, never a runtime wall-clock fallback.
-        long cutoverMillis = System.currentTimeMillis();
-        try (var query = connection.createStatement();
-                var offers =
-                        query.executeQuery("SELECT offer_id,expires_at FROM settlement_offers")) {
-            while (offers.next()) {
-                long remaining = Math.max(0, Math.subtractExact(offers.getLong(2), cutoverMillis));
-                long ticks =
-                        Math.addExact(
-                                clock.ticks(),
-                                Math.addExact(remaining / 50, remaining % 50 == 0 ? 0 : 1));
-                execute(
-                        connection,
-                        "UPDATE settlement_offers SET expires_at=? WHERE offer_id=?",
-                        ticks,
-                        offers.getString(1));
-            }
-        }
-        execute(connection, "UPDATE civilization_schema SET version=2 WHERE id=1");
-    }
-
-    private static void migrateLegacy(Connection connection) throws SQLException {
-        execute(
-                connection,
-                "CREATE TABLE IF NOT EXISTS civilization_schema (id INTEGER PRIMARY KEY"
-                        + " CHECK(id=1), version INTEGER NOT NULL)");
-        int version = 0;
-        try (Statement query = connection.createStatement();
-                ResultSet rows =
-                        query.executeQuery("SELECT version FROM civilization_schema WHERE id=1")) {
-            if (rows.next()) {
-                version = rows.getInt(1);
-            }
-        }
-        if (version != 0 && version != 1) {
-            throw new SQLException("Unsupported Civilization schema: " + version);
-        }
-        if (version == 1) {
-            return;
-        }
-        execute(
-                connection,
-                """
-                CREATE TABLE settlements (
-                    settlement_id TEXT PRIMARY KEY, world_instance_id TEXT NOT NULL REFERENCES world_instances(world_instance_id),
-                    name TEXT NOT NULL, name_key TEXT NOT NULL, owner_uuid TEXT, created_at INTEGER NOT NULL,
-                    ownership_revision INTEGER NOT NULL, chunk_revision INTEGER NOT NULL,
-                    status TEXT NOT NULL CHECK(status IN ('OWNED','RELEASED')),
-                    UNIQUE(settlement_id,world_instance_id),
-                    CHECK((status='OWNED' AND owner_uuid IS NOT NULL) OR (status='RELEASED' AND owner_uuid IS NULL))
-                )
-                """);
-        execute(
-                connection,
-                "CREATE UNIQUE INDEX settlements_owned_names ON settlements(name_key) WHERE"
-                        + " status='OWNED'");
-        execute(
-                connection,
-                """
-                CREATE TABLE settlement_members (
-                    settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id), player_uuid TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK(role IN ('MANAGER','MEMBER')), PRIMARY KEY(settlement_id,player_uuid)
-                )
-                """);
-        execute(
-                connection,
-                """
-                CREATE TABLE settlement_chunks (
-                    world_instance_id TEXT NOT NULL, chunk_x INTEGER NOT NULL, chunk_z INTEGER NOT NULL,
-                    settlement_id TEXT NOT NULL, PRIMARY KEY(world_instance_id,chunk_x,chunk_z),
-                    FOREIGN KEY(settlement_id,world_instance_id) REFERENCES settlements(settlement_id,world_instance_id)
-                )
-                """);
-        execute(
-                connection,
-                "CREATE INDEX settlement_chunks_owner ON settlement_chunks(settlement_id)");
-        execute(
-                connection,
-                """
-                CREATE TABLE settlement_offers (
-                    offer_id TEXT PRIMARY KEY, settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
-                    type TEXT NOT NULL CHECK(type IN ('INVITE','PROMOTE','TRANSFER','ABANDON')),
-                    issuer_uuid TEXT NOT NULL, recipient_uuid TEXT NOT NULL, expires_at INTEGER NOT NULL,
-                    ownership_revision INTEGER NOT NULL, chunk_revision INTEGER NOT NULL,
-                    state TEXT NOT NULL CHECK(state IN ('PENDING','ACCEPTED','CANCELLED','DECLINED','EXPIRED'))
-                )
-                """);
-        execute(
-                connection,
-                "CREATE UNIQUE INDEX settlement_pending_offer ON"
-                        + " settlement_offers(settlement_id,type,recipient_uuid) WHERE"
-                        + " state='PENDING'");
-        execute(
-                connection,
-                """
-                CREATE TABLE settlement_events (
-                    event_id TEXT PRIMARY KEY, settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
-                    actor_uuid TEXT NOT NULL, type TEXT NOT NULL, detail TEXT NOT NULL,
-                    occurred_at INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0 CHECK(delivered IN (0,1))
-                )
-                """);
-        execute(
-                connection,
-                "CREATE INDEX settlement_events_history ON"
-                        + " settlement_events(settlement_id,occurred_at)");
-        execute(
-                connection,
-                "CREATE INDEX settlement_events_outbox ON settlement_events(delivered)");
-        execute(connection, "INSERT INTO civilization_schema VALUES(1,1)");
+        return repository.acknowledgeEvents(ids);
     }
 }

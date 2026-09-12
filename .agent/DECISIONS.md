@@ -1,6 +1,102 @@
 # ESMP Architecture Decisions
 
-This is a dated rationale log, not a competing specification. The current `ARCHITECTURE.md` takes precedence; older entries describe historical decisions where superseded. In particular, legacy free claims, Manager/Member/Visitor access, player-controlled naming, blanket ownership capabilities and automatic-release scheduling below are not the new MVP target.
+This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
+
+## 2026-09-12 — Frozen roadmap Phase 0 implemented
+
+Pinned Liquibase Community 5.0.4, JUnit 6.1.2 and ArchUnit 1.5.0 alongside the frozen runtime/codegen pins. Canonical XML changelogs construct temporary SQLite before official jOOQ generation; dependency locks and SHA-256 verification metadata accompany the cutover. No prices, payer rules or roles changed.
+
+Core UnitOfWork provides an opaque transaction; application façades depend on Repository ports, and only persistence adapters use generated identifiers. Scoped adapter access rejects stale/cross-thread transactions. jOOQ owns atomic transaction/rollback; SQLiteConfig/DataSource owns driver configuration. Existing callback composition no longer exposes DSLContext.
+
+The legacy bridge first runs the existing isolated migration logic, then compares actual SQLite columns/affinities/PK/FK/index/CHECK shape to the canonical Liquibase reference before synchronizing baseline records. Liquibase owns subsequent migrations. REAL/FLOAT spellings compare by actual SQLite affinity, not false incompatibility. Missing/altered constraints reject baseline. Genuine old-database tests remove Liquibase tracking before testing legacy upgrade; tampered current databases are not treated as legacy.
+
+Verified Liquibase 5.0.4 createTable does not emit configured CHECK constraints, while SQLite cannot add them afterward. Existing CHECK/composite/partial-index constraints are documented SQLite-specific baseline exceptions, tested for shape equivalence and invalid-data rejection; ordinary application SQL remains forbidden. jOOQ introspection is configured to retain unknown vendor-function calls (e.g. typeof) rather than failing to parse constraint metadata.
+
+Actual Paper startup revealed service discovery using the server thread loader instead of the plugin loader. Liquibase now runs in an explicit plugin-classloader scope, restored after migration. Both initial failures stopped the server; corrected fresh and legacy-copy startup succeeded.
+
+Validation: clean no-cache build/check with 83 tests; real development database copy preserved 25 of 26 existing non-clock tables exactly (only the retained Economy schema marker advanced 1→2), original DB bytes unchanged. Fresh real Paper exercised wallets/paid quotes/replay, existing Owner-wallet expansion, Governor treasury allowances, consent, bans, real Activity credit and land capture. Restart preserved all 352 non-clock rows and balances/Holder/allowance state. Phase 1 remains unimplemented.
+
+## 2026-09-12 — Frozen MVP bundle replaces the former architecture
+
+The user replaced the root architecture with the frozen MVP bundle and requested a rewrite assessment. All eight text/graph source documents were read in full and the three rendered diagrams inspected. The bundle is preserved unchanged; README/agent navigation now points to it.
+
+Execution resets to roadmap Phase 0, not the prior “certification next” handoff. Existing jOOQ/ledger/paid-Claim/protection work is reusable implementation evidence, not frozen-phase acceptance. Phase 0 must preserve the actual current behavior/schema, including recently added quote/subsidy data; “do not enable payments” does not mean roll already-implemented payments backward. Phase 1 then makes EVERY expansion treasury-funded as explicitly frozen.
+
+Key supersessions: structured Liquibase 5.0.4, JUnit 6.1.2, ArchUnit/verification metadata, opaque UnitOfWork and repository/API boundaries replace the prior public-DSLContext/custom-SQL migration convention. Core domain logic/protection algorithms may be reused, but crossing persistence APIs must be rewritten, not hidden behind aliases.
+
+MVP is explicit bounded Building registration, not global automatic discovery. Local Activity is a required Phase 4 precursor to Building decay; derived ActivityRegion has no persisted/player-managed identity. Only registered Buildings receive WEATHER/DROP/CAVE_IN. Whole-Building station/material/time Repair and exact RUINED→INTACT cycle Era close the MVP. Dynamic Settlement Cycle remains mandatory only after Phase 8 acceptance and MVP tag.
+
+Phase 2 certification requires lifetime meaningful-credit accumulation (currently absent), in addition to age/current Activity; add that dependency in Phase 2 without prematurely implementing Phase 4 spatial buckets. Frozen thresholds are not reopened. Phase-specific mechanics such as repair inventory journaling require correctness design/tests in their own phase, not a new gameplay system.
+
+No implementation, migration, build or server run occurred in this assessment. No phase is marked DONE under the new roadmap. Historical 74-test evidence and 48 pending user checks remain explicitly pre-freeze.
+
+## 2026-09-11 — Paid Claim quotes and persistent personal subsidies
+
+Implemented paid Claims over generated jOOQ bindings and the existing Paper publication gate. `create`, `claim` and `price` request durable quotes; explicit `purchase` commits the ledger SINK, Claim, progress and history atomically. Replays return the paid receipt without another charge; insufficient funds, expiry, missing natural profile and changed context reject.
+
+Selected payer contract: founder/Owner wallet; Governor treasury within existing approved allowance. Assessment and subsidy use belong to the land Owner, preventing Governor rotation from resetting discounts. Unclaim/abandon never refund or reset progress; ownership transfer does not transfer subsidy history. First founding remains fixed 25, requiring a natural profile even though its price is fixed.
+
+Defaults use basis-point portfolio/size/proximity tiers, Manhattan distance to same-owner chunks, active/inactive expansion 1/1.05 and personal factors .50/.65/.80/.90 after first founding. Exact arithmetic rounds upward once. Config 8 removes numeric-price settings; Claim-pricing schema 1 stores quote receipts and personal usage. The explicit development migration counts old FOUNDED/CHUNK_CLAIMED events by recorded actor, without retroactive billing or pretending old Governor actions identify historical owner epochs.
+
+Reason: make currency-backed land purchasing usable without partial payment, stale quote consent or subsidy reset loopholes, while leaving certification/acquisition flows for their own cutovers. Seven real-ledger regressions plus live Paper confirmation/overdraw/replay/unclaim/restart-policy checks passed.
+
+## 2026-09-11 — Completed generated-type jOOQ migration
+
+The user approved the migration. Core world/clock, Settlement/Parcel/Activity/land and Economy application queries now use jOOQ 3.21.8 generated bindings. The SQL worker and physical transaction owner remain unchanged; cross-domain callbacks carry DSLContext and preserve atomic commits.
+
+Canonical module-owned migration resources feed both runtime and disposable build-time SQLite schemas. Generated INTEGER fields are Long, REAL fields Double, UUIDs use an explicit TEXT converter and enums retain explicit mappings. Generated output is ignored/build-owned. No independent query writer, Hibernate/Spring session, generic string DAO or second schema definition was introduced.
+
+Use SQLite-native execution for migration scripts. The initial parser experiment rejected valid SQLite `typeof` checks and `INSERT OR IGNORE`; delegating complete scripts to Xerial preserves native semantics and avoids writing a custom parser. Application DSL remains generated/type-bound; SQLite virtual rowid references preserve insertion-order contracts.
+
+Reason: meet the user's no-raw-application-SQL goal without changing gameplay or resetting stored state. A clean build regenerated sources and passed 67 tests; existing and fresh Paper data paths and exact non-clock row preservation passed. jOOQ runtime/resources/bindings are packaged; codegen/JAXB implementation remain build-only. Paid Claims are still deferred to the next gameplay slice.
+
+## 2026-09-11 — Prefer generated-type jOOQ over handwritten application SQL
+
+The user interrupted paid-Claim development to request Java ORM/framework best practice and less raw SQL. Select jOOQ for ESMP's SQLite-first, explicit-transaction architecture. Its typed DSL and generated schema bindings address stringly typed query maintenance without introducing an entity session, lazy world-thread reads or separate transaction ownership.
+
+Primary-source comparison: [jOOQ supports existing JDBC transactions](https://www.jooq.org/doc/latest/manual/sql-execution/transaction-management/) and [schema code generation](https://www.jooq.org/doc/latest/manual/code-generation/); [Hibernate's SQLite dialect is community-maintained](https://docs.hibernate.org/orm/7.1/dialect/#community-dialects); [Jdbi explicitly retains handwritten SQL](https://jdbi.org/#_introduction_to_jdbi_3). jOOQ runtime/codegen use Apache-2.0 in the [open-source distribution](https://www.jooq.org/legal/licensing); the tested artifact was 3.21.8.
+
+Keep one SQL worker/owning transaction, generated domain-owned table bindings, bound parameters and immutable results. Isolate necessary migration/pragma SQL; avoid raw-SQL wrappers masquerading as an ORM. Canonical migrations feed code generation, with explicit Long mappings for money/ticks. No Spring/Hibernate dependency or automatic schema mutation is selected.
+
+An isolated Java 25/SQLite 3.53.4.0 run with the actual WorldStore passed transaction and integer-safety checks. The runtime migration has not shipped. Removed only the interrupted paid-Claim draft changes; the last working 53-test baseline is restored. Next action is the jOOQ persistence cutover before paid Claims.
+
+## 2026-09-11 — Immutable natural land capture
+
+Implemented canonical §16A.3 with a minimal Civilization-owned profile keyed by physical world instance and chunk. Capture only a newly populated MAIN chunk while the runtime is active; old chunks without provenance remain unknown, including pre-activation spawn terrain. Other dimensions are excluded and current player-modified terrain is never silently backfilled.
+
+Version 1 uses 16 fixed surface samples: base 100 minus height-relief×2 capped at 50, plus 25 for mixed water/land samples. All-water chunks receive no shore bonus. This deliberately begins with two explainable natural factors, not a biome/real-estate simulation. Coefficients are configurable but locked to a version; new versions affect future captures only.
+
+Chunk PDC holds the original instance-bound capture as recovery provenance before asynchronous SQL publication. SQL remains the owning application record; later paid operations must require that record. Replays are idempotent, conflicting immutable values reject, and missing journal plus missing SQL remains unknown. World saves and SQL cannot be one transaction, so no stronger crash/backup guarantee is claimed.
+
+Reason: make natural values durable before paid Claims without global scans, chunk forcing, reinterpretation of edited terrain or speculative production-server backfill. `/settlement landvalue` and a book link expose known/unknown state; Claims still use their old numeric-only quotes. Land-value schema 1/config 7 are introduced; other schema versions remain unchanged.
+
+## 2026-09-11 — First-time-player starting funds
+
+The user clarified that this is not a production server and the fund is only for newly joined players. Do not reopen a legacy-player distribution questionnaire. Paper's join-time `!hasPlayedBefore()` observation enrolls the UUID; returning players only resume an existing entitlement.
+
+Default grant is configurable 100. Persist its original amount and deterministic transaction identity; admission, wallet credit, issuance budget consumption and completion receipt commit together. Insufficient budget defers to a later monetary period without partial payment or extra issuance. Bounded indexed retries include offline players; configuration changes do not alter pending amounts, and unaffordable entries advance their retry period rather than blocking the queue.
+
+Use the existing stable console/system actor and STARTING_FUNDS reason. On payment, show amount, currency and committed final balance with a balance link. Existing players are not backfilled. Economy schema 2 adds the entitlement table; config 6 adds the amount and preserves the config-5 backup.
+
+Reason: deliver the planned first-join behavior without inventing production migration policy, passive/AFK minting or a second monetary path. Ledger, quoted names, governance and time semantics remain intact. Next slice is generation-time LandValueProfile capture, not more onboarding policy.
+
+## 2026-09-11 — Natural spaced names and readable status time
+
+User explicitly requested interior spaces, trimming only leading/trailing whitespace, quoted command arguments and natural unquoted Name Tags. Shared `LandName` normalization now serves Settlement persistence, Parcel proposals and previews; interior spaces are preserved, not collapsed. Existing length, case-insensitive uniqueness, certification and consent rules remain. Generated links/approval commands use stable identities.
+
+Live evidence showed Bukkit's legacy argument splitting collapsed repeated spaces inside quotes even though the raw player command retained them. `QuotedCommandListener` therefore parses raw quoted ESMP commands before that split, then invokes the registered command with normal permission checks. Other plugins' commands and cancelled events are not intercepted.
+
+The user could not see useful time in `/esmp status`; its implementation buried a raw `Game tick` line at the bottom. Time now appears immediately after readiness with zero-based reckoning day/progress/total ticks and advancing/paused state, plus separate MAIN solar HH:mm. This is readable existing-clock output, not a new calendar or a change to time accounting.
+
+## 2026-09-11 — Implemented bounded integer ledger
+
+Implemented canonical §16A.2 in `esmp-economy` with the shared serial SQL transaction owner: checked non-negative integer accounts, typed movements, immutable audit receipts, stable-ID retries and budget consumption committed together. Exact aggregate supply uses wider arithmetic rather than overflowing SQLite/Java sums.
+
+Selected initial policy: seven reckoning days, operator-selected coarse issuance tiers 2000/5000/10000/20000, per-period limit snapshots, no carry-over or skipped-period entitlement. Administrative grants are budgeted immediately. A deterministic per-currency/player starting-grant ID prevents repeated issuance; automatic new/legacy-player eligibility remains deliberately unconnected.
+
+Treasury spending uses current Civilization authority on the same SQL connection, not a cached role. Owner withdrawals and Owner-set Governor remaining allowances are separate; ownership revision/promotion identity invalidate stale delegation. Positive treasury balances prevent abandonment. Administrators can inspect/issue but cannot debit another player's wallet.
+
+Reason: make the first ledger usable without silently charging old Claims, enabling alt/AFK minting, inventing a credit system or deciding legacy onboarding eligibility. Wallet/treasury commands and book links ship now; paid land, new certification and acquisition remain explicit later cutovers. Core/Civilization schemas stay 1/3; Economy schema 1 and config 5 are new.
 
 ## 2026-09-11 — Accepted economy addendum and razor review merged
 

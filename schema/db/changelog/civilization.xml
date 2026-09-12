@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="civilization-baseline" author="esmp" dbms="sqlite">
+        <!-- CHECK-bearing tables use exact DDL: Community createTable does not
+             emit these constraints, and SQLite cannot add them afterwards.
+             Composite FK/UNIQUE and partial-index exceptions are marked below. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE civilization_schema (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    version INTEGER NOT NULL
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE settlements (
+    settlement_id TEXT PRIMARY KEY,
+    world_instance_id TEXT NOT NULL REFERENCES world_instances(world_instance_id),
+    name TEXT NOT NULL,
+    name_key TEXT NOT NULL,
+    owner_uuid TEXT,
+    created_at INTEGER NOT NULL,
+    ownership_revision INTEGER NOT NULL,
+    chunk_revision INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('OWNED','RELEASED')), founded_tick INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(settlement_id,world_instance_id),
+    CHECK((status='OWNED' AND owner_uuid IS NOT NULL) OR (status='RELEASED' AND owner_uuid IS NULL))
+)
+        ]]></sql>
+        <!-- Partial-index exception: createIndex has no SQLite WHERE predicate. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE UNIQUE INDEX settlements_owned_names ON settlements(name_key) WHERE status='OWNED'
+        ]]></sql>
+        <!-- Composite-FK exception: createTable column references cannot express
+             the two base columns as one FK; SQLite addForeignKeyConstraint is
+             unsupported. Two independent FKs would change the schema behavior. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE settlement_chunks (
+    world_instance_id TEXT NOT NULL,
+    chunk_x INTEGER NOT NULL,
+    chunk_z INTEGER NOT NULL,
+    settlement_id TEXT NOT NULL,
+    PRIMARY KEY(world_instance_id,chunk_x,chunk_z),
+    FOREIGN KEY(settlement_id,world_instance_id) REFERENCES settlements(settlement_id,world_instance_id)
+)
+        ]]></sql>
+        <createIndex tableName="settlement_chunks" indexName="settlement_chunks_owner">
+            <column name="settlement_id"/>
+        </createIndex>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE settlement_offers (
+    offer_id TEXT PRIMARY KEY,
+    settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
+    type TEXT NOT NULL CHECK(type IN ('INVITE','PROMOTE','TRANSFER','ABANDON')),
+    issuer_uuid TEXT NOT NULL,
+    recipient_uuid TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    ownership_revision INTEGER NOT NULL,
+    chunk_revision INTEGER NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('PENDING','ACCEPTED','CANCELLED','DECLINED','EXPIRED'))
+)
+        ]]></sql>
+        <!-- Partial-index exception. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE UNIQUE INDEX settlement_pending_offer ON settlement_offers(settlement_id,type,recipient_uuid) WHERE state='PENDING'
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE settlement_events (
+    event_id TEXT PRIMARY KEY,
+    settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
+    actor_uuid TEXT NOT NULL,
+    type TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    occurred_at INTEGER NOT NULL,
+    delivered INTEGER NOT NULL DEFAULT 0 CHECK(delivered IN (0,1)),
+    game_tick INTEGER
+)
+        ]]></sql>
+        <createIndex tableName="settlement_events" indexName="settlement_events_history">
+            <column name="settlement_id"/>
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="settlement_events" indexName="settlement_events_outbox">
+            <column name="delivered"/>
+        </createIndex>
+        <createTable tableName="settlement_details">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="true" references="settlements(settlement_id)" foreignKeyName="fk_settlement_details_settlement"/></column>
+            <column name="number" type="INTEGER"><constraints nullable="false" unique="true"/></column>
+            <column name="official_name" type="TEXT"/>
+            <column name="certified" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="security_revision" type="INTEGER"><constraints nullable="false"/></column>
+        </createTable>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE settlement_members (
+    settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
+    player_uuid TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('GOVERNOR','CITIZEN')),
+    PRIMARY KEY(settlement_id,player_uuid)
+)
+        ]]></sql>
+        <createTable tableName="settlement_bans">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_settlement_bans_settlement"/></column>
+            <column name="player_uuid" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="banned_by" type="TEXT"><constraints nullable="false"/></column>
+            <column name="created_tick" type="INTEGER"><constraints nullable="false"/></column>
+        </createTable>
+        <!-- Composite-UNIQUE exception: column-level unique flags do not encode
+             this table-level pair; SQLite addUniqueConstraint is unsupported.
+             An external unique index would not preserve a table constraint. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE parcels (
+    parcel_id TEXT PRIMARY KEY,
+    settlement_id TEXT NOT NULL REFERENCES settlements(settlement_id),
+    name TEXT NOT NULL,
+    name_key TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    UNIQUE(settlement_id,name_key)
+)
+        ]]></sql>
+        <createTable tableName="parcel_cells">
+            <column name="parcel_id" type="TEXT"><constraints nullable="false" references="parcels(parcel_id)" foreignKeyName="fk_parcel_cells_parcel" deleteCascade="true"/></column>
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_parcel_cells_settlement"/></column>
+            <column name="x" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="y" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="z" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="parcel_cells" indexName="parcel_cells_owner">
+            <column name="parcel_id"/>
+        </createIndex>
+        <createTable tableName="parcel_holders">
+            <column name="parcel_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="parcels(parcel_id)" foreignKeyName="fk_parcel_holders_parcel" deleteCascade="true"/></column>
+            <column name="player_uuid" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+        </createTable>
+        <createTable tableName="parcel_policy">
+            <column name="parcel_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="parcels(parcel_id)" foreignKeyName="fk_parcel_policy_parcel" deleteCascade="true"/></column>
+            <column name="action" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="relation" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+        </createTable>
+        <createTable tableName="parcel_requests">
+            <column name="request_id" type="TEXT"><constraints primaryKey="true" nullable="true"/></column>
+            <column name="settlement_id" type="TEXT"><constraints nullable="false"/></column>
+            <column name="parcel_id" type="TEXT"><constraints nullable="false"/></column>
+            <column name="operation" type="TEXT"><constraints nullable="false"/></column>
+            <column name="payload" type="TEXT"><constraints nullable="false"/></column>
+            <column name="parcel_revision" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="ownership_revision" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="chunk_revision" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="security_revision" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="issuer" type="TEXT"><constraints nullable="false"/></column>
+            <column name="expires_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="state" type="TEXT"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="parcel_approvals">
+            <column name="request_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="parcel_requests(request_id)" foreignKeyName="fk_parcel_approvals_request"/></column>
+            <column name="player_uuid" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+        </createTable>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE activity_policy (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    definition TEXT NOT NULL
+)
+        ]]></sql>
+        <createTable tableName="settlement_activity">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="true" references="settlements(settlement_id)" foreignKeyName="fk_settlement_activity_settlement"/></column>
+            <column name="score" type="REAL"><constraints nullable="false"/></column>
+            <column name="anchor_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="inactive_tick" type="INTEGER"/>
+            <column name="day" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="credited" type="REAL"><constraints nullable="false"/></column>
+            <column name="last_tick" type="INTEGER"/>
+            <column name="category" type="TEXT"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="activity_actors">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_activity_actors_settlement"/></column>
+            <column name="actor_uuid" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="day" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="credited" type="REAL"><constraints nullable="false"/></column>
+            <column name="build_tick" type="INTEGER"/>
+            <column name="interaction_tick" type="INTEGER"/>
+        </createTable>
+        <createTable tableName="activity_pauses">
+            <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_activity_pauses_settlement"/></column>
+            <column name="from_tick" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="until_tick" type="INTEGER"><constraints nullable="false"/></column>
+        </createTable>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE land_value_metadata (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    schema_version INTEGER NOT NULL
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE land_value_policies (
+    version INTEGER PRIMARY KEY CHECK (version > 0),
+    base_value INTEGER NOT NULL CHECK (base_value > 0),
+    relief_penalty INTEGER NOT NULL CHECK (relief_penalty >= 0),
+    max_relief_penalty INTEGER NOT NULL
+        CHECK (max_relief_penalty >= 0 AND max_relief_penalty < base_value),
+    shore_bonus INTEGER NOT NULL CHECK (shore_bonus >= 0)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE land_value_profiles (
+    world_instance_id TEXT NOT NULL REFERENCES world_instances(world_instance_id),
+    chunk_x INTEGER NOT NULL,
+    chunk_z INTEGER NOT NULL,
+    valuation_version INTEGER NOT NULL REFERENCES land_value_policies(version),
+    base_value INTEGER NOT NULL CHECK (typeof(base_value) = 'integer' AND base_value > 0),
+    valuation_class TEXT NOT NULL
+        CHECK (valuation_class IN ('FLAT', 'RUGGED', 'SHORE', 'WATER')),
+    PRIMARY KEY (world_instance_id, chunk_x, chunk_z)
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE claim_pricing_schema (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    version INTEGER NOT NULL
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE player_land_progress (
+    player_uuid TEXT PRIMARY KEY,
+    claims_used INTEGER NOT NULL CHECK(typeof(claims_used)='integer' AND claims_used>=0),
+    first_founding_used INTEGER NOT NULL CHECK(first_founding_used IN(0,1))
+)
+        ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE claim_quotes (
+    quote_id TEXT PRIMARY KEY,
+    actor_uuid TEXT NOT NULL,
+    owner_uuid TEXT NOT NULL,
+    settlement_id TEXT NOT NULL,
+    world_instance_id TEXT NOT NULL REFERENCES world_instances(world_instance_id),
+    chunk_x INTEGER NOT NULL,
+    chunk_z INTEGER NOT NULL,
+    founding INTEGER NOT NULL CHECK(founding IN(0,1)),
+    payer_kind TEXT NOT NULL CHECK(payer_kind IN('WALLET','TREASURY')),
+    payer_uuid TEXT NOT NULL,
+    amount INTEGER NOT NULL CHECK(typeof(amount)='integer' AND amount>0),
+    context TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    expires_tick INTEGER NOT NULL,
+    purchased INTEGER NOT NULL CHECK(purchased IN(0,1))
+)
+        ]]></sql>
+        <createIndex tableName="claim_quotes" indexName="claim_quotes_actor">
+            <column name="actor_uuid"/>
+            <column name="purchased"/>
+        </createIndex>
+        <insert tableName="civilization_schema">
+            <column name="id" valueNumeric="1"/>
+            <column name="version" valueNumeric="3"/>
+        </insert>
+        <insert tableName="land_value_metadata">
+            <column name="id" valueNumeric="1"/>
+            <column name="schema_version" valueNumeric="1"/>
+        </insert>
+        <insert tableName="claim_pricing_schema">
+            <column name="id" valueNumeric="1"/>
+            <column name="version" valueNumeric="1"/>
+        </insert>
+        <!-- Preserve nullable TEXT primary keys even if the primary-key builder
+             injects NOT NULL. Match only the first column of these three tables;
+             required FK columns and composite PK columns are never modified. -->
+        <modifySql dbms="sqlite" applyToRollback="false">
+            <regExpReplace replace="(?i)(CREATE TABLE\s+&quot;?(?:settlement_details|settlement_activity)&quot;?\s*\(\s*&quot;?settlement_id&quot;?\s+TEXT)\s+NOT NULL\b" with="$1"/>
+            <regExpReplace replace="(?i)(CREATE TABLE\s+&quot;?parcel_requests&quot;?\s*\(\s*&quot;?request_id&quot;?\s+TEXT)\s+NOT NULL\b" with="$1"/>
+        </modifySql>
+    </changeSet>
+</databaseChangeLog>

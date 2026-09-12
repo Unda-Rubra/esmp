@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="core-baseline" author="esmp" dbms="sqlite">
+        <!-- CHECK exception: Community createTable does not emit these checks;
+             SQLite cannot add CHECK constraints after table creation. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE world_definitions (
+    world_definition_id TEXT PRIMARY KEY,
+    module_id TEXT NOT NULL,
+    environment TEXT NOT NULL CHECK (environment IN ('NORMAL', 'NETHER', 'THE_END'))
+)
+        ]]></sql>
+        <createTable tableName="world_instances">
+            <column name="world_instance_id" type="TEXT"><constraints primaryKey="true" nullable="true"/></column>
+            <column name="world_definition_id" type="TEXT"><constraints nullable="false" references="world_definitions(world_definition_id)" foreignKeyName="fk_world_instances_definition"/></column>
+            <column name="bukkit_world_uuid" type="TEXT"><constraints nullable="false" unique="true"/></column>
+            <column name="world_name" type="TEXT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TEXT"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="world_instances" indexName="world_instances_definition">
+            <column name="world_definition_id"/>
+        </createIndex>
+        <!-- CHECK exception; INTEGER PRIMARY KEY is intentionally a rowid alias,
+             without AUTOINCREMENT or an explicit NOT NULL declaration. -->
+        <sql splitStatements="false"><![CDATA[
+CREATE TABLE game_clock (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    source_uuid TEXT NOT NULL,
+    raw_tick INTEGER NOT NULL,
+    game_tick INTEGER NOT NULL CHECK(game_tick>=0)
+)
+        ]]></sql>
+        <!-- Liquibase primary-key construction can imply NOT NULL. Ordinary
+             SQLite TEXT PRIMARY KEY must retain its legacy nullable semantics.
+             This narrowly scoped modifier removes only that generated addition. -->
+        <modifySql dbms="sqlite" applyToRollback="false">
+            <regExpReplace replace="(?i)(CREATE TABLE\s+&quot;?world_instances&quot;?\s*\(\s*&quot;?world_instance_id&quot;?\s+TEXT)\s+NOT NULL\b" with="$1"/>
+        </modifySql>
+    </changeSet>
+</databaseChangeLog>

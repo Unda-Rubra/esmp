@@ -5,16 +5,16 @@ This directory is the repository-local memory bank for work that must survive ag
 ## Source-of-truth order
 
 1. The current user's explicit instruction.
-2. `ARCHITECTURE.md` for accepted product and architecture decisions.
-3. `.agent/DECISIONS.md` for a compact decision log and rationale.
-4. `.agent/OPEN_QUESTIONS.md` for unresolved work; entries here are not accepted architecture.
-5. `.agent/HANDOFF.md` for the current working state and verification evidence.
+2. `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` and `MVP_REQUIREMENTS_FREEZE.md` for the frozen design/scope; the bundle's `IMPLEMENTATION_ROADMAP.md` controls phase order.
+3. `.agent/HANDOFF.md` for actual implementation state and current phase. Old tests passing does not mark frozen phases complete.
+4. `.agent/DECISIONS.md` for rationale; pre-freeze entries are historical where superseded.
+5. `.agent/OPEN_QUESTIONS.md` for current-phase implementation issues, never an alternate backlog for frozen-out features.
 
 When sources conflict, update the lower-priority source instead of preserving two interpretations.
 
 ## Maintenance rules
 
-- Put accepted architecture in `ARCHITECTURE.md` first.
+- Follow the frozen bundle; do not recreate root `ARCHITECTURE.md`. Change a frozen invariant only under its explicit change-control rules and identify affected acceptance tests.
 - Mirror important accepted decisions in `DECISIONS.md` with a date and rationale.
 - Keep speculation and alternatives in `OPEN_QUESTIONS.md`; never phrase them as settled.
 - Update `HANDOFF.md` before ending non-trivial work.
