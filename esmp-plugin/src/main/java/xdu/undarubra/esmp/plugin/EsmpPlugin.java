@@ -14,6 +14,7 @@ import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import xdu.undarubra.esmp.civilization.CivilizationWorlds;
+import xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
 import xdu.undarubra.esmp.civilization.land.LandValuePolicy;
@@ -143,7 +144,27 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                                     throw new SettlementException(rejected.getMessage());
                                 }
                             },
-                            readCertificationPolicy());
+                            readCertificationPolicy(),
+                            readAcquisitionPolicy(),
+                            (transaction, acquisition) -> {
+                                try {
+                                    // The repository has revalidated this recipient's exact fee
+                                    // consent and the administrator's approval in this transaction.
+                                    ledger.post(
+                                            transaction,
+                                            new LedgerService.Request(
+                                                    acquisition.id(),
+                                                    new Actor(acquisition.recipient(), false),
+                                                    Movement.SINK,
+                                                    LedgerAccount.wallet(acquisition.recipient()),
+                                                    null,
+                                                    acquisition.fee(),
+                                                    "SETTLEMENT_ACQUISITION_FEE",
+                                                    ""));
+                                } catch (LedgerException rejected) {
+                                    throw new SettlementException(rejected.getMessage());
+                                }
+                            });
             ledger =
                     xdu.undarubra.esmp.economy.api.EconomyServices.ledger(
                             store,
@@ -259,7 +280,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 9) {
+        if (!(version instanceof Integer number) || number < 1 || number > 10) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -386,6 +407,27 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 9);
             saveConfig();
         }
+        if (number < 10) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-acquisition.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException(
+                        "Cannot back up acquisition configuration", failure);
+            }
+            if (!getConfig().contains("acquisition.offer-ticks", true)) {
+                getConfig()
+                        .set(
+                                "acquisition.offer-ticks",
+                                getConfig().get("settlements.transfer-ticks", 36000));
+            }
+            getConfig().set("settlements.transfer-ticks", null);
+            getConfig().options().copyDefaults(true);
+            readAcquisitionPolicy();
+            getConfig().set("config-version", 10);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -443,9 +485,18 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                 capEnabled,
                 (int) cap,
                 positiveSetting("settlements.invitation-ticks", 1_728_000),
-                positiveSetting("settlements.transfer-ticks", 36_000),
                 positiveSetting("settlements.promotion-ticks", 1_728_000),
                 positiveSetting("settlements.abandon-ticks", 1_200));
+    }
+
+    private AcquisitionPolicy readAcquisitionPolicy() {
+        Object section = getConfig().get("acquisition");
+        if (section != null && !(section instanceof ConfigurationSection)) {
+            throw new IllegalArgumentException("acquisition must be a mapping");
+        }
+        return new AcquisitionPolicy(
+                positiveSetting("acquisition.offer-ticks", 36000),
+                Math.toIntExact(positiveSetting("acquisition.fee-basis-points", 1000)));
     }
 
     private CertificationPolicy readCertificationPolicy() {

@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-13 — Frozen roadmap Phase 3 ownership acquisition implemented
+
+Owner proposal discloses the land-only fee before recipient acceptance; acceptance binds that exact amount but never spends or changes ownership. Administrator approval revalidates parties/bans, ownership/Claim/security revisions, every immutable profile and pricing policy, then atomically records recipient Wallet SINK, ownership/membership changes, acquisition decision, History/outbox and GameClock checkpoint. Existing runtime reservation/publication remains authoritative.
+
+Allowed tuning: default coefficient 1000 basis points (10%), rounded upward once using a wide integer base sum. Default expiry is 36000 shared game ticks. Missing profiles reject; changed context requires a fresh proposal, not silent repricing. Proposal ID is the payment receipt ID. Exact approval replay precedes historical-context validation, so restart/later ownership changes cannot double-charge or replay ownership. Denial/cancellation charge nothing; recipient consent remains revocable before approval.
+
+The structured forward migration adds `settlement_acquisitions` and cancels only pending legacy TRANSFER offers. Accepted historical offers and unrelated invitations remain. Immediate-transfer enum/branch/timing API are removed. Config 10 backs up prior config, migrates the old offer duration and introduces the coefficient. Treasury rows/history, certification and personal subsidy usage remain untouched; former Owner becomes Citizen, incoming Owner's membership is removed and old Governor allowances become invalid through ownership revision.
+
+The frozen architecture bundle and released baseline changeSets are unchanged. This is Phase 3 execution and permitted coefficient tuning, not a new acquisition/appraisal/contract system. No Local Activity or Building implementation was added.
+
+Evidence: `./gradlew clean check build --no-build-cache --no-daemon --console=plain` under the repository JDK passed 102 tests with no failures/errors/skips. Actual upgraded Paper rejected premature approval/wrong fee/non-admin review/insufficient funds, then charged one 10-unit SINK and retained Treasury 17/VERIFIED name. The former Owner became Citizen and lost Owner-only authority. Restart preserved all 325 non-clock rows; replay kept Wallet 0 and one transfer fact. Outsider stone break failed and new Owner control succeeded before/after restart. Separate empty-data final-JAR startup reached READY. Native book layout remains player acceptance.
+
 ## 2026-09-12 — Frozen roadmap Phase 2 certification implemented
 
 Added lifetime actually credited Activity, the frozen 3-game-day/non-INACTIVE/20-credit default gate, governance applications and authoritative administrator approve/deny. All application/name/state/provenance/history changes commit in the same UnitOfWork and publish through the existing coordinator. Denial preserves land/ownership/balance; approval replay does not duplicate facts or overwrite a later rename. No automatic verification/revocation or new fee.

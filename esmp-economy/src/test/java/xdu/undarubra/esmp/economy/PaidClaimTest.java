@@ -319,9 +319,31 @@ class PaidClaimTest {
         rejected(() -> settlements.purchase(other, q.id()).join());
         var invite = settlements.offer(owner, s, other, SettlementOffer.Type.INVITE).join().offer();
         settlements.accept(other, invite.id(), false).join();
-        var transfer =
-                settlements.offer(owner, s, other, SettlementOffer.Type.TRANSFER).join().offer();
-        settlements.accept(other, transfer.id(), false).join();
+        UUID reviewer = UUID.randomUUID();
+        var acquisitions =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.acquisition(
+                        db,
+                        clock,
+                        xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy.defaults(),
+                        reviewer::equals,
+                        (tx, acquisition) ->
+                                ledger.post(
+                                        tx,
+                                        new LedgerService.Request(
+                                                acquisition.id(),
+                                                new LedgerService.Actor(
+                                                        acquisition.recipient(), false),
+                                                LedgerService.Movement.SINK,
+                                                LedgerAccount.wallet(acquisition.recipient()),
+                                                null,
+                                                acquisition.fee(),
+                                                "SETTLEMENT_ACQUISITION_FEE",
+                                                "")));
+        acquisitions.propose(owner, s, other).join();
+        var transfer = acquisitions.history(s).join().getFirst();
+        grant(other, transfer.fee());
+        acquisitions.accept(other, transfer.id(), transfer.fee()).join();
+        acquisitions.review(reviewer, transfer.id(), true, "approved").join();
         rejected(() -> settlements.purchase(owner, q.id()).join());
         assertEquals(975, balance(owner));
         var incoming = expansion(other, s, 1);

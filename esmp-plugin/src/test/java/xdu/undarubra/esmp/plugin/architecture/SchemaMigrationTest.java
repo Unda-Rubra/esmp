@@ -147,7 +147,7 @@ class SchemaMigrationTest {
             try (var r =
                     s.executeQuery(
                             "SELECT number,certification_status,official_name FROM"
-                                + " settlement_details ORDER BY number")) {
+                                    + " settlement_details ORDER BY number")) {
                 assertTrue(r.next());
                 assertEquals("VERIFIED", r.getString(2));
                 assertEquals("Legacy1", r.getString(3));
@@ -182,6 +182,62 @@ class SchemaMigrationTest {
         }
     }
 
+    @Test
+    void previousPhaseCancelsOnlyPendingTransfersAndPreservesAcceptedHistory() throws Exception {
+        Path file = directory.resolve("phase2.db");
+        legacy(file, false);
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        // Reconstruct the exact previous forward schema, retaining its Liquibase history.
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            s.executeUpdate("DROP TABLE settlement_acquisitions");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase3-acquisition'");
+            for (String state : List.of("PENDING", "ACCEPTED")) {
+                s.executeUpdate(
+                        "INSERT INTO settlement_offers"
+                            + "(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,"
+                            + "ownership_revision,chunk_revision,state) SELECT '"
+                                + UUID.randomUUID()
+                                + "',settlement_id,'TRANSFER',owner_uuid,"
+                                + "owner_uuid,36000,ownership_revision,chunk_revision,'"
+                                + state
+                                + "' FROM settlements WHERE name='Legacy1'");
+            }
+            s.executeUpdate(
+                    "INSERT INTO settlement_offers"
+                            + "(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,"
+                            + "ownership_revision,chunk_revision,state)"
+                            + " SELECT '"
+                            + UUID.randomUUID()
+                            + "',settlement_id,'INVITE',owner_uuid,"
+                            + "owner_uuid,36000,ownership_revision,chunk_revision,'PENDING'"
+                            + " FROM settlements WHERE name='Legacy1'");
+        }
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement();
+                var rows =
+                        s.executeQuery(
+                                "SELECT type,state FROM settlement_offers ORDER BY type,state")) {
+            assertTrue(rows.next());
+            assertEquals("INVITE", rows.getString(1));
+            assertEquals("PENDING", rows.getString(2));
+            assertTrue(rows.next());
+            assertEquals("TRANSFER", rows.getString(1));
+            assertEquals("ACCEPTED", rows.getString(2));
+            assertTrue(rows.next());
+            assertEquals("TRANSFER", rows.getString(1));
+            assertEquals("CANCELLED", rows.getString(2));
+            assertFalse(rows.next());
+        }
+    }
+
     private static void assertPhaseTwoSchema(java.sql.Connection c) throws Exception {
         try (var old = c.getMetaData().getColumns(null, null, "settlement_details", "certified")) {
             assertFalse(old.next(), "The retired toggle column must not remain writable.");
@@ -202,7 +258,7 @@ class SchemaMigrationTest {
                 var r =
                         s.executeQuery(
                                 "SELECT ID FROM DATABASECHANGELOG WHERE"
-                                    + " ID='phase2-certification'")) {
+                                        + " ID='phase2-certification'")) {
             assertTrue(r.next(), "Forward migration must execute after baseline synchronization.");
         }
     }

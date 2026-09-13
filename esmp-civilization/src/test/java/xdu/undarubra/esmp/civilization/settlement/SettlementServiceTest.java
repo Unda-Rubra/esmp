@@ -44,6 +44,17 @@ class SettlementServiceTest {
     private final UUID owner = UUID.randomUUID();
     private final UUID member = UUID.randomUUID();
     private final UUID other = UUID.randomUUID();
+    private final UUID reviewer = UUID.randomUUID();
+
+    private xdu.undarubra.esmp.civilization.acquisition.AcquisitionService acquisitions() {
+        // This fixture isolates governance; dedicated Economy tests verify actual fee debits.
+        return xdu.undarubra.esmp.civilization.api.SettlementServices.acquisition(
+                database,
+                clock,
+                xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy.defaults(),
+                reviewer::equals,
+                (tx, acquisition) -> {});
+    }
 
     @BeforeEach
     void open() {
@@ -84,7 +95,7 @@ class SettlementServiceTest {
         service =
                 xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
                         database,
-                        new SettlementPolicy(true, 3, 1_728_000, 36_000, 1_728_000, 1_200),
+                        new SettlementPolicy(true, 3, 1_728_000, 1_728_000, 1_200),
                         clock,
                         ignored -> false,
                         (c, id) -> {},
@@ -121,7 +132,7 @@ class SettlementServiceTest {
         service =
                 xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
                         database,
-                        new SettlementPolicy(true, 3, 1_728_000, 36_000, 1_728_000, 1_200),
+                        new SettlementPolicy(true, 3, 1_728_000, 1_728_000, 1_200),
                         clock,
                         ignored -> false,
                         (c, id) -> {},
@@ -232,9 +243,12 @@ class SettlementServiceTest {
         rejected(() -> service.offer(member, id, member, SettlementOffer.Type.ABANDON).join());
         rejected(() -> service.offer(member, id, other, SettlementOffer.Type.PROMOTE).join());
         join(id, other);
-        var transfer =
-                service.offer(owner, id, other, SettlementOffer.Type.TRANSFER).join().offer();
-        service.accept(other, transfer.id(), false).join();
+        var acquisitions = acquisitions();
+        acquisitions.propose(owner, id, other).join();
+        var transfer = acquisitions.history(id).join().getFirst();
+        acquisitions.accept(other, transfer.id(), transfer.fee()).join();
+        assertEquals(owner, current(id).owner());
+        acquisitions.review(reviewer, transfer.id(), true, "approved").join();
         SettlementView changed = current(id);
         assertEquals(other, changed.owner());
         assertEquals(Role.CITIZEN, changed.role(owner));
@@ -279,10 +293,12 @@ class SettlementServiceTest {
         var outgoing = service.offer(owner, id, other, SettlementOffer.Type.INVITE).join().offer();
         service.resolveOffer(member, outgoing.id(), false).join();
         rejected(() -> service.accept(other, outgoing.id(), false).join());
-        var transfer =
-                service.offer(owner, id, member, SettlementOffer.Type.TRANSFER).join().offer();
-        rejected(() -> service.resolveOffer(member, transfer.id(), false).join());
-        service.resolveOffer(member, transfer.id(), true).join();
+        var acquisitions = acquisitions();
+        acquisitions.propose(owner, id, member).join();
+        var transfer = acquisitions.history(id).join().getFirst();
+        rejected(() -> acquisitions.cancel(other, transfer.id()).join());
+        acquisitions.cancel(member, transfer.id()).join();
+        rejected(() -> acquisitions.accept(member, transfer.id(), transfer.fee()).join());
         assertEquals(owner, current(id).owner());
     }
 
@@ -529,8 +545,10 @@ class SettlementServiceTest {
     /** Deliberate pre-governance fixture, not a second runtime/codegen schema. */
     private static void governanceLegacyFixture(
             xdu.undarubra.esmp.core.storage.UnitOfWork.Transaction c) {
-        // These Phase2 tables did not exist in a genuine legacy database. Drop them
+        // Forward-phase tables did not exist in a genuine legacy database. Drop them
         // before removing Liquibase metadata or downgrading governance.
+        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                .execute("DROP TABLE settlement_acquisitions");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_certification_applications");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)

@@ -9,4 +9,5 @@
     </preConditions>
     <include file="db.changelog-baseline.xml" relativeToChangelogFile="true"/>
     <include file="phase2-certification.xml" relativeToChangelogFile="true"/>
+    <include file="phase3-acquisition.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

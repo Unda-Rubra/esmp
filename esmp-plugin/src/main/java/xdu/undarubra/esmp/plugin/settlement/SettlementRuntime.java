@@ -10,6 +10,8 @@ import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy;
+import xdu.undarubra.esmp.civilization.acquisition.AcquisitionService;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityService;
 import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
@@ -55,6 +57,7 @@ public final class SettlementRuntime implements AutoCloseable {
     private final ActivityService activity;
     private final ActivityListener activityListener;
     private final CertificationService certification;
+    private final AcquisitionService acquisitions;
     private final SettlementIndex index = new SettlementIndex();
     private final Set<UUID> bypass = new HashSet<>();
     private final Set<UUID> querying = new HashSet<>();
@@ -78,7 +81,9 @@ public final class SettlementRuntime implements AutoCloseable {
             SettlementService.ReleaseGuard releaseGuard,
             ClaimPricingPolicy pricingPolicy,
             SettlementService.ClaimPayment payment,
-            CertificationPolicy certificationPolicy) {
+            CertificationPolicy certificationPolicy,
+            AcquisitionPolicy acquisitionPolicy,
+            AcquisitionService.Payment acquisitionPayment) {
         this.plugin = plugin;
         this.database = database;
         this.mainWorldName = mainWorldName;
@@ -107,6 +112,13 @@ public final class SettlementRuntime implements AutoCloseable {
                         certificationPolicy,
                         administrators::contains,
                         activity::isActive);
+        acquisitions =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.acquisition(
+                        database,
+                        clock,
+                        acquisitionPolicy,
+                        administrators::contains,
+                        acquisitionPayment);
         activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
@@ -123,6 +135,10 @@ public final class SettlementRuntime implements AutoCloseable {
 
     public CertificationService certification() {
         return certification;
+    }
+
+    public AcquisitionService acquisitions() {
+        return acquisitions;
     }
 
     public void activate(java.util.List<SettlementView> settlements) {

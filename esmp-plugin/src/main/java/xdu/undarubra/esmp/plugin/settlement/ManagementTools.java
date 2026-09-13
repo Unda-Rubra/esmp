@@ -403,7 +403,12 @@ public final class ManagementTools implements Listener, AutoCloseable {
                         .append(link("Ban", "/settlement ban " + ref + " ", true))
                         .append(link("Unban", "/settlement unban " + ref + " ", true))
                         .append(link("Bans", "/settlement bans " + ref, false))
-                        .append(link("Transfer", "/settlement transfer " + ref + " ", true))
+                        .append(
+                                link(
+                                        "Propose acquisition",
+                                        "/settlement transfer " + ref + " ",
+                                        true))
+                        .append(link("Acquisitions", "/settlement acquisitions " + ref, false))
                         .append(link("Offers", "/settlement offers", false));
         Component parcels =
                 Component.text("Parcels and permissions\n")

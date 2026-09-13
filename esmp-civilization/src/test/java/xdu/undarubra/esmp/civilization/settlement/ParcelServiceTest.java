@@ -408,11 +408,13 @@ class ParcelServiceTest {
                         c -> {
                             // Deliberate legacy migration fixture: these historical tables cannot
                             // be represented by the current generated schema. Raw SQL stays here.
-                            // Phase2 tables did not exist in a genuine legacy database.
+                            // Forward-phase tables did not exist in a genuine legacy database.
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE settlement_acquisitions");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "DROP TABLE IF EXISTS"
-                                                + " settlement_certification_applications");
+                                                    + " settlement_certification_applications");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute("DROP TABLE IF EXISTS settlement_activity_lifetime");
                             // A true legacy database has no Liquibase metadata; retaining it while

@@ -436,10 +436,6 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                 require(
                                         targetRole == Role.CITIZEN,
                                         "Only an existing Citizen can be promoted.");
-                        case TRANSFER ->
-                                require(
-                                        targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
-                                        "The new Owner must already be a Citizen or Governor.");
                         case ABANDON ->
                                 require(
                                         actor.equals(recipient),
@@ -573,26 +569,6 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                                     .and(SETTLEMENT_MEMBERS.PLAYER_UUID.eq(actor)))
                                     .execute();
                         }
-                        case TRANSFER -> {
-                            require(
-                                    targetRole == Role.CITIZEN || targetRole == Role.GOVERNOR,
-                                    "The recipient is no longer eligible for ownership.");
-                            c.deleteFrom(SETTLEMENT_MEMBERS)
-                                    .where(
-                                            SETTLEMENT_MEMBERS
-                                                    .SETTLEMENT_ID
-                                                    .eq(settlement.id())
-                                                    .and(SETTLEMENT_MEMBERS.PLAYER_UUID.eq(actor)))
-                                    .execute();
-                            c.update(SETTLEMENTS)
-                                    .set(SETTLEMENTS.OWNER_UUID, actor)
-                                    .set(
-                                            SETTLEMENTS.OWNERSHIP_REVISION,
-                                            SETTLEMENTS.OWNERSHIP_REVISION.add(1L))
-                                    .where(SETTLEMENTS.SETTLEMENT_ID.eq(settlement.id()))
-                                    .execute();
-                            addCitizen(c, settlement.id(), settlement.owner(), Role.CITIZEN);
-                        }
                         case ABANDON -> {
                             require(
                                     targetRole == Role.OWNER
@@ -636,8 +612,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                             .eq(offerId)
                                             .and(SETTLEMENT_OFFERS.STATE.eq("PENDING")))
                             .execute();
-                    if (offer.type() == SettlementOffer.Type.TRANSFER
-                            || offer.type() == SettlementOffer.Type.ABANDON) {
+                    if (offer.type() == SettlementOffer.Type.ABANDON) {
                         c.update(SETTLEMENT_OFFERS)
                                 .set(SETTLEMENT_OFFERS.STATE, "CANCELLED")
                                 .where(
@@ -651,7 +626,6 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                             switch (offer.type()) {
                                 case INVITE -> "CITIZEN_JOINED";
                                 case PROMOTE -> "GOVERNOR_PROMOTED";
-                                case TRANSFER -> "OWNERSHIP_TRANSFERRED";
                                 case ABANDON -> "RELEASED";
                             };
                     event(

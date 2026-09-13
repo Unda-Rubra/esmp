@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 9
+config-version: 10
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -13,7 +13,6 @@ settlements:
   chunk-cap-enabled: true
   max-chunks: 64
   invitation-ticks: 1728000
-  transfer-ticks: 36000
   promotion-ticks: 1728000
   abandon-ticks: 1200
 
@@ -23,6 +22,11 @@ settlements:
 certification:
   minimum-age-ticks: 72000
   minimum-lifetime-credit: 20.0
+
+# Recipient wallet fee = ceil(sum of immutable Claim base values * basis points / 10000).
+acquisition:
+  offer-ticks: 36000
+  fee-basis-points: 1000
 
 # Create/claim/price request a quote; purchase confirms and pays atomically.
 # Natural profiles must already be committed, including for the first founding (25).

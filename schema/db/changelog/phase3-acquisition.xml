@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="phase3-acquisition" author="esmp" dbms="sqlite">
+        <createTable tableName="settlement_acquisitions">
+            <column name="acquisition_id" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="settlement_id" type="TEXT"><constraints nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_acquisition_settlement"/></column>
+            <column name="owner_uuid" type="TEXT"><constraints nullable="false"/></column>
+            <column name="recipient_uuid" type="TEXT"><constraints nullable="false"/></column>
+            <column name="state" type="TEXT"><constraints nullable="false"/></column>
+            <column name="fee" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="base_total" type="TEXT"><constraints nullable="false"/></column>
+            <column name="context" type="TEXT"><constraints nullable="false"/></column>
+            <column name="proposed_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="expires_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="accepted_tick" type="INTEGER"/>
+            <column name="decided_by_uuid" type="TEXT"/>
+            <column name="decided_tick" type="INTEGER"/>
+            <column name="decision_note" type="TEXT"/>
+        </createTable>
+        <createIndex tableName="settlement_acquisitions" indexName="acquisition_history">
+            <column name="settlement_id"/><column name="proposed_tick"/>
+        </createIndex>
+        <!-- Old recipient consent did not authorize a fee/admin-review workflow.
+             Cancel all still-pending TRANSFER offers, including expired ones; retain
+             IDs and historical resolved offers. Owners must submit a new acquisition. -->
+        <update tableName="settlement_offers">
+            <column name="state" value="CANCELLED"/>
+            <where>type = 'TRANSFER' AND state = 'PENDING'</where>
+        </update>
+    </changeSet>
+</databaseChangeLog>

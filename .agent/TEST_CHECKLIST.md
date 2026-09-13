@@ -6,7 +6,7 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 ## 2026-09-12 frozen-MVP supersession
 
-This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–2 are implemented/verified; Phase 3 is next. Old direct naming-toggle checks are historical only and are superseded by the Phase 2 section. Agent results are not user sign-off.
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–3 are implemented/verified; Phase 4 is next. Old direct naming-toggle and immediate-transfer checks are historical, superseded by the Phase 2/3 sections. Agent results are not user sign-off.
 
 In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
 
@@ -20,7 +20,7 @@ Current text and Parcel visuals are updated by `f675a15` and `e823189`. Use the 
 
 Inactivity-driven automatic release remains outside MVP. Existing pending checks retain their version-specific scope. Current Claims are paid quote-confirmation operations; section 14 supersedes old numeric-only/no-payment expectations.
 
-Ledger, first-join grants, natural values and paid Claims/subsidies are implemented. Certification applications and administrator-approved acquisition remain planned. No check is automatically marked accepted.
+Ledger, first-join grants, natural values, paid Claims/subsidies, certification applications and administrator-approved acquisition are implemented. No check is automatically marked accepted.
 
 ## Completed implementation awaiting user acceptance
 
@@ -205,3 +205,15 @@ Agent proof: 94-test clean no-cache build, including seven certification state-m
 - [ ] Observe UNVERIFIED, age/current Activity/lifetime requirements through `/settlement certification`. Below any gate, application rejects. After eligibility, Owner/Governor can apply with an optional quoted name; eligibility never auto-verifies.
 - [ ] Deny an application as administrator: Claims, roles, funds and protection remain. Reapply and approve; verify name uniqueness, formal naming/export and decision notes. Replay approval after an admin rename; it must not restore the older proposed name.
 - [ ] Upgrade a disposable old-data copy and restart: old approved/named records migrate, the writable certify toggle is absent, new defaults are UNVERIFIED, and lifetime credit is not invented. Confirm config 9 and `config-before-certification.yml`; inspect pending/decided application provenance after restart.
+
+## Frozen roadmap Phase 3 — administrator-approved ownership acquisition
+
+Implemented: durable proposal/exact-fee recipient acceptance/admin approval or denial/cancellation; default ceil(10% × immutable current Claim base total), missing-profile and stale-context rejection, atomic recipient Wallet SINK/ownership/membership/History/outbox, unchanged treasury/certification/subsidies, replay and config 10 migration. Pending legacy TRANSFER offers cancel; accepted history and ordinary invitations survive. Immediate transfer is removed.
+
+Agent proof: clean no-cache check/build passed 102 tests (zero failures/errors/skips). Seven acquisition tests cover consent/admin authority, insufficient funds, injected post-debit rollback, restart/replay, stale Claims/profiles/policy, missing valuation, ban/expiry/denial and wide-integer rounding. Previous-phase migration preserves accepted transfer history/invitations while cancelling pending transfers; existing legacy bridge and empty-schema checks pass.
+
+Actual Paper upgraded a disposable Phase 2 world/database and started a separate empty-data instance. Fee 10 was disclosed; pre-consent approval, wrong fee and non-admin review rejected. Accepted proposal retained old Owner. Recipient balance 5 rejected approval without partial mutation; funding to 10 permitted one SINK. Treasury remained 17; former Owner became Citizen and lost Owner-only command authority. Restart preserved all 325 non-clock rows; replay left recipient Wallet 0, Treasury 17, VERIFIED name and exactly one transfer fact. Outsider could not break the test stone, while the new Owner could, both before and after restart. Management-book grant worked; native page layout is not visually signed off.
+
+- [ ] As two non-admin players, propose transfer to a Citizen/Governor and verify the exact fee; wrong amount rejects, correct acceptance alone neither pays nor transfers. Have an administrator approve, then check the recipient debit, former Owner Citizen, unchanged Treasury and new Owner authority.
+- [ ] On disposable data, test insufficient funds, stale/expired quotes, denial and cancellation. Retry a successful approval with the same reviewer/note; no second charge or transfer. Confirm preserved certification and no reset of personal Claim discounts.
+- [ ] Upgrade/restart a disposable copy: old pending transfers are cancelled, accepted history/invitations preserved, config 10 and backup present. Verify restored protection and book acquisition links in the native client.

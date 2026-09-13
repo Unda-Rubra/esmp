@@ -2,7 +2,7 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phases 0–2 已实现并通过相应验收；Phase 3 所有权购置审核尚未开始。** 建镇用创始人钱包，扩张用聚落金库；认证现在是申请＋管理员审核，不再是直接开关。阶段通过不等同于整个 MVP 或玩家验收完成。
+**冻结路线图 Phases 0–3 已实现并通过相应验收；下一阶段是 Phase 4 Local Activity。** 建镇用创始人钱包，扩张用聚落金库；认证与所有权购置均需管理员审核。阶段通过不等同于整个 MVP 或玩家验收完成。
 
 ## 当前基线功能（待按冻结要求重新验收）
 
@@ -16,7 +16,7 @@ ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依
 
 新聚落显示 `S#编号`，内部 UUID 和公开编号稳定。新正式名需要先满足认证条件、提交申请并由管理员批准；已 VERIFIED 的正式改名仍由管理员办理。旧审批标记或已有正式名会明确迁移为 VERIFIED，不追造历史活跃贡献。
 
-**尚无 Local Activity、注册建筑、Decay、Repair 或 Era 闭环。** 所有权转让暂时仍是旧两方流程；接收方购置费与管理员批准将在 Phase 3 实现。
+**尚无 Local Activity、注册建筑、Decay、Repair 或 Era 闭环。** 所有权购置现为 Owner 提议、接收方确认费用、管理员批准后原子扣款和转移；旧两方立即转让入口已移除。
 
 ## 冻结 MVP 的执行顺序
 
@@ -139,10 +139,11 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 |---|---|
 | 报价/购买/退地 | `/settlement create`、`price [聚落]`、`claim <聚落>`、`purchase <报价UUID>`、`unclaim` |
 | 查看 | `/settlement info [聚落]`、`activity [聚落]`、`list`、`members [聚落]`、`view [聚落]` |
-| 成员与治理 | `/settlement invite\|promote\|demote\|kick\|transfer <聚落> <玩家>`、`leave <聚落>` |
+| 成员与治理 | `/settlement invite\|promote\|demote\|kick <聚落> <玩家>`、`leave <聚落>` |
 | 禁令 | `/settlement ban\|unban <聚落> <玩家>`、`bans <聚落>` |
 | 邀请/确认 | `/settlement offers`、`accept\|decline\|cancel <offer-id>`、`abandon <聚落>`、`confirm <offer-id>` |
 | 认证申请/审核 | `/settlement certification <聚落>`、`apply <聚落> [建议名称]`、`applications <聚落>`、`review <聚落> <申请UUID> <approve\|deny> [说明]`（审核需管理员）、`verified` |
+| 所有权购置 | `/settlement transfer <聚落> <接收方>`、`acquisitions <聚落>`、`acquisition <购置UUID>`、`accept-transfer <购置UUID> <报价金额>`、`review-transfer <购置UUID> <approve\|deny> [说明]`（管理员）、`cancel-transfer <购置UUID>` |
 | 命名/历史 | `/settlement rename <已认证聚落> <正式名>`（管理员）、`history <聚落或历史UUID>` |
 | 工具 | `/esmp tools <parcel_wand\|management_book>`；操作帮助为 `/settlement parcel help` |
 | Parcel 选择 | `/settlement parcel pos1\|pos2 [x y z]`、`clear`、`add <聚落> <名>`、`commit` |
@@ -160,7 +161,17 @@ Owner/Governor 执行 `/settlement apply 1 "建议名称"`；也可不填名字�
 
 `/settlement certification 1` 显示状态、年龄、终身贡献和待审申请；`/settlement verified` 是插件内已认证正式名列表，不是网站。审批人、时间、说明与结果持久化。重复同一审批不会重复写历史，也不会覆盖之后的改名。已认证聚落不会因后来不活跃而自动撤销。
 
-旧 `/settlement certify ... true/false` 已移除。配置为 `certification.minimum-age-ticks: 72000`、`minimum-lifetime-credit: 20.0`；这是数值调参，不是跳过管理员审核。本阶段不收认证费，也未实现购置费或网站。
+旧 `/settlement certify ... true/false` 已移除。配置为 `certification.minimum-age-ticks: 72000`、`minimum-lifetime-credit: 20.0`；这是数值调参，不是跳过管理员审核。认证不收费；所有权购置另按下节收取土地费用，未实现网站。
+
+## 所有权购置
+
+Owner 用 `/settlement transfer 1 Bob` 提议当前 Citizen/Governor 接手；`acquisitions 1` 列出最近 50 条，`acquisition <UUID>` 查看指定记录。默认费用为当前认领区块不可变基础地价合计的 10%，向上取整为整数；不使用旧购地优惠，不估算建筑或劳动价值，缺少估值就拒绝报价。
+
+接收方执行 `/settlement accept-transfer <购置UUID> <报价金额>`，必须确认准确金额。此时**不扣款、不换 Owner**。管理员执行 `/settlement review-transfer <购置UUID> approve "说明"` 才重新核对角色、禁令、所有权/区块/估值/配置及余额，并在同一事务内从接收方钱包销毁费用、转移 Owner、将旧 Owner 改为 Citizen、保存历史。金库身份、余额与历史保留；个人优惠不重置。新 Owner 不保留重复成员行。
+
+余额不足不会部分扣款或转移；在原报价有效期内补足后可重试。报价过期或上下文改变需取消并重新提议，不能静默改价。管理员 `deny` 拒绝，双方或管理员可 `cancel-transfer` 取消；拒绝/取消不收费。重复同一批准（同一审核人及说明）只返回原结果，不重复扣款。
+
+`acquisition.offer-ticks` 默认 36000 游戏刻，`fee-basis-points` 默认 1000（10000=100%）。升级到 config 10 时保存 `config-before-acquisition.yml`，旧 `settlements.transfer-ticks` 迁至新期限字段。旧待处理 TRANSFER 提案明确取消，不沿用旧同意；已接受的历史提案保留，普通邀请不受影响。
 
 
 ## 付费认领与个人优惠
@@ -219,10 +230,10 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 ## 配置与数据
 
-当前 config 9；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase 的 `phase2-certification` 变更负责新认证状态/申请/终身贡献；旧 `certified` 列已删除。升级前配置备份为 `config-before-certification.yml`，此前备份保留。
+当前 config 10；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase2-certification` 管理认证状态/申请/终身贡献；`phase3-acquisition` 新建购置记录并取消旧待处理转让。旧 `certified` 列已删除。最新配置备份为 `config-before-acquisition.yml`，此前备份保留。
 
 ```yaml
-config-version: 9
+config-version: 10
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -232,9 +243,11 @@ settlements:
   chunk-cap-enabled: true
   max-chunks: 64
   invitation-ticks: 1728000
-  transfer-ticks: 36000
   promotion-ticks: 1728000
   abandon-ticks: 1200
+acquisition:
+  offer-ticks: 36000
+  fee-basis-points: 1000
 ```
 
 `activity.public-credit` 替代旧 `visitor-credit`，数值等价的策略会安全迁移。所有玩法期限使用共享游戏刻；睡眠和向前时间跳转计入，回拨不倒扣，停服不补算。正常关闭刷新时钟/待提交观察；崩溃仍可能丢失未检查点的纯计时进度和未提交观察，必须配套备份世界与数据库。
@@ -255,7 +268,7 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 ## 下一步与协作
 
-下一步只做路线图 Phase 3：Owner 提议、接收方接受、基于当前认领基础地价合计的购置费报价、管理员批准，最后原子扣接收方钱包并转移 Owner。保留金库身份、历史及旧 Owner 转 Citizen；明确迁移旧待处理转让。不要同时实现 Local Activity、建筑或后续系统。
+下一步只做路线图 Phase 4：Claim 区块级惰性 Local Activity、有限邻近支持、派生连通 ActivityRegion。不释放土地，不提前实现建筑、衰败、修复或其他后续系统。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 

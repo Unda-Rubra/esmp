@@ -11,6 +11,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import xdu.undarubra.esmp.civilization.acquisition.Acquisition;
 import xdu.undarubra.esmp.civilization.certification.CertificationApplication;
 import xdu.undarubra.esmp.civilization.certification.CertificationView;
 import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
@@ -45,6 +46,11 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "promote",
                     "demote",
                     "transfer",
+                    "acquisition",
+                    "acquisitions",
+                    "accept-transfer",
+                    "review-transfer",
+                    "cancel-transfer",
                     "kick",
                     "leave",
                     "rename",
@@ -364,23 +370,112 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                     "Nearby borders for 200 game ticks: white=current chunk,"
                                             + " green=team, red=Public."));
                 }
-                case "invite", "promote", "transfer" -> {
+                case "invite", "promote" -> {
                     exact(args, 3, args[0] + " <settlement> <player|uuid>");
                     SettlementView settlement = named(args[1]);
                     if (args[0].equalsIgnoreCase("invite")) manage(player, settlement);
                     else owner(player, settlement);
                     UUID recipient = resolvePlayer(args[2]);
                     SettlementOffer.Type type =
-                            switch (args[0].toLowerCase(Locale.ROOT)) {
-                                case "invite" -> SettlementOffer.Type.INVITE;
-                                case "promote" -> SettlementOffer.Type.PROMOTE;
-                                default -> SettlementOffer.Type.TRANSFER;
-                            };
+                            args[0].equalsIgnoreCase("invite")
+                                    ? SettlementOffer.Type.INVITE
+                                    : SettlementOffer.Type.PROMOTE;
                     runtime.mutate(
                             player,
                             settlement.id(),
                             null,
                             () -> runtime.service().offer(actor, settlement.id(), recipient, type));
+                }
+                case "transfer" -> {
+                    exact(args, 3, "transfer <settlement> <recipient>");
+                    var settlement = named(args[1]);
+                    owner(player, settlement);
+                    UUID recipient = resolvePlayer(args[2]);
+                    runtime.rememberAdministrator(recipient);
+                    runtime.mutate(
+                            player,
+                            settlement.id(),
+                            null,
+                            () ->
+                                    runtime.acquisitions()
+                                            .propose(actor, settlement.id(), recipient));
+                }
+                case "acquisitions" -> {
+                    exact(args, 2, "acquisitions <settlement>");
+                    UUID id = referenceId(args[1]);
+                    runtime.query(
+                            player,
+                            () -> runtime.acquisitions().history(id),
+                            rows -> {
+                                player.sendMessage(Component.text("Acquisitions: " + rows.size()));
+                                for (var acquisition : rows) showAcquisition(player, acquisition);
+                            });
+                }
+                case "acquisition" -> {
+                    exact(args, 2, "acquisition <id>");
+                    runtime.query(
+                            player,
+                            () -> runtime.acquisitions().view(parseUuid(args[1])),
+                            acquisition -> showAcquisition(player, acquisition));
+                }
+                case "accept-transfer", "review-transfer", "cancel-transfer" -> {
+                    String verb = args[0].toLowerCase(Locale.ROOT);
+                    UUID id;
+                    long expectedFee = 0;
+                    boolean approve = false;
+                    String note = "";
+                    if (verb.equals("accept-transfer")) {
+                        exact(args, 3, "accept-transfer <id> <quoted-fee>");
+                        expectedFee = Long.parseLong(args[2]);
+                        if (expectedFee <= 0)
+                            throw new SettlementException(
+                                    "Enter the positive fee shown on the proposal.");
+                    } else if (verb.equals("review-transfer")) {
+                        if (args.length != 3 && args.length != 4)
+                            throw new SettlementException(
+                                    "Usage: /settlement review-transfer <id> <approve|deny>"
+                                        + " [note]");
+                        if (!runtime.administrator(actor))
+                            throw new SettlementException("Administrator required.");
+                        if (!args[2].equalsIgnoreCase("approve")
+                                && !args[2].equalsIgnoreCase("deny"))
+                            throw new SettlementException("Choose approve or deny.");
+                        approve = args[2].equalsIgnoreCase("approve");
+                        note = args.length == 4 ? args[3] : "";
+                    } else exact(args, 2, "cancel-transfer <id>");
+                    id = parseUuid(args[1]);
+                    long fee = expectedFee;
+                    boolean approved = approve;
+                    String decisionNote = note;
+                    runtime.query(
+                            player,
+                            () -> runtime.acquisitions().view(id),
+                            acquisition -> {
+                                if (acquisition == null)
+                                    throw new SettlementException("Acquisition not found.");
+                                runtime.rememberAdministrator(acquisition.owner());
+                                runtime.rememberAdministrator(acquisition.recipient());
+                                runtime.mutate(
+                                        player,
+                                        acquisition.settlementId(),
+                                        null,
+                                        () ->
+                                                switch (verb) {
+                                                    case "accept-transfer" ->
+                                                            runtime.acquisitions()
+                                                                    .accept(actor, id, fee);
+                                                    case "review-transfer" ->
+                                                            runtime.acquisitions()
+                                                                    .review(
+                                                                            actor,
+                                                                            id,
+                                                                            approved,
+                                                                            decisionNote);
+                                                    default ->
+                                                            runtime.acquisitions()
+                                                                    .cancel(actor, id);
+                                                });
+                            });
                 }
                 case "abandon" -> {
                     exact(args, 2, "abandon <settlement>");
@@ -812,6 +907,56 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         return name == null ? player.toString() : name;
     }
 
+    private void showAcquisition(Player player, Acquisition acquisition) {
+        if (acquisition == null) throw new SettlementException("Acquisition not found.");
+        player.sendMessage(
+                Component.text("Acquisition " + acquisition.id() + " · " + acquisition.state()));
+        player.sendMessage(
+                Component.text(
+                        "Owner: "
+                                + playerName(acquisition.owner())
+                                + " → "
+                                + playerName(acquisition.recipient())
+                                + " · Fee: "
+                                + acquisition.fee()
+                                + " from recipient wallet · Land base: "
+                                + acquisition.baseTotal()));
+        player.sendMessage(
+                Component.text(
+                        "Expires at game tick "
+                                + acquisition.expiresTick()
+                                + (clockExpired(acquisition) ? " (expired)" : "")
+                                + (acquisition.decisionNote() == null
+                                        ? ""
+                                        : " · " + acquisition.decisionNote())));
+        if (acquisition.state() == Acquisition.State.PROPOSED
+                && !clockExpired(acquisition)
+                && player.getUniqueId().equals(acquisition.recipient())) {
+            player.sendMessage(
+                    Component.text("[Accept fee " + acquisition.fee() + "]")
+                            .clickEvent(
+                                    ClickEvent.suggestCommand(
+                                            "/settlement accept-transfer "
+                                                    + acquisition.id()
+                                                    + " "
+                                                    + acquisition.fee())));
+        }
+        if (acquisition.state() == Acquisition.State.ACCEPTED
+                && runtime.administrator(player.getUniqueId())) {
+            player.sendMessage(
+                    Component.text("[Approve acquisition]")
+                            .clickEvent(
+                                    ClickEvent.suggestCommand(
+                                            "/settlement review-transfer "
+                                                    + acquisition.id()
+                                                    + " approve")));
+        }
+    }
+
+    private boolean clockExpired(Acquisition acquisition) {
+        return runtime.clock().ticks() >= acquisition.expiresTick();
+    }
+
     private static UUID parseUuid(String input) {
         try {
             return UUID.fromString(input);
@@ -840,7 +985,12 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/esmp treasury <settlement> deposit <amount> (fund expansion)",
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
-                        "/settlement invite|promote|transfer|kick|demote <name> <player|uuid>",
+                        "/settlement invite|promote|kick|demote <name> <player|uuid>",
+                        "/settlement transfer <settlement> <recipient> (propose acquisition)",
+                        "/settlement acquisition <id> | acquisitions <settlement>",
+                        "/settlement accept-transfer <id> <quoted-fee> (recipient consent only)",
+                        "/settlement review-transfer <id> <approve|deny> [note] (admin) |"
+                            + " cancel-transfer <id>",
                         "/settlement offers | accept|decline|cancel <offer-id> | leave <name>",
                         "/settlement certification <settlement> | applications <settlement> |"
                                 + " verified",

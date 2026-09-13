@@ -503,12 +503,30 @@ class LedgerServiceTest {
         promote();
         assertEquals(0, ledger.allowance(actor(governor), settlement, governor).join());
         ledger.setAllowance(actor(alice), settlement, governor, 80, UUID.randomUUID()).join();
-        var transfer =
-                settlements
-                        .offer(alice, settlement, bob, SettlementOffer.Type.TRANSFER)
-                        .join()
-                        .offer();
-        settlements.accept(bob, transfer.id(), false).join();
+        UUID reviewer = UUID.randomUUID();
+        var acquisitions =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.acquisition(
+                        db,
+                        clock,
+                        xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy.defaults(),
+                        reviewer::equals,
+                        (tx, acquisition) ->
+                                ledger.post(
+                                        tx,
+                                        new LedgerService.Request(
+                                                acquisition.id(),
+                                                actor(acquisition.recipient()),
+                                                LedgerService.Movement.SINK,
+                                                wallet(acquisition.recipient()),
+                                                null,
+                                                acquisition.fee(),
+                                                "SETTLEMENT_ACQUISITION_FEE",
+                                                "")));
+        acquisitions.propose(alice, settlement, bob).join();
+        var transfer = acquisitions.history(settlement).join().getFirst();
+        grant(wallet(bob), transfer.fee());
+        acquisitions.accept(bob, transfer.id(), transfer.fee()).join();
+        acquisitions.review(reviewer, transfer.id(), true, "approved").join();
         rejected(
                 () ->
                         ledger.post(
