@@ -13,4 +13,5 @@
     <include file="phase4-local-activity.xml" relativeToChangelogFile="true"/>
     <include file="phase5-buildings.xml" relativeToChangelogFile="true"/>
     <include file="phase6-decay.xml" relativeToChangelogFile="true"/>
+    <include file="phase7-repair.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-13 — Frozen roadmap Phase 7 material Repair and History/Era
+
+Implemented the frozen whole-Building station workflow without changing the architecture bundle. One corresponding plain original block item funds each restored material cell; debris removal consumes no item. Named/modified items are excluded. Partial funding waits; cancellation refunds unused escrow without undoing already restored blocks. Default batch interval is 200 shared game ticks. World work remains bounded, naturally loaded, permission-checked and coordinated with Building/Decay publication.
+
+Inventories, world saves and SQL have separate durable progress. Slot before/after intents and a saved player sequence receipt reconcile supply/refund before further inventory use. Repair operations use stable identities and per-chunk revision/sequence markers; terminal SQL jobs still reconcile rolled-back world saves. Conflicts retire only affected cells; renovations and retired baselines win. Refunds cannot race unresolved physical work.
+
+Era starts at zero without invented history. Durable ruin-cycle identity survives a permission pause and awards once only after qualifying Repair reaches INTACT. Ordinary damage repair and manual completion do not award Era; subsequent genuine ruin cycles may award again. Structured History exposes the frozen catalog through existing history reads and the new catalog command.
+
+Config 14 backs up `config-before-repair.yml`; structured `phase7-repair.xml` owns jobs/cells/materials/transfers/operations and Era state/awards. Generated jOOQ ownership, schema verification and public factory callers were updated together. Phase 8 release gates remain separate; no automatic Claim release, rewards, villagers or historical replay.
+
+Evidence: clean/no-cache check/build passed 139 tests with zero failures/errors/skips. Twelve Repair regressions cover funding/retries, refund capacity, conflicts/renovation, permissions/pause, independent recovery, cycle awards and native Phase 6 migration. Isolated Paper exercised real plain/named inventory, partial supply and full ruin restoration; intent, saved-inventory, player rollback, saved-world, SQL-ahead world, terminal completion rollback and partial-world crash cuts recovered without repeated material spending or Era. Controlled exits are test instrumentation, not production features.
+
 ## 2026-09-13 — Frozen roadmap Phase 6 durable Decay implemented
 
 Decay is indexed/due work over active registered Buildings, not a world/block timer scan. Footprint support enters decline below 20, recovers at 30, and receives a default 72000-game-tick grace; effect/check intervals are 24000/1200. New/migrated state starts a fresh assessment, not invented prior decline. Contribution-time revalidation records recovery at the exact admitted credit tick and advances a Building-local eligibility revision; short recovery pulses cannot disappear between polls.

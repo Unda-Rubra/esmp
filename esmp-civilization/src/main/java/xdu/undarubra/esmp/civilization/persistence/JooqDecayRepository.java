@@ -106,6 +106,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                         "BUILDING_CONDITION",
                         "building=" + id + ";condition=INTACT;cause=player-design",
                         tick);
+            JooqRepairRepository.condition(c, id, Condition.INTACT, tick);
         }
         c.update(DECAY_STATE)
                 .set(DECAY_STATE.NEXT_CHECK_TICK, tick)
@@ -151,6 +152,14 @@ public final class JooqDecayRepository implements DecayService.Repository {
         return db.transact(tx -> assess(tx, id, false, clock.ticks()));
     }
 
+    State refresh(UnitOfWork.Transaction transaction, UUID building) throws SQLException {
+        return assess(transaction, building, true, clock.ticks());
+    }
+
+    State projection(UnitOfWork.Transaction transaction, UUID building) throws SQLException {
+        return assess(transaction, building, false, clock.ticks());
+    }
+
     private State assess(UnitOfWork.Transaction tx, UUID id, boolean write, long now)
             throws SQLException {
         var c = DatabaseAccess.context(tx);
@@ -188,7 +197,11 @@ public final class JooqDecayRepository implements DecayService.Repository {
             }
             since = Math.min(now, crossing);
         }
-        boolean eligible = !v.retired() && since != null && now - since >= policy.graceTicks();
+        boolean eligible =
+                !v.retired()
+                        && since != null
+                        && now - since >= policy.graceTicks()
+                        && !JooqRepairRepository.protects(c, id);
         long next;
         if (eligible)
             next =
@@ -242,6 +255,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     .set(t.CONDITION, condition.name())
                     .where(t.BUILDING_ID.eq(id))
                     .execute();
+            JooqRepairRepository.condition(c, id, condition, now);
             if (!condition.name().equals(row.get(t.CONDITION)))
                 event(
                         c,
@@ -636,6 +650,8 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     var v = JooqBuildingRepository.current(c, op.building());
                     long now = clock.ticks();
                     boolean same = !v.retired() && v.revision() == op.baselineRevision();
+                    int previousDamage =
+                            c.fetchCount(DECAY_DAMAGE, DECAY_DAMAGE.BUILDING_ID.eq(v.id()));
                     if (!same) {
                         if (op.state().equals("APPLIED") && !v.retired()) {
                             var base = JooqBuildingRepository.baseline(c, v.id(), v.revision());
@@ -700,6 +716,18 @@ public final class JooqDecayRepository implements DecayService.Repository {
                         outcomeHolder(c, op, outcome, outcome.name(), now);
                         assess(tx, v.id(), true, now);
                     }
+                    if (same
+                            && previousDamage == 0
+                            && c.fetchCount(DECAY_DAMAGE, DECAY_DAMAGE.BUILDING_ID.eq(v.id())) > 0)
+                        event(
+                                c,
+                                UUID.nameUUIDFromBytes(
+                                        ("decay-start:" + id)
+                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                                op.settlement(),
+                                "DECAY_STARTED",
+                                "building=" + v.id() + ";operation=" + id,
+                                now);
                     if (op.state().equals("PREPARED"))
                         event(
                                 c,

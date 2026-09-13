@@ -2,7 +2,7 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phases 0–6 已实现并通过相应验收；下一阶段是 Phase 7 材料／时间修复与 History/Era。** 已有注册建筑的持久化衰败；阶段通过不等同于整个 MVP 或玩家验收完成。
+**冻结路线图 Phases 0–7 已实现并通过相应验收；下一阶段是 Phase 8 完整验收与发布门禁。** 已有材料／游戏时间修复和 History/Era 闭环；阶段通过不等同于整个 MVP 或玩家验收完成。
 
 ## 当前基线功能（待按冻结要求重新验收）
 
@@ -13,12 +13,12 @@ ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依
 - 共享游戏时钟、聚落总活跃度、区块级局部活跃度与派生支持区域、历史、重启恢复，以及直接操作和活塞/漏斗等间接边界保护。
 - 整数钱包、聚落金库、转账、预算内发行及首次加入资金已存在。建镇从创始人钱包付款；所有扩张都从聚落金库付款，无论操作者是 Owner 还是 Governor，均按当前 Owner 的土地组合与优惠评估。
 - 新生成主世界区块的自然估值固定保存；`/settlement landvalue` 查看当前区块。后续挖填建造不改估值，未捕获的旧区块明确显示未知。
-- Owner/Governor 显式注册有体积上限的建筑；合法放置、拆除等建造操作更新基线，旧版本保留。可记录修复站位置，但尚不执行修复。
+- Owner/Governor 显式注册有体积上限的建筑；合法放置、拆除等建造操作更新基线，旧版本保留。每栋建筑可设置一个修复站。
 - 已注册建筑按局部支持与宽限期发生有限 WEATHER / DROP / CAVE_IN；恢复活跃会停止后续衰败，但不会自动修好已有损伤。
 
 新聚落显示 `S#编号`，内部 UUID 和公开编号稳定。新正式名需要先满足认证条件、提交申请并由管理员批准；已 VERIFIED 的正式改名仍由管理员办理。旧审批标记或已有正式名会明确迁移为 VERIFIED，不追造历史活跃贡献。
 
-**尚无站点材料修复或 Era 闭环。** 衰败不会自动释放土地；建筑的 ACTIVE/RETIRED 是注册生命周期，INTACT/DAMAGED/RUINED 才是损伤状态。
+修复站接受真实普通材料，按游戏时间分批恢复当前损伤；符合条件的 RUINED→Repair→INTACT 周期使 Era 加一，同一周期不会重复增加。衰败不会自动释放土地；建筑的 ACTIVE/RETIRED 是注册生命周期，INTACT/DAMAGED/RUINED 才是损伤状态。
 
 ## 冻结 MVP 的执行顺序
 
@@ -243,9 +243,32 @@ Owner/Governor 可注册已经存在或新建的建筑。整个选择必须属�
 
 大幅重新解释建筑时用 `retire <建筑UUID> confirm`。它不删方块或历史；之后可从世界当前状态重新注册，获得新 UUID。取消覆盖的 Claim 或放弃聚落前，须先退役受影响的活动建筑。
 
-修复站目前只记录位置：在建筑内放置工作台，待基线更新后执行 `station <建筑UUID> <x y z>`；`station <建筑UUID> clear` 清除标记。站点和方块实体被自动变更资格过滤器排除。合法拆除工作台会清除当前标记，旧修订仍保留原站点；本阶段没有材料消耗或修复作业。
+设置修复站：在建筑内放置工作台，待基线更新后执行 `station <建筑UUID> <x y z>`；`station <建筑UUID> clear` 清除标记。站点和方块实体不会被自动衰败／修复。合法拆除工作台会清除当前标记，旧修订仍保留原站点；已有修复任务会重新检查站点与权限。
 
 以上省略前缀的子命令都使用 `/settlement building`。编辑观察先写区块 PDC 日志，再经过现有提交/保护快照发布协调器；稳定操作 ID 防止重启回放旧改造。积压时相关操作会暂时拒绝，不能静默丢弃编辑。恢复只读取自然加载区块；世界实例、权限或边界不一致会安全停止并保留日志，不能删日志强行跳过。仍须配套备份世界与数据库，不能把它们当成一个原子存储。
+
+## 材料修复与 Era
+
+在修复站附近执行：
+
+```text
+/settlement repair inspect <建筑UUID>
+/settlement repair prepare <建筑UUID>
+/settlement repair supply <任务UUID>
+/settlement repair status <任务UUID>
+/settlement repair start <任务UUID>
+/settlement repair cancel <任务UUID>
+/settlement repair refund <任务UUID>
+/settlement repair jobs <建筑UUID>
+```
+
+Owner/Governor 准备整栋建筑修复；供料者是该任务的发起人。供料要求距离站点不超过 6 格，并有站点 INTERACT、待修格 BUILD 权限。只使用背包里的普通对应方块物品，不消耗命名或附带自定义数据的物品。可分次供料，材料齐备才开始；暂停后可用 `start` 重验并继续。默认每 200 游戏刻调度有界批次；时间冻结或区块未自然加载时不会推进，不会为修复加载区块。
+
+只修复当前有效基线的损伤，不重建已经改造、拆除或退役的旧设计。冲突格保留玩家状态，其余有效格可以继续。取消不撤销已经完成的世界修复；`refund` 退回未使用的预留材料，背包容量不足时可分次领取。待恢复的世界操作必须先完成对账，不能先退走其材料。
+
+背包保存、世界保存与数据库提交并非原子操作。持久化意图、玩家收据和区块标记负责重启对账；异常期间操作可能暂时锁定。请配套备份世界、玩家数据和数据库，不要单独回滚其中一份。
+
+Era 初始为 0，只有符合条件的整次废墟修复回到 INTACT 才加一。普通损伤修复、手工重建不加 Era，也没有战力或物品奖励。`/settlement history-catalog` 查看结构化历史类型，`/settlement history <聚落或UUID>` 查看记录；不是聊天存档或历史场景重放。
 
 ## 活跃度与保护边界
 
@@ -285,10 +308,10 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 ## 配置与数据
 
-当前 config 13；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase6-decay` 增加资格／状态、持久化操作和损伤记录；旧建筑与历史保留。最新配置备份为 `config-before-decay.yml`，此前备份保留。
+当前 config 14；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase7-repair` 增加修复任务、材料、转移意图、世界操作及 Era 记录；旧建筑和历史保留，Era 从 0 开始，不追造历史修复。最新配置备份为 `config-before-repair.yml`，此前备份保留。
 
 ```yaml
-config-version: 13
+config-version: 14
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -308,6 +331,8 @@ local-activity:
   support-threshold: 20.0
 buildings:
   max-volume: 4096
+repair:
+  batch-ticks: 200
 decay:
   grace-ticks: 72000
   interval-ticks: 24000

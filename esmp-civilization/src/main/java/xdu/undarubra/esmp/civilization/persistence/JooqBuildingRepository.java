@@ -524,6 +524,15 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                     .execute();
     }
 
+    void repaired(UnitOfWork.Transaction tx, DSLContext c, UUID actor, UUID id)
+            throws SQLException {
+        var current = current(c, id);
+        var baseline = baseline(c, id, current.revision());
+        long next = Math.addExact(current.revision(), 1L);
+        advance(c, id, next);
+        record(tx, c, actor, id, next, "REPAIRED", baseline);
+    }
+
     private void record(
             UnitOfWork.Transaction tx,
             DSLContext c,
@@ -533,6 +542,17 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
             String kind,
             BuildingBaseline baseline)
             throws SQLException {
+        if (!kind.equals("REPAIRED"))
+            require(
+                    !c.fetchExists(
+                            c.selectOne()
+                                    .from(REPAIR_OPERATIONS)
+                                    .where(
+                                            REPAIR_OPERATIONS
+                                                    .BUILDING_ID
+                                                    .eq(id)
+                                                    .and(REPAIR_OPERATIONS.STATE.eq("PREPARED")))),
+                    "Reconcile the pending Repair batch before changing this Building");
         long tick = clock.ticks();
         var v = current(c, id);
         var point = v.station();
@@ -548,6 +568,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 .set(BUILDING_REVISIONS.BASELINE, baseline.encode())
                 .execute();
         JooqDecayRepository.rebase(c, id, baseline, tick);
+        if (!kind.equals("REPAIRED")) JooqRepairRepository.rebase(c, id, tick);
         c.insertInto(SETTLEMENT_EVENTS)
                 .set(SETTLEMENT_EVENTS.EVENT_ID, UUID.randomUUID())
                 .set(SETTLEMENT_EVENTS.SETTLEMENT_ID, v.settlement())

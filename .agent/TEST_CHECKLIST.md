@@ -6,7 +6,7 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 ## 2026-09-12 frozen-MVP supersession
 
-This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–6 are implemented/verified; Phase 7 is next. Old direct naming-toggle and immediate-transfer checks are historical, superseded by the Phase 2/3 sections. Agent results are not user sign-off.
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–7 are implemented/verified; Phase 8 is next. Old direct naming-toggle and immediate-transfer checks are historical, superseded by the Phase 2/3 sections. Agent results are not native-client/user acceptance.
 
 In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
 
@@ -263,3 +263,19 @@ The final artifact exercised all three modes, reached RUINED with 20 damaged cel
 - [ ] Recover through meaningful local actions: new decay stops but existing damage remains. Manually rebuild damaged cells and remove debris; current condition/design update without an Era or station-repair reward.
 - [ ] On disposable copies, interrupt intent/apply/outcome and restore independently saved world/DB progress. Stable operations must not duplicate effects, unloaded chunks stay unloaded, and conflicting/newer player design must win.
 - [ ] Upgrade/restart existing Buildings and inspect condition/history/config 13 plus `config-before-decay.yml`. Old baselines remain; no retroactive instant damage, automatic Claim release or material Repair appears.
+
+## Frozen roadmap Phase 7 — material Repair and History/Era
+
+Implemented: whole-Building station inspection/preparation, real plain-item supply and durable escrow, game-time bounded natural-load Repair, current-baseline/permission checks, per-cell conflict preservation, cancellation/refunds, independent player/world/SQL reconciliation and structured History/Era. Config 14 backs up `config-before-repair.yml`; migration initializes Era zero without inventing prior repairs.
+
+Agent proof: clean no-cache check/build passed **139 tests, zero failures/errors/skips**. Twelve Repair regressions cover partial funds/duplicate receipts, restart completion, ordinary versus ruin repair, manual completion, cancellation/refund capacity, pending-operation barriers, conflicts, renovation, plain-item codec/capacity, later ruin cycles, player receipt reconciliation, native Phase 6 upgrade and permission-pause cycle retention.
+
+Isolated real Paper cases used a removable operator-only fault probe around real repositories. Real inventory retained two named blocks while consuming ten plain blocks; partial supply waited for the balance, then the roof returned to INTACT and Era 1. Intent-only, saved debit before SQL confirmation and SQL-confirmed/player-data rollback recovered exactly once. World-intent, saved-world-before-outcome, SQL-ahead-world, completed-job/Era-before-world-save and partial-world cuts all resumed. Terminal-job recovery checked every applied target, including removed debris, before freezing time; SQL completion alone was not treated as physical proof. Injected per-cell gold conflict preserved the conflicting state, consumed nine materials, refunded one and awarded no Era.
+
+Saved-refund-before-SQL and SQL-refund/player-data-rollback cuts both recovered to ten plain plus two named items with one refund receipt. After removing all probe JARs, a clean restart read COMPLETED, no pending cells/escrow, ten consumed materials, Era 1 and the History catalog. Temporary probe source/classes and smoke script were removed; saved evidence remains ignored. All verification servers/clients stopped normally after recovery.
+
+- [ ] At a registered Building station, inspect/prepare/supply with plain and named materials. Partial supply must wait, named/modified items stay untouched, station distance and Parcel BUILD/INTERACT permissions apply.
+- [ ] Freeze time, unload naturally, restart and resume a funded job. No downtime progress or forced loading; current valid damage repairs in bounded batches, not retired or renovated design.
+- [ ] Change permission or one affected block during repair. Pause/revalidation must retain valid work and preserve the conflicting block; cancellation/refund returns only unused items, including with limited backpack space.
+- [ ] On disposable paired backups, interrupt supply/refund and physical Repair before/after saves. Rejoin/restart must reconcile without duplicated inventory, repeated consumption or repeated Era.
+- [ ] Restore a RUINED Building through Repair: INTACT and one Era increment with durable History. Ordinary damage repair/manual restoration grants no Era; a later genuine ruin cycle can increment again. Inspect config 14, backup and `/settlement history-catalog`.

@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 13
+config-version: 14
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -40,6 +40,10 @@ local-activity:
 buildings:
   max-volume: 4096
 
+
+# Material-funded whole-Building Repair. Progress uses shared game ticks.
+repair:
+  batch-ticks: 200
 
 # Registered-only bounded decay, using shared game ticks and local support hysteresis.
 decay:

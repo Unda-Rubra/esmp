@@ -199,6 +199,13 @@ class SchemaMigrationTest {
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
             for (String table :
                     List.of(
+                            "repair_era_awards",
+                            "repair_operations",
+                            "repair_transfers",
+                            "repair_materials",
+                            "repair_cells",
+                            "repair_jobs",
+                            "building_eras",
                             "decay_damage",
                             "decay_operations",
                             "decay_state",
@@ -207,6 +214,7 @@ class SchemaMigrationTest {
                             "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase7-repair'");
             for (String state : List.of("PENDING", "ACCEPTED")) {
                 s.executeUpdate(
                         "INSERT INTO settlement_offers"
@@ -264,6 +272,13 @@ class SchemaMigrationTest {
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
             for (String table :
                     List.of(
+                            "repair_era_awards",
+                            "repair_operations",
+                            "repair_transfers",
+                            "repair_materials",
+                            "repair_cells",
+                            "repair_jobs",
+                            "building_eras",
                             "decay_damage",
                             "decay_operations",
                             "decay_state",
@@ -272,6 +287,7 @@ class SchemaMigrationTest {
                             "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase7-repair'");
             s.executeUpdate(
                     "INSERT INTO"
                         + " settlement_activity(settlement_id,score,anchor_tick,day,credited,category)"
@@ -313,6 +329,13 @@ class SchemaMigrationTest {
                 var s = c.createStatement()) {
             for (String table :
                     List.of(
+                            "repair_era_awards",
+                            "repair_operations",
+                            "repair_transfers",
+                            "repair_materials",
+                            "repair_cells",
+                            "repair_jobs",
+                            "building_eras",
                             "decay_damage",
                             "decay_operations",
                             "decay_state",
@@ -321,6 +344,7 @@ class SchemaMigrationTest {
                             "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase7-repair'");
             s.executeUpdate(
                     "INSERT INTO settlement_local_activity SELECT"
                             + " settlement_id,world_instance_id,chunk_x,chunk_z,17.5,1000,1 FROM"
@@ -366,9 +390,20 @@ class SchemaMigrationTest {
         byte[] bytes = baseline.encode();
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
-            for (String table : List.of("decay_damage", "decay_operations", "decay_state"))
-                s.executeUpdate("DROP TABLE " + table);
+            for (String table :
+                    List.of(
+                            "repair_era_awards",
+                            "repair_operations",
+                            "repair_transfers",
+                            "repair_materials",
+                            "repair_cells",
+                            "repair_jobs",
+                            "building_eras",
+                            "decay_damage",
+                            "decay_operations",
+                            "decay_state")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase7-repair'");
             s.executeUpdate(
                     "INSERT INTO"
                         + " buildings(building_id,settlement_id,world_instance_id,name,name_key,min_x,min_y,min_z,max_x,max_y,max_z,revision,status,created_tick)"

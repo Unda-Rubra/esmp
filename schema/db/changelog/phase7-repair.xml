@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+<changeSet id="phase7-repair" author="esmp" dbms="sqlite">
+<createTable tableName="building_eras">
+<column name="building_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="buildings(building_id)" foreignKeyName="fk_era_building"/></column><column name="era" type="INTEGER"><constraints nullable="false"/></column><column name="cycle_id" type="TEXT"/>
+</createTable>
+<createTable tableName="repair_jobs">
+<column name="job_id" type="TEXT"><constraints primaryKey="true" nullable="false"/></column><column name="building_id" type="TEXT"><constraints nullable="false" references="buildings(building_id)" foreignKeyName="fk_repair_building"/></column>
+<column name="settlement_id" type="TEXT"><constraints nullable="false"/></column><column name="world_instance_id" type="TEXT"><constraints nullable="false"/></column><column name="payer_uuid" type="TEXT"><constraints nullable="false"/></column>
+<column name="state" type="TEXT"><constraints nullable="false"/></column><column name="baseline_revision" type="INTEGER"><constraints nullable="false"/></column><column name="station_x" type="INTEGER"><constraints nullable="false"/></column><column name="station_y" type="INTEGER"><constraints nullable="false"/></column><column name="station_z" type="INTEGER"><constraints nullable="false"/></column>
+<column name="cycle_id" type="TEXT"/><column name="created_tick" type="INTEGER"><constraints nullable="false"/></column><column name="next_tick" type="INTEGER"><constraints nullable="false"/></column><column name="batch_ticks" type="INTEGER"><constraints nullable="false"/></column><column name="completed_tick" type="INTEGER"/><column name="detail" type="TEXT"><constraints nullable="false"/></column>
+</createTable>
+<createIndex tableName="repair_jobs" indexName="repair_due"><column name="state"/><column name="next_tick"/></createIndex><createIndex tableName="repair_jobs" indexName="repair_building"><column name="building_id"/><column name="state"/></createIndex>
+<createTable tableName="repair_cells">
+<column name="job_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="repair_jobs(job_id)" foreignKeyName="fk_repair_cell_job"/></column><column name="x" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column><column name="y" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column><column name="z" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+<column name="expected" type="TEXT"><constraints nullable="false"/></column><column name="target" type="TEXT"><constraints nullable="false"/></column><column name="material" type="TEXT"/><column name="state" type="TEXT"><constraints nullable="false"/></column><column name="operation_id" type="TEXT"/>
+<column name="decay_operation_id" type="TEXT"><constraints nullable="false"/></column>
+</createTable>
+<createTable tableName="repair_materials">
+<column name="job_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="repair_jobs(job_id)" foreignKeyName="fk_repair_material_job"/></column><column name="material" type="TEXT"><constraints primaryKey="true" nullable="false"/></column><column name="needed" type="INTEGER"><constraints nullable="false"/></column><column name="escrow" type="INTEGER"><constraints nullable="false"/></column><column name="consumed" type="INTEGER"><constraints nullable="false"/></column><column name="refunded" type="INTEGER"><constraints nullable="false"/></column>
+</createTable>
+<createTable tableName="repair_transfers">
+<column name="sequence" type="INTEGER" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column><column name="transfer_id" type="TEXT"><constraints nullable="false" unique="true"/></column><column name="job_id" type="TEXT"><constraints nullable="false" references="repair_jobs(job_id)" foreignKeyName="fk_transfer_job"/></column><column name="payer_uuid" type="TEXT"><constraints nullable="false"/></column><column name="direction" type="TEXT"><constraints nullable="false"/></column><column name="state" type="TEXT"><constraints nullable="false"/></column><column name="payload" type="BLOB"><constraints nullable="false"/></column><column name="game_tick" type="INTEGER"><constraints nullable="false"/></column>
+</createTable>
+<createIndex tableName="repair_transfers" indexName="repair_transfer_player"><column name="payer_uuid"/><column name="sequence"/></createIndex>
+<createTable tableName="repair_operations">
+<column name="sequence" type="INTEGER" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column><column name="operation_id" type="TEXT"><constraints nullable="false" unique="true"/></column><column name="job_id" type="TEXT"><constraints nullable="false" references="repair_jobs(job_id)" foreignKeyName="fk_repair_operation_job"/></column>
+<column name="building_id" type="TEXT"><constraints nullable="false"/></column><column name="settlement_id" type="TEXT"><constraints nullable="false"/></column><column name="world_instance_id" type="TEXT"><constraints nullable="false"/></column><column name="actor_uuid" type="TEXT"><constraints nullable="false"/></column><column name="baseline_revision" type="INTEGER"><constraints nullable="false"/></column><column name="owner_uuid" type="TEXT"><constraints nullable="false"/></column><column name="ownership_revision" type="INTEGER"><constraints nullable="false"/></column><column name="chunk_revision" type="INTEGER"><constraints nullable="false"/></column><column name="security_revision" type="INTEGER"><constraints nullable="false"/></column>
+<column name="state" type="TEXT"><constraints nullable="false"/></column><column name="chunk_x" type="INTEGER"><constraints nullable="false"/></column><column name="chunk_z" type="INTEGER"><constraints nullable="false"/></column><column name="payload" type="BLOB"><constraints nullable="false"/></column><column name="game_tick" type="INTEGER"><constraints nullable="false"/></column>
+</createTable>
+<createIndex tableName="repair_operations" indexName="repair_chunk_recovery"><column name="world_instance_id"/><column name="chunk_x"/><column name="chunk_z"/><column name="sequence"/></createIndex>
+<createIndex tableName="repair_operations" indexName="repair_operation_job"><column name="job_id"/><column name="state"/></createIndex>
+<createTable tableName="repair_era_awards">
+<column name="cycle_id" type="TEXT"><constraints primaryKey="true" nullable="false"/></column><column name="building_id" type="TEXT"><constraints nullable="false" references="buildings(building_id)" foreignKeyName="fk_award_building"/></column><column name="job_id" type="TEXT"><constraints nullable="false" unique="true" references="repair_jobs(job_id)" foreignKeyName="fk_award_job"/></column><column name="era" type="INTEGER"><constraints nullable="false"/></column><column name="game_tick" type="INTEGER"><constraints nullable="false"/></column>
+</createTable>
+</changeSet></databaseChangeLog>

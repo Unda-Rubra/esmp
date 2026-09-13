@@ -57,6 +57,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "abandon",
                     "confirm",
                     "history",
+                    "history-catalog",
                     "activity",
                     "local-activity",
                     "price",
@@ -72,6 +73,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "parcel",
                     "building",
                     "decay",
+                    "repair",
                     "bypass",
                     "help");
     private final JavaPlugin plugin;
@@ -120,6 +122,10 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "decay" ->
                         runtime.decay()
                                 .inspect(
+                                        player, java.util.Arrays.copyOfRange(args, 1, args.length));
+                case "repair" ->
+                        runtime.repair()
+                                .command(
                                         player, java.util.Arrays.copyOfRange(args, 1, args.length));
                 case "landvalue" -> {
                     exact(args, 1, "landvalue");
@@ -689,6 +695,20 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                             null,
                             () -> runtime.service().rename(actor, settlement.id(), args[2]));
                 }
+                case "history-catalog" -> {
+                    exact(args, 1, "history-catalog");
+                    xdu.undarubra.esmp.civilization.settlement.MvpHistory.catalog()
+                            .entrySet()
+                            .stream()
+                            .sorted(java.util.Map.Entry.comparingByKey())
+                            .forEach(
+                                    entry ->
+                                            player.sendMessage(
+                                                    Component.text(
+                                                            entry.getKey()
+                                                                    + " · "
+                                                                    + entry.getValue())));
+                }
                 case "history" -> {
                     exact(args, 2, "history <settlement|uuid>");
                     UUID id = referenceId(args[1]);
@@ -1076,6 +1096,8 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/settlement landvalue (natural base of the current chunk)",
                         "/settlement building help (bounded registration, baseline and station)",
                         "/settlement decay <buildingUUID> (support, eligibility and condition)",
+                        "/settlement repair help (whole-Building materials, progress, refund and"
+                                + " Era)",
                         "/settlement parcel help | abandon <settlement> | confirm <offer-id>"))
             player.sendMessage(Component.text(line));
         player.sendMessage(

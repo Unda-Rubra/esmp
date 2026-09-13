@@ -553,6 +553,13 @@ class SettlementServiceTest {
                 .execute("DROP TABLE settlement_local_activity");
         for (String table :
                 List.of(
+                        "repair_era_awards",
+                        "repair_operations",
+                        "repair_transfers",
+                        "repair_materials",
+                        "repair_cells",
+                        "repair_jobs",
+                        "building_eras",
                         "decay_damage",
                         "decay_operations",
                         "decay_state",

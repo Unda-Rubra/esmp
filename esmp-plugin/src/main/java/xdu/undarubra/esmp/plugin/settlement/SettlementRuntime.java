@@ -19,6 +19,7 @@ import xdu.undarubra.esmp.civilization.building.BuildingService;
 import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
 import xdu.undarubra.esmp.civilization.certification.CertificationService;
 import xdu.undarubra.esmp.civilization.decay.DecayService;
+import xdu.undarubra.esmp.civilization.repair.RepairService;
 import xdu.undarubra.esmp.civilization.settlement.*;
 import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
 import xdu.undarubra.esmp.civilization.settlement.SettlementChange;
@@ -31,6 +32,7 @@ import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
 import xdu.undarubra.esmp.plugin.building.BuildingRuntime;
 import xdu.undarubra.esmp.plugin.decay.DecayRuntime;
+import xdu.undarubra.esmp.plugin.repair.RepairRuntime;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -67,6 +69,7 @@ public final class SettlementRuntime implements AutoCloseable {
     private final CertificationService certification;
     private final BuildingRuntime buildings;
     private final DecayRuntime decay;
+    private final RepairRuntime repair;
     private final AcquisitionService acquisitions;
     private final SettlementIndex index = new SettlementIndex();
     private final Set<UUID> bypass = new HashSet<>();
@@ -90,6 +93,7 @@ public final class SettlementRuntime implements AutoCloseable {
             LocalActivityPolicy localActivityPolicy,
             BuildingService.Policy buildingPolicy,
             DecayService.Policy decayPolicy,
+            RepairService.Policy repairPolicy,
             Consumer<Throwable> fatal,
             SettlementService.ReleaseGuard releaseGuard,
             ClaimPricingPolicy pricingPolicy,
@@ -152,6 +156,19 @@ public final class SettlementRuntime implements AutoCloseable {
                         xdu.undarubra.esmp.civilization.api.SettlementServices.decay(
                                 database, clock, activityPolicy, localActivityPolicy, decayPolicy),
                         fatal);
+        repair =
+                new RepairRuntime(
+                        plugin,
+                        this,
+                        xdu.undarubra.esmp.civilization.api.SettlementServices.repair(
+                                database,
+                                clock,
+                                activityPolicy,
+                                localActivityPolicy,
+                                decayPolicy,
+                                repairPolicy,
+                                administrators::contains),
+                        fatal);
         activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
@@ -166,7 +183,8 @@ public final class SettlementRuntime implements AutoCloseable {
         return parcels.snapshot()
                 .thenAccept(snapshot -> land = snapshot)
                 .thenCompose(ignored -> buildings.initialize())
-                .thenCompose(ignored -> decay.initialize());
+                .thenCompose(ignored -> decay.initialize())
+                .thenCompose(ignored -> repair.initialize());
     }
 
     public CertificationService certification() {
@@ -196,6 +214,7 @@ public final class SettlementRuntime implements AutoCloseable {
         tools.start();
         activityListener.start();
         buildings.start();
+        repair.start();
         decay.start();
         visualization.start();
         outboxTask =
@@ -210,6 +229,10 @@ public final class SettlementRuntime implements AutoCloseable {
 
     public ParcelService parcels() {
         return parcels;
+    }
+
+    public RepairRuntime repair() {
+        return repair;
     }
 
     public LandSnapshot.Land land(UUID id) {
@@ -327,7 +350,8 @@ public final class SettlementRuntime implements AutoCloseable {
             return false;
         }
         SettlementView settlement = index.at(world, x, z);
-        return settlement == null || !settlement.id().equals(frozenSettlement);
+        return settlement == null
+                || (!settlement.id().equals(frozenSettlement) && !repair.reserved(settlement.id()));
     }
 
     public boolean allows(UUID actor, Location location, ParcelAction action, boolean safePublic) {
@@ -445,12 +469,28 @@ public final class SettlementRuntime implements AutoCloseable {
 
     public CompletableFuture<Void> mutateDecay(
             UUID settlement, Supplier<CompletableFuture<SettlementChange>> operation) {
-        if (buildings.hasPending(settlement))
+        if (buildings.hasPending(settlement) || repair.reserved(settlement))
             throw new SettlementException("Building observations must publish before Decay.");
         var completion = new CompletableFuture<Void>();
         commit(
                 DecayService.SYSTEM_ACTOR,
                 null,
+                settlement,
+                null,
+                () -> activityListener.barrier(settlement).thenCompose(ignored -> operation.get()),
+                false,
+                completion);
+        return completion;
+    }
+
+    public CompletableFuture<Void> mutateRepair(
+            UUID actor, UUID settlement, Supplier<CompletableFuture<SettlementChange>> operation) {
+        if (buildings.hasPending(settlement))
+            throw new SettlementException("Building observations must publish before Repair.");
+        var completion = new CompletableFuture<Void>();
+        commit(
+                actor,
+                plugin.getServer().getPlayer(actor),
                 settlement,
                 null,
                 () -> activityListener.barrier(settlement).thenCompose(ignored -> operation.get()),
@@ -471,7 +511,7 @@ public final class SettlementRuntime implements AutoCloseable {
             throw new SettlementException(
                     "Settlement protection is still initializing or unavailable.");
         }
-        if (notify && buildings.hasPending(settlementId))
+        if (notify && (buildings.hasPending(settlementId) || repair.reserved(settlementId)))
             throw new SettlementException("Building edits are still committing; retry shortly.");
         if (mutationInFlight) {
             throw new SettlementException(
@@ -758,6 +798,7 @@ public final class SettlementRuntime implements AutoCloseable {
         activityListener.close();
         buildings.close();
         decay.close();
+        repair.close();
         closed = true;
         ready = false;
         if (outboxTask != null) {

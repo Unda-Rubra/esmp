@@ -4,14 +4,14 @@
 
 The [frozen architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical and unchanged.
 
-Phases 0–6 are implemented/verified. Registered Buildings now decay through bounded WEATHER/DROP/CAVE_IN with durable intent, independent world/SQL recovery, damage/condition history and local Activity recovery. No station material Repair or Era advancement exists yet. Player acceptance remains pending.
+Phases 0–7 are implemented/verified. Registered Buildings support bounded Decay and material/time Repair, independent inventory/world/SQL reconciliation, structured History and qualifying-cycle Era advancement. Player acceptance remains pending.
 
-## Phase 7 — next, not yet implemented
+## Phase 8 — next, not yet accepted
 
-1. **Station/material contract.** Use one protected station per Building; derive required materials from current active-baseline damage and define real player delivery/reservations. Do not appraise labor or add villagers/artisans.
-2. **Durable repair.** Persist job/material accounting and bounded GameClock progress; revalidate world, baseline, permissions, expected state and conflicts before naturally-loaded world batches. Exclude block entities and preserve player renovation.
-3. **Interruption recovery.** Test before/after physical mutations and material consumption; stable identities must prevent duplicate consumption or side effects. Never assume world saves, inventories and SQL are atomic.
-4. **History/Era completion.** Emit started/completed facts; RUINED → Repair → INTACT advances Era once per cycle/job, ordinary non-ruined repair does not. No rewards, historical replay, partial-wing UI or automatic release.
+1. Run the full frozen acceptance matrix, including clean install, real development-copy migration, fail-closed startup and all earlier gameplay contracts.
+2. Profile protection hot paths, Activity load, maximum Building capture, Decay/Repair budgets and SQLite queue pressure.
+3. Verify coordinated world/player-data/database backup and restoration plus real Paper upgrade/restart; individual Phase 7 crash cuts are not the entire release gate.
+4. Verify command/help surfaces and produce release/operator migration instructions before an MVP tag. No new features or post-MVP systems.
 
 ## Resolved infrastructure requirements
 

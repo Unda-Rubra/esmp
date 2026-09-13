@@ -154,6 +154,10 @@ public final class SettlementService {
         return repository.history(settlementId);
     }
 
+    public CompletableFuture<List<MvpHistory.Fact>> mvpHistory(UUID settlementId) {
+        return repository.history(settlementId).thenApply(MvpHistory::facts);
+    }
+
     public CompletableFuture<List<SettlementEvent>> pendingEvents() {
         return repository.pendingEvents();
     }

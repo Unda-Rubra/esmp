@@ -2,57 +2,48 @@
 
 ## State
 
-- Frozen roadmap **Phases 0–6 are implemented/verified**. Phase 7 station material/time Repair plus History/Era is next. No Repair job/material accounting, Era advancement, automatic Claim release or deferred simulation systems were added.
-- Active registered Buildings now support bounded WEATHER, vertical DROP and connected CAVE_IN. Default entry/recovery support thresholds are 20/30, grace 72000 game ticks, operation interval 24000 and deferred check interval 1200. New/migrated Buildings begin a fresh assessment rather than receiving retroactive instant damage.
-- SQL intent precedes physical mutations. The existing coordinator reserves the Settlement, drains admitted Activity, checks current eligibility/authority, and keeps protection reserved through world application and outcome publication. Direct and persisted intent profiles, world/Building/ownership/Claim/security/support/source facts and both-side Owner BUILD permissions are checked.
-- Damage is separate from intended baseline. INTACT means no current damage; DAMAGED includes weathering/debris; RUINED defaults to at least 50% of mutable occupied baseline cells becoming air. Recovery stops future work without reducing damage. Real manual restoration clears obsolete damage and advances baseline revision even if intended data is unchanged; it does not grant Era.
-- Config is 13, backup `config-before-decay.yml`. New structured tables: `decay_state`, `decay_operations`, `decay_damage`. Existing bridge markers, dependency pins, released baselines and frozen architecture bundle are unchanged.
-- There are 72 pending player checks: 48 historical +2 Phase 0 +3 each Phases 1–4 +5 each Phases 5–6. No native-client/user acceptance was automatically checked off.
+- Frozen roadmap Phases 0–7 are implemented/verified. Phase 8 full acceptance/performance/paired backup and release gates are next; no MVP tag or user acceptance is implied.
+- Whole-Building station Repair consumes real plain materials, progresses with shared GameClock in bounded naturally loaded batches, preserves current design/conflicts, and records History/Era. No automatic Claim release, rewards, artisans, historical replay or post-MVP systems were added.
+- Config 14, backup `config-before-repair.yml`. Structured `phase7-repair` adds `building_eras`, `repair_jobs`, `repair_cells`, `repair_materials`, `repair_transfers`, `repair_operations`, `repair_era_awards`. Existing bridge markers/dependency pins and frozen architecture bundle are unchanged.
+- There are 77 pending player checks: previous 72 plus five Phase 7 checks. Automated/protocol-client evidence is not native-client acceptance.
 
 ## Completed
 
-- Added DecayService/Policy/State/Operation contracts, deterministic DecayPlan and typed JooqDecayRepository. Due selection is indexed and bounded; candidate geometry comes from the bounded baseline, not a global world scan. Candidate lists cap at 32 and physical batches at eight cells.
-- WEATHER uses explicit full-cube substitutions. DROP moves one block down one cell into air within the Building; CAVE_IN moves up to four same-height face-connected blocks with the same primitive, all in one chunk. No item or falling-block entity is spawned. Block entities, stations, unsafe attachment/fluid/gravity neighbors and occupied destinations are excluded or deferred; physics cascades are not started.
-- Accepted local credits update nearby Building eligibility revisions and assess recovery at the exact credit tick. Hysteresis and threshold-crossing math preserve short recovery pulses and shared-clock freeze/downtime semantics. Aggregate Activity behavior remains intact.
-- Durable operations carry stable IDs/global sequences, baseline/world/authority/activity/policy context and exact expected/target cells. Prepared work waits for natural loads. Per-chunk `esmp:decay/<buildingUUID>` revision/sequence markers reconcile independently from SQL outcomes. Before/target mixtures converge; already-applied facts are not duplicated. New operations cannot overtake recovery for the same Building/chunk.
-- Player baseline changes supersede old intents and obsolete damage. Historical operations never physically restore a superseded baseline; read-only reconciliation can clear damage that is absent in the actual saved world. Conflicting cells are preserved, not overwritten. Legal restoration of original intended data now also advances revision and clears damage.
-- Added `/settlement decay <buildingUUID>` status, lifecycle/config wiring and Activity barrier integration. All world calls remain on the Paper thread and all SQL in repositories. No force-load/ticket pathway was added.
+- Added RepairService/RepairMaterials and typed JooqRepairRepository, plus Paper RepairRuntime/RepairInventory and lifecycle/coordinator wiring. Public factories/callers were migrated together; no persistence types leak into domain APIs.
+- Commands: `/settlement repair inspect|prepare|supply|status|start|cancel|refund|jobs`; `/settlement history-catalog` complements existing history reads and structured MvpHistory API.
+- One station, payer-only supply/refund, six-block supply radius, current governance and Parcel BUILD/INTERACT authorization. Only ordinary matching items are accepted; partial funding waits. Unused escrow can be refunded within inventory capacity. Cancellation never undoes completed physical work.
+- Slot before/after intents plus saved player sequence receipt reconcile inventory separately from SQL. Per-chunk Building revision/sequence markers reconcile world progress, including SQL-completed jobs whose world save rolled back. Unresolved operations block unsafe refunds/metadata changes. No forced chunk loading.
+- Current active-baseline damage alone is repairable. Conflicts retire only affected cells; renovations and retired baselines win. Default batch interval is 200 shared game ticks; freezes/downtime do not generate progress.
+- Era begins at zero without invented prior repairs. Durable qualifying ruin cycles survive permission pauses and award once after Repair reaches INTACT. Ordinary damage repair and manual completion do not award; a later genuine ruin cycle can award again.
 
 ## Changed files
 
-- `schema/db/changelog/phase6-decay.xml`, master changelog, root `build.gradle.kts` — new structured Decay state/intent/damage schema and generated table ownership.
-- Civilization `decay/DecayService.java`, `DecayPlan.java`, `persistence/JooqDecayRepository.java` — eligibility, planning, durable operations, reconciliation and condition facts.
-- `JooqActivityRepository.java`, `ObservationServices.java`, `SettlementServices.java` — contribution-time Decay observation and composition; all factory callers migrated without a compatibility overload.
-- `JooqBuildingRepository.java` — baseline rebase/invalidation and manual-restoration damage resolution.
-- Plugin `decay/DecayRuntime.java`, `BuildingRuntime.java`, `SettlementRuntime.java`, `ActivityListener.java`, `EsmpPlugin.java`, `SettlementCommands.java`, config.yml — bounded world pipeline, metadata access, serialized reservation/barrier, config 13 and status command.
-- New `DecayServiceTest.java`; activity/certification/Parcel factory fixtures, legacy Settlement/Parcel fixtures and `SchemaMigrationTest.java` — behavior, corrupted-intent rejection, old/new schema preservation and fresh grace.
-- README/AGENTS and .agent decision/gates/checklist/handoff — current behavior, operator tuning, precise evidence and Phase 7 boundary.
+- `schema/db/changelog/phase7-repair.xml`, master changelog, `build.gradle.kts`, `buildSrc/.../GenerateJooq.java`: structured schema, generated ownership and schema validation.
+- Civilization `repair/*`, `persistence/JooqRepairRepository.java`, Building/Decay repositories, `api/SettlementServices.java`, `settlement/SettlementService.java`, `MvpHistory.java`: material/jobs/recovery/Era contracts and integration.
+- Plugin `repair/*`, `SettlementRuntime.java`, `SettlementCommands.java`, `EsmpPlugin.java`, config.yml: inventory/world execution, commands, lifecycle and config migration.
+- `RepairServiceTest.java`, Settlement/Parcel factory fixtures, `SchemaMigrationTest.java`: behavioral and migration coverage.
+- README, AGENTS and .agent decision/gates/checklist/handoff: implemented behavior, operator instructions and evidence. Canonical frozen design remains unchanged.
 
 ## Verification
 
-- Final `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed: **127 tests, zero failures/errors/skips**, 30 tasks executed/three up-to-date. Nineteen changed/new Java sources were formatted during implementation. Dependency verification and ArchUnit stayed enabled; no pins changed.
-- Ten Decay regressions cover grace/freeze/downtime/recovery timing, explicit WEATHER/codec, connected CAVE_IN and vertical DROP, damage/ruin, recovery without healing, independent saved-world/SQL reconciliation, player baseline conflicts, destination Parcel and station/entity exclusions, partial conflicts, persisted material-profile corruption and manual restoration. A native Phase 5 upgrade retains baseline bytes and starts new grace with no invented damage; earlier migration suites still pass.
-- Real Phase 5 data copied to `.run/mvp-phase6-base` upgraded without changing prior gameplay rows or inventing operations/damage. A new frozen fixture used one registered floating roof, a station, a chest containing seven diamonds, a protected adjacent wall torch and external natural grass. All runtime tuning was confined to disposable copies.
-- Operator-only **test instrumentation**, not production switches, delegated real repository calls and introduced controlled exit-137 boundaries. Separate prepared/world/sql/partial fixtures proved:
-  - durable PREPARED intent before world application; players were saved away from the target, and restart kept the target unloaded until natural arrival;
-  - a fully saved world target/marker while SQL remained PREPARED;
-  - SQL APPLIED with world autosave disabled, so restart initially had the original block and no marker;
-  - a deliberately saved partial CAVE_IN target mixture with SQL PREPARED, modeling interrupted batch persistence.
-- All four recovered using the original operation ID. Server block predicates verified expected targets; DECAY_APPLIED facts were not duplicated. Chest/station/torch and external grass stayed intact; item and falling-block entity counts remained zero. The partial case reconstructed all four moves from mixed before/target states.
-- The **final artifact** then ran the modes/conflict/manual scenarios. WEATHER/DROP/CAVE_IN reached RUINED with 20 damaged cells and 10 lost source cells. A real local action recovered support to approximately 0.991 and stopped later mutations without reducing damage. An injected gold-block conflict after persisted intent was preserved, with no false damage. Manual placement/removal restored the original design, cleared damage to INTACT and advanced baseline revisions; chest inventory still contained seven diamonds.
-- The fault probe was removed from every fixture and its sources deleted. A final no-probe restart reconciled superseded historical operations without changing the manually restored roof or baseline revision. The fresh single-ESMP-JAR deployment reached READY/protection=true. No player-facing material Repair or Era behavior was claimed.
-- Evidence: ignored `.run/phase6-mvp-phase6-*.log`, `roof.json` files and the isolated `mvp-phase6-*` server databases/worlds/logs. The four exit-137 failures are intentional crash tests; recovered servers later stopped normally. Temporary probe JAR/classes/source and smoke script were removed. All verification servers/clients are stopped; the user's development server was not started/upgraded.
-- Initial redundant floor-mod casts failed `-Werror` and were removed; validation was not suppressed. Additional profile validation, exact credit-time recovery and same-intended-data manual restoration were covered before final acceptance.
+- `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed. XML reports total 139 tests, zero failures/errors/skips. Dependency verification and architecture checks stayed enabled. No production code changed after that build.
+- Twelve Repair regressions cover partial funds/duplicate confirmation, ruin completion/restart, ordinary/manual no-award, cancellation/refund capacity, pending-world barriers, per-cell conflicts, renovation, plain-item/capacity codec, later cycles, player receipt reconciliation, native Phase 6 migration, permission-pause cycle retention and terminal-state rejection.
+- Ignored `.run/phase7-smoke.cjs` exercised isolated Paper copies of a registered RUINED roof with real plain/named inventory. Partial supply waited; full supply consumed ten plain items, retained two named items, repaired to INTACT and advanced Era to one.
+- Controlled exit-137 fault injection wrapped real repository calls, never production switches. Supply cuts: durable intent only; saved inventory before SQL confirm; confirmed SQL with restored old player data. Every recovery used exactly one material movement.
+- World cuts: durable intent; saved world before SQL outcome; SQL outcome before world save; completed job/Era before world save; deliberately saved partial batch. All recovered without duplicate consumption/Era. Terminal-job recovery checked every applied target (including debris air) with server block predicates before freezing time; SQL COMPLETED was not accepted as physical proof.
+- Per-cell injected gold conflict: nine materials consumed, one unused item refunded, conflict preserved and Era stayed zero. Valid other work completed.
+- Refund cuts: saved credited inventory before SQL confirm and SQL-confirmed refund with old player data restored. Both recovered to ten plain plus two named items, escrow zero and refunded ten, with player receipt sequence two.
+- Evidence remains in ignored `.run/phase7-mvp-phase7-*.log`, per-case `repair.json`/`roof.json`, databases, player/world saves and server logs. Fixture timing is intentionally shortened; do not copy fixture tuning to deployment. Exit 137 is intentional crash instrumentation.
+- After removing the probe, the repaired-world server restarted to READY; `node .run/phase7-smoke.cjs plain` read COMPLETED, zero pending cells/escrow, ten consumed materials, Era 1 and the History catalog. All deployed probe JARs and temporary probe source/classes/smoke script were removed; evidence logs and isolated saved data remain.
+- All supervised Phase 7 verification servers and clients are stopped; final no-probe shutdown exited zero.
 
 ## Next action
 
-Begin frozen Phase 7 only: derive current damage material requirements, accept real materials at the Building station, persist reservations/jobs and game-time progress, restore only current active-baseline damage through guarded natural-load batches, recover inventory/world/SQL accounting and advance Era once for a qualifying RUINED→Repair→INTACT cycle.
+Begin Phase 8 by enumerating and running its frozen full acceptance matrix on disposable copies, including real development-copy migration, performance and paired world/player-data/database restore. Do not add features or tag MVP before those gates pass.
 
 ## Risks or blockers
 
-- World saves, SQL and future item inventories are not atomic. Preserve the intent/marker/outcome distinction and expected-state checks; do not replace them with an exactly-once assumption or replay superseded baselines.
-- Profiles are intentionally conservative full cubes. Unsafe neighboring attachments/fluids/gravity blocks or entities can defer/exclude candidates; some structures will weather or remain partially damaged rather than undergo general physics collapse. Expansion requires explicit safe profiles/evidence.
-- Decay uses current Owner BUILD permission for source/destination, without administrator or same-Settlement bypass. A restrictive Holder policy may make a locally inactive Building ineligible for physical changes.
-- Condition is derived from current damage and structural loss. Manual rebuilding is allowed vanilla gameplay but must not be mistaken for future station Repair or award Era. Phase 7 needs durable qualifying-cycle identity/accounting.
-- Isolated cases use short timing/low thresholds and protocol compatibility plugins; shipped defaults remain 72000/24000/1200 and 20/30. Do not copy fixture configuration or fault instrumentation to user deployment.
-- Existing Building observation recovery still fails closed on genuinely stale world/authority/bounds. Keep its journal for explicit reconciliation rather than deleting evidence or bypassing permissions.
+- Inventory, world saves and SQL remain independent stores. Preserve intent/receipt/marker/outcome reconciliation; never promise general exactly-once storage or arbitrarily restore only one component.
+- Plain full-cube material profiles and block-entity exclusion are deliberate. Native-client interaction/visual acceptance remains pending.
+- Historical phase checklist sections describe their then-current state; the Phase 7 section supersedes prior no-Repair/no-Era expectations.
+- User development data was not upgraded; isolated protocol clients and operator-only probes do not constitute the complete Phase 8 release gate.

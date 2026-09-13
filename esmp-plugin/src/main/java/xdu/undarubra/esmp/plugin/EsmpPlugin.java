@@ -114,6 +114,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                             readLocalActivityPolicy(),
                             readBuildingPolicy(),
                             readDecayPolicy(),
+                            readRepairPolicy(),
                             failure -> fail("Settlement storage or publication failed", failure),
                             (connection, id) -> {
                                 try {
@@ -283,7 +284,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 13) {
+        if (!(version instanceof Integer number) || number < 1 || number > 14) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -471,6 +472,19 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 13);
             saveConfig();
         }
+        if (number < 14) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-repair.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException("Cannot back up Repair configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            readRepairPolicy();
+            getConfig().set("config-version", 14);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -561,6 +575,14 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             throw new IllegalArgumentException("buildings must be a mapping");
         return new xdu.undarubra.esmp.civilization.building.BuildingService.Policy(
                 Math.toIntExact(positiveSetting("buildings.max-volume", 4096)));
+    }
+
+    private xdu.undarubra.esmp.civilization.repair.RepairService.Policy readRepairPolicy() {
+        Object section = getConfig().get("repair");
+        if (section != null && !(section instanceof ConfigurationSection))
+            throw new IllegalArgumentException("repair must be a mapping");
+        return new xdu.undarubra.esmp.civilization.repair.RepairService.Policy(
+                positiveSetting("repair.batch-ticks", 200));
     }
 
     private xdu.undarubra.esmp.civilization.decay.DecayService.Policy readDecayPolicy() {
