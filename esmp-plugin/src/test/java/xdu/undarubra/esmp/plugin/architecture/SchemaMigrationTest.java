@@ -197,6 +197,9 @@ class SchemaMigrationTest {
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase3-acquisition'");
             s.executeUpdate("DROP TABLE settlement_local_activity");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
+            for (String table : List.of("building_operations", "building_revisions", "buildings"))
+                s.executeUpdate("DROP TABLE " + table);
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
             for (String state : List.of("PENDING", "ACCEPTED")) {
                 s.executeUpdate(
                         "INSERT INTO settlement_offers"
@@ -252,6 +255,9 @@ class SchemaMigrationTest {
                 var s = c.createStatement()) {
             s.executeUpdate("DROP TABLE settlement_local_activity");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
+            for (String table : List.of("building_operations", "building_revisions", "buildings"))
+                s.executeUpdate("DROP TABLE " + table);
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
             s.executeUpdate(
                     "INSERT INTO"
                         + " settlement_activity(settlement_id,score,anchor_tick,day,credited,category)"
@@ -277,6 +283,45 @@ class SchemaMigrationTest {
                     assertEquals(2.5, r.getDouble(3));
                 }
                 assertEquals(3, count);
+            }
+        }
+    }
+
+    @Test
+    void phaseFourUpgradePreservesLocalActivityWithoutInventingBuildings() throws Exception {
+        Path file = directory.resolve("phase4.db");
+        legacy(file, false);
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            for (String table : List.of("building_operations", "building_revisions", "buildings"))
+                s.executeUpdate("DROP TABLE " + table);
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
+            s.executeUpdate(
+                    "INSERT INTO settlement_local_activity SELECT"
+                            + " settlement_id,world_instance_id,chunk_x,chunk_z,17.5,1000,1 FROM"
+                            + " settlement_chunks");
+        }
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            try (var r = s.executeQuery("SELECT count(*) FROM buildings")) {
+                assertTrue(r.next());
+                assertEquals(0, r.getInt(1));
+            }
+            try (var r =
+                    s.executeQuery(
+                            "SELECT count(*) FROM settlement_local_activity WHERE"
+                                    + " score_at_anchor=17.5 AND anchor_game_tick=1000 AND"
+                                    + " policy_version=1")) {
+                assertTrue(r.next());
+                assertEquals(3, r.getInt(1));
             }
         }
     }

@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 11
+config-version: 12
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -34,6 +34,11 @@ acquisition:
 local-activity:
   neighbor-weight: 0.25
   support-threshold: 20.0
+
+# Inclusive registered volume. The absolute safety ceiling is 32768 blocks.
+# Registration never loads chunks; larger construction must be split.
+buildings:
+  max-volume: 4096
 
 # Create/claim/price request a quote; purchase confirms and pays atomically.
 # Natural profiles must already be committed, including for the first founding (25).

@@ -70,6 +70,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "review",
                     "verified",
                     "parcel",
+                    "building",
                     "bypass",
                     "help");
     private final JavaPlugin plugin;
@@ -111,6 +112,10 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     requestQuote(player, null);
                 }
                 case "parcel" -> runtime.tools().command(player, args);
+                case "building" ->
+                        runtime.buildings()
+                                .command(
+                                        player, java.util.Arrays.copyOfRange(args, 1, args.length));
                 case "landvalue" -> {
                     exact(args, 1, "landvalue");
                     landValues.inspect(player);
@@ -379,7 +384,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                                     String.format(
                                                             Locale.ROOT,
                                                             "%d,%d · raw %.3f · support %.3f ·"
-                                                                + " region %s",
+                                                                    + " region %s",
                                                             chunk.x(),
                                                             chunk.z(),
                                                             view.rawScores().get(chunk),
@@ -1047,7 +1052,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
                         "/settlement local-activity [settlement] [page] (admin; derived support"
-                            + " only)",
+                                + " only)",
                         "/settlement invite|promote|kick|demote <name> <player|uuid>",
                         "/settlement transfer <settlement> <recipient> (propose acquisition)",
                         "/settlement acquisition <id> | acquisitions <settlement>",
@@ -1064,6 +1069,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
                         "/esmp tools <parcel_wand|management_book>",
                         "/settlement landvalue (natural base of the current chunk)",
+                        "/settlement building help (bounded registration, baseline and station)",
                         "/settlement parcel help | abandon <settlement> | confirm <offer-id>"))
             player.sendMessage(Component.text(line));
         player.sendMessage(
@@ -1091,6 +1097,9 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
         }
         if (parsed.length == 0) return List.of();
         String verb = parsed[0].toLowerCase(Locale.ROOT);
+        if (verb.equals("building"))
+            return runtime.buildings()
+                    .complete(java.util.Arrays.copyOfRange(parsed, 1, parsed.length));
         if (verb.equals("review") && !sender.hasPermission("esmp.admin")) return List.of();
         if (parsed.length == 4 && verb.equals("review")) {
             String prefix = parsed[3].toLowerCase(Locale.ROOT);

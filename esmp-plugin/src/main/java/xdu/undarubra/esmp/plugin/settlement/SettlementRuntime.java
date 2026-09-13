@@ -15,6 +15,7 @@ import xdu.undarubra.esmp.civilization.acquisition.AcquisitionService;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityService;
 import xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy;
+import xdu.undarubra.esmp.civilization.building.BuildingService;
 import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
 import xdu.undarubra.esmp.civilization.certification.CertificationService;
 import xdu.undarubra.esmp.civilization.settlement.*;
@@ -27,6 +28,7 @@ import xdu.undarubra.esmp.civilization.settlement.SettlementService;
 import xdu.undarubra.esmp.civilization.settlement.SettlementView;
 import xdu.undarubra.esmp.core.storage.WorldStore;
 import xdu.undarubra.esmp.core.time.GameClock;
+import xdu.undarubra.esmp.plugin.building.BuildingRuntime;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -51,13 +53,17 @@ public final class SettlementRuntime implements AutoCloseable {
     private long publicationVersion;
     private final Set<UUID> administrators = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    private record Publication(SettlementChange change, LandSnapshot.Land land) {}
+    private record Publication(
+            SettlementChange change,
+            LandSnapshot.Land land,
+            java.util.List<BuildingService.View> buildings) {}
 
     private ManagementTools tools;
     private final GameClock clock;
     private final ActivityService activity;
     private final ActivityListener activityListener;
     private final CertificationService certification;
+    private final BuildingRuntime buildings;
     private final AcquisitionService acquisitions;
     private final SettlementIndex index = new SettlementIndex();
     private final Set<UUID> bypass = new HashSet<>();
@@ -79,6 +85,7 @@ public final class SettlementRuntime implements AutoCloseable {
             GameClock clock,
             ActivityPolicy activityPolicy,
             LocalActivityPolicy localActivityPolicy,
+            BuildingService.Policy buildingPolicy,
             Consumer<Throwable> fatal,
             SettlementService.ReleaseGuard releaseGuard,
             ClaimPricingPolicy pricingPolicy,
@@ -125,6 +132,14 @@ public final class SettlementRuntime implements AutoCloseable {
                         acquisitionPolicy,
                         administrators::contains,
                         acquisitionPayment);
+        buildings =
+                new BuildingRuntime(
+                        plugin,
+                        this,
+                        xdu.undarubra.esmp.civilization.api.SettlementServices.buildings(
+                                database, clock, buildingPolicy, administrators::contains),
+                        buildingPolicy,
+                        fatal);
         activityListener = new ActivityListener(plugin, this, fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
@@ -136,7 +151,9 @@ public final class SettlementRuntime implements AutoCloseable {
 
     /** Forward migrations must finish before any new-schema projection is loaded. */
     public CompletableFuture<Void> loadSnapshots() {
-        return parcels.snapshot().thenAccept(snapshot -> land = snapshot);
+        return parcels.snapshot()
+                .thenAccept(snapshot -> land = snapshot)
+                .thenCompose(ignored -> buildings.initialize());
     }
 
     public CertificationService certification() {
@@ -147,12 +164,21 @@ public final class SettlementRuntime implements AutoCloseable {
         return acquisitions;
     }
 
+    public BuildingRuntime buildings() {
+        return buildings;
+    }
+
+    public boolean buildingCommitAvailable() {
+        return ready() && !mutationInFlight;
+    }
+
     public void activate(java.util.List<SettlementView> settlements) {
         index.load(settlements);
         ready = true;
         tools = new ManagementTools(plugin, this);
         tools.start();
         activityListener.start();
+        buildings.start();
         visualization.start();
         outboxTask =
                 plugin.getServer()
@@ -373,10 +399,46 @@ public final class SettlementRuntime implements AutoCloseable {
             UUID settlementId,
             Reservation reserved,
             Supplier<CompletableFuture<SettlementChange>> operation) {
+        commit(
+                player.getUniqueId(),
+                player,
+                settlementId,
+                reserved,
+                operation,
+                true,
+                new CompletableFuture<>());
+    }
+
+    public CompletableFuture<Void> mutateBuildingEdit(
+            UUID actor,
+            UUID settlementId,
+            Supplier<CompletableFuture<SettlementChange>> operation) {
+        var completion = new CompletableFuture<Void>();
+        commit(
+                actor,
+                plugin.getServer().getPlayer(actor),
+                settlementId,
+                null,
+                operation,
+                false,
+                completion);
+        return completion;
+    }
+
+    private void commit(
+            UUID actor,
+            Player player,
+            UUID settlementId,
+            Reservation reserved,
+            Supplier<CompletableFuture<SettlementChange>> operation,
+            boolean notify,
+            CompletableFuture<Void> completion) {
         if (!ready()) {
             throw new SettlementException(
                     "Settlement protection is still initializing or unavailable.");
         }
+        if (notify && buildings.hasPending(settlementId))
+            throw new SettlementException("Building edits are still committing; retry shortly.");
         if (mutationInFlight) {
             throw new SettlementException(
                     "Another Settlement change is committing; retry shortly.");
@@ -384,7 +446,6 @@ public final class SettlementRuntime implements AutoCloseable {
         mutationInFlight = true;
         frozenSettlement = settlementId;
         reservation = reserved;
-        UUID actor = player.getUniqueId();
         rememberAdministrator(actor);
         try {
             operation
@@ -392,7 +453,16 @@ public final class SettlementRuntime implements AutoCloseable {
                     .thenCompose(
                             change ->
                                     parcels.land(change.settlementId())
-                                            .thenApply(value -> new Publication(change, value)))
+                                            .thenCompose(
+                                                    value ->
+                                                            buildings
+                                                                    .active(change.settlementId())
+                                                                    .thenApply(
+                                                                            views ->
+                                                                                    new Publication(
+                                                                                            change,
+                                                                                            value,
+                                                                                            views))))
                     .whenComplete(
                             (publication, failure) ->
                                     main(
@@ -416,6 +486,9 @@ public final class SettlementRuntime implements AutoCloseable {
                                                     index.replace(
                                                             change.settlementId(),
                                                             change.current());
+                                                    buildings.publish(
+                                                            change.settlementId(),
+                                                            publication.buildings());
                                                 }
                                                 mutationInFlight = false;
                                                 frozenSettlement = null;
@@ -423,11 +496,13 @@ public final class SettlementRuntime implements AutoCloseable {
                                                 Player currentPlayer =
                                                         plugin.getServer().getPlayer(actor);
                                                 if (failure != null) {
+                                                    completion.completeExceptionally(failure);
                                                     report(currentPlayer, failure);
                                                     return;
                                                 }
                                                 closeUnauthorizedInventories();
-                                                if (currentPlayer != null) {
+                                                completion.complete(null);
+                                                if (notify && currentPlayer != null) {
                                                     currentPlayer.sendMessage(
                                                             Component.text(change.message()));
                                                     if (change.current() != null
@@ -441,7 +516,7 @@ public final class SettlementRuntime implements AutoCloseable {
                                                                 currentPlayer, change.current());
                                                     }
                                                 }
-                                                if (change.offer() != null) {
+                                                if (notify && change.offer() != null) {
                                                     var offer = change.offer();
                                                     Player recipient =
                                                             plugin.getServer()
@@ -498,6 +573,7 @@ public final class SettlementRuntime implements AutoCloseable {
             mutationInFlight = false;
             frozenSettlement = null;
             reservation = null;
+            completion.completeExceptionally(failure);
             report(player, failure);
         }
     }
@@ -646,6 +722,7 @@ public final class SettlementRuntime implements AutoCloseable {
     public void close() {
         if (tools != null) tools.close();
         activityListener.close();
+        buildings.close();
         closed = true;
         ready = false;
         if (outboxTask != null) {

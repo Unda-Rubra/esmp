@@ -39,7 +39,7 @@ subprojects {
 
 listOf(
     "esmp-core" to "world_definitions|world_instances|game_clock",
-    "esmp-civilization" to "civilization_schema|settlements|settlement_.*|parcel.*|activity_.*|land_value_.*|claim_.*|player_land_progress",
+    "esmp-civilization" to "civilization_schema|settlements|settlement_.*|parcel.*|activity_.*|land_value_.*|claim_.*|player_land_progress|buildings|building_.*",
     "esmp-economy" to "economy_.*"
 ).forEach { (module, tables) ->
     project(":$module") {

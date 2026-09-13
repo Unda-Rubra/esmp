@@ -310,6 +310,31 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     require(
                             connected(remaining),
                             "Unclaiming this chunk would split the Settlement.");
+                    require(
+                            !c.fetchExists(
+                                    c.selectOne()
+                                            .from(BUILDINGS)
+                                            .where(
+                                                    BUILDINGS
+                                                            .SETTLEMENT_ID
+                                                            .eq(id)
+                                                            .and(BUILDINGS.STATUS.eq("ACTIVE"))
+                                                            .and(
+                                                                    BUILDINGS.MIN_X.le(
+                                                                            (long) chunk.x() * 16
+                                                                                    + 15))
+                                                            .and(
+                                                                    BUILDINGS.MAX_X.ge(
+                                                                            (long) chunk.x() * 16))
+                                                            .and(
+                                                                    BUILDINGS.MIN_Z.le(
+                                                                            (long) chunk.z() * 16
+                                                                                    + 15))
+                                                            .and(
+                                                                    BUILDINGS.MAX_Z.ge(
+                                                                            (long) chunk.z()
+                                                                                    * 16)))),
+                            "Retire affected Buildings before unclaiming");
                     c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
                             .where(
                                     SETTLEMENT_LOCAL_ACTIVITY
@@ -600,6 +625,18 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                     "Remove Parcels through their consent workflow before"
                                             + " abandoning");
                             releaseGuard.check(DatabaseAccess.transaction(c), settlement.id());
+                            require(
+                                    !c.fetchExists(
+                                            c.selectOne()
+                                                    .from(BUILDINGS)
+                                                    .where(
+                                                            BUILDINGS
+                                                                    .SETTLEMENT_ID
+                                                                    .eq(settlement.id())
+                                                                    .and(
+                                                                            BUILDINGS.STATUS.eq(
+                                                                                    "ACTIVE")))),
+                                    "Retire Buildings before abandoning the Settlement");
                             c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
                                     .where(
                                             SETTLEMENT_LOCAL_ACTIVITY.SETTLEMENT_ID.eq(

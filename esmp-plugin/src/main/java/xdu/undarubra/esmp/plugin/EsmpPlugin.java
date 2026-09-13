@@ -112,6 +112,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                             gameClock,
                             readActivityPolicy(),
                             readLocalActivityPolicy(),
+                            readBuildingPolicy(),
                             failure -> fail("Settlement storage or publication failed", failure),
                             (connection, id) -> {
                                 try {
@@ -281,7 +282,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 11) {
+        if (!(version instanceof Integer number) || number < 1 || number > 12) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -443,6 +444,19 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 11);
             saveConfig();
         }
+        if (number < 12) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-buildings.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException("Cannot back up Building configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            readBuildingPolicy();
+            getConfig().set("config-version", 12);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -525,6 +539,14 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                     "Local Activity weight and threshold must be numeric");
         return new xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy(
                 neighbor.doubleValue(), support.doubleValue());
+    }
+
+    private xdu.undarubra.esmp.civilization.building.BuildingService.Policy readBuildingPolicy() {
+        Object section = getConfig().get("buildings");
+        if (section != null && !(section instanceof ConfigurationSection))
+            throw new IllegalArgumentException("buildings must be a mapping");
+        return new xdu.undarubra.esmp.civilization.building.BuildingService.Policy(
+                Math.toIntExact(positiveSetting("buildings.max-volume", 4096)));
     }
 
     private CertificationPolicy readCertificationPolicy() {

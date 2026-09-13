@@ -64,4 +64,14 @@ public final class SettlementServices {
         return new AcquisitionService(
                 new JooqAcquisitionRepository(database, clock, policy, administrator, payment));
     }
+
+    public static xdu.undarubra.esmp.civilization.building.BuildingService buildings(
+            UnitOfWork database,
+            GameClock clock,
+            xdu.undarubra.esmp.civilization.building.BuildingService.Policy policy,
+            Predicate<UUID> administrator) {
+        return new xdu.undarubra.esmp.civilization.building.BuildingService(
+                new xdu.undarubra.esmp.civilization.persistence.JooqBuildingRepository(
+                        database, clock, policy, administrator));
+    }
 }

@@ -63,7 +63,7 @@ public abstract class GenerateJooq extends DefaultTask {
             liquibase.update(new Contexts(), new LabelExpression());
         }
         String uuidColumns =
-                ".*\\.(world_instance_id|bukkit_world_uuid|source_uuid|settlement_id|owner_uuid|player_uuid|actor_uuid|banned_by|offer_id|issuer_uuid|recipient_uuid|event_id|parcel_id|request_id|proposer_uuid|treasury_uuid|governor_uuid|promotion_id|transaction_id|operation_id|quote_id|payer_uuid|application_id|applicant_uuid|decided_by_uuid|acquisition_id)";
+                ".*\\.(world_instance_id|bukkit_world_uuid|source_uuid|settlement_id|owner_uuid|player_uuid|actor_uuid|banned_by|offer_id|issuer_uuid|recipient_uuid|event_id|parcel_id|request_id|proposer_uuid|treasury_uuid|governor_uuid|promotion_id|transaction_id|operation_id|quote_id|payer_uuid|application_id|applicant_uuid|decided_by_uuid|acquisition_id|building_id)";
         var forcedTypes = new java.util.ArrayList<ForcedType>();
         forcedTypes.add(
                 new ForcedType()

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+<changeSet id="phase5-buildings" author="esmp" dbms="sqlite">
+<createTable tableName="buildings">
+<column name="building_id" type="TEXT"><constraints nullable="false" primaryKey="true"/></column>
+<column name="settlement_id" type="TEXT"><constraints nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_building_settlement"/></column>
+<column name="world_instance_id" type="TEXT"><constraints nullable="false" references="world_instances(world_instance_id)" foreignKeyName="fk_building_world"/></column>
+<column name="name" type="TEXT"><constraints nullable="false"/></column><column name="name_key" type="TEXT"><constraints nullable="false"/></column>
+<column name="min_x" type="INTEGER"><constraints nullable="false"/></column><column name="min_y" type="INTEGER"><constraints nullable="false"/></column><column name="min_z" type="INTEGER"><constraints nullable="false"/></column>
+<column name="max_x" type="INTEGER"><constraints nullable="false"/></column><column name="max_y" type="INTEGER"><constraints nullable="false"/></column><column name="max_z" type="INTEGER"><constraints nullable="false"/></column>
+<column name="revision" type="INTEGER"><constraints nullable="false"/></column><column name="status" type="TEXT"><constraints nullable="false"/></column><column name="created_tick" type="INTEGER"><constraints nullable="false"/></column>
+<column name="station_x" type="INTEGER"/><column name="station_y" type="INTEGER"/><column name="station_z" type="INTEGER"/>
+</createTable>
+<createIndex tableName="buildings" indexName="building_settlement"><column name="settlement_id"/><column name="status"/></createIndex>
+<createTable tableName="building_revisions">
+<column name="building_id" type="TEXT"><constraints nullable="false" primaryKey="true" references="buildings(building_id)" foreignKeyName="fk_revision_building"/></column>
+<column name="revision" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+<column name="actor_uuid" type="TEXT"><constraints nullable="false"/></column><column name="game_tick" type="INTEGER"><constraints nullable="false"/></column><column name="kind" type="TEXT"><constraints nullable="false"/></column>
+<column name="station_x" type="INTEGER"/><column name="station_y" type="INTEGER"/><column name="station_z" type="INTEGER"/>
+<column name="baseline" type="BLOB"><constraints nullable="false"/></column>
+</createTable>
+<!-- Durable inbox receipts make chunk-journal replay harmless even after later edits. -->
+<createTable tableName="building_operations">
+<column name="operation_id" type="TEXT"><constraints nullable="false" primaryKey="true"/></column>
+<column name="building_id" type="TEXT"><constraints nullable="false" references="buildings(building_id)" foreignKeyName="fk_operation_building"/></column>
+<column name="actor_uuid" type="TEXT"><constraints nullable="false"/></column><column name="fingerprint" type="TEXT"><constraints nullable="false"/></column><column name="game_tick" type="INTEGER"><constraints nullable="false"/></column>
+</createTable>
+</changeSet>
+</databaseChangeLog>

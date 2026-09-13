@@ -2,7 +2,7 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phases 0–4 已实现并通过相应验收；下一阶段是 Phase 5 显式建筑注册与基线。** 建镇用创始人钱包，扩张用聚落金库；认证与所有权购置均需管理员审核。阶段通过不等同于整个 MVP 或玩家验收完成。
+**冻结路线图 Phases 0–5 已实现并通过相应验收；下一阶段是 Phase 6 持久化衰败。** 已有显式建筑注册、合法改造基线与修订历史；阶段通过不等同于整个 MVP 或玩家验收完成。
 
 ## 当前基线功能（待按冻结要求重新验收）
 
@@ -13,10 +13,11 @@ ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依
 - 共享游戏时钟、聚落总活跃度、区块级局部活跃度与派生支持区域、历史、重启恢复，以及直接操作和活塞/漏斗等间接边界保护。
 - 整数钱包、聚落金库、转账、预算内发行及首次加入资金已存在。建镇从创始人钱包付款；所有扩张都从聚落金库付款，无论操作者是 Owner 还是 Governor，均按当前 Owner 的土地组合与优惠评估。
 - 新生成主世界区块的自然估值固定保存；`/settlement landvalue` 查看当前区块。后续挖填建造不改估值，未捕获的旧区块明确显示未知。
+- Owner/Governor 显式注册有体积上限的建筑；合法放置、拆除等建造操作更新基线，旧版本保留。可记录修复站位置，但尚不执行修复。
 
 新聚落显示 `S#编号`，内部 UUID 和公开编号稳定。新正式名需要先满足认证条件、提交申请并由管理员批准；已 VERIFIED 的正式改名仍由管理员办理。旧审批标记或已有正式名会明确迁移为 VERIFIED，不追造历史活跃贡献。
 
-**尚无注册建筑、Decay、Repair 或 Era 闭环。** Local Activity 只提供空间支持数据，不会自动释放土地、提供增益或创建可管理的行政区。
+**尚无 Decay、Repair 或 Era 闭环。** Local Activity 不自动释放土地；建筑的 ACTIVE/RETIRED 是注册生命周期，不是衰败状态或活跃度等级。
 
 ## 冻结 MVP 的执行顺序
 
@@ -220,6 +221,31 @@ Phase 1 升级不会改写已付款凭据或个人历史；旧版本未购买报
 
 捕获同时写入区块 PDC 日志，再异步保存到 SQLite。加载或查看区块会重放已有日志，不重新采样；已有估值出现冲突时拒绝覆盖。正常保存/备份仍须同时保留世界与数据库。没有日志且没有 SQL 记录的区块保持未知，不能伪装成已有自然估值。
 
+## 建筑注册、改造与历史
+
+Owner/Governor 可注册已经存在或新建的建筑。整个选择必须属于同一个聚落，并且使用者对覆盖的 Parcel/空间都有 BUILD 权限；Owner 不会绕过 Holder 策略。所有触及区块必须已经自然加载，注册和调整范围不会代为加载。
+
+```text
+/settlement building pos1 [x y z]
+/settlement building pos2 [x y z]
+/settlement building preview
+/settlement building register 1 "Workshop"
+```
+
+不填坐标时取玩家脚下所在方块坐标。两点均包含在选择中；默认最多 4096 格，`buildings.max-volume` 可设 1–32768，绝对上限 32768。活动建筑的选择体积不能重叠；大型结构可拆成不重叠的建筑。名字在同一聚落的活动建筑中唯一，内部 UUID 稳定。选择在离线后清除，不能靠物品获得管理权限。
+
+用 `/settlement building list [聚落] [页码]` 查看活动建筑（每页 32 条），`info <建筑UUID> [修订号]` 查看基线几何，`cell <建筑UUID> <x y z> [修订号]` 查看某格。省略修订号或填 0 表示当前版本；`history <建筑UUID>` 列出最近 50 次修订，已知更早版本仍可直接查询。
+
+基线保存原版 BlockData 与必要的几何标记，不保存箱子物品、告示文本等方块实体 NBT。几何由有界快照导出：占据格、外表面、封闭内部空气、门/活板门等开口与窄孔、简单竖直支撑关系。它不是完整物理模拟或完美建筑识别器。封闭区域的外部空气采用面连通判定，宽敞敞开空间不会被臆造为封闭室内。
+
+合法放置、拆除、桶操作、相关工具改造和玩家触发的生长会更新受影响基线；Citizen 或 Public Holder 只要当前 BUILD 策略允许，也能产生合法改造。拆墙是设计变更，不是衰败损伤；历史墙体不会因此成为当前修复目标。扩大/收缩注册范围时重新选两点，执行 `resize <建筑UUID>`，保留原 UUID 并建立新修订。
+
+大幅重新解释建筑时用 `retire <建筑UUID> confirm`。它不删方块或历史；之后可从世界当前状态重新注册，获得新 UUID。取消覆盖的 Claim 或放弃聚落前，须先退役受影响的活动建筑。
+
+修复站目前只记录位置：在建筑内放置工作台，待基线更新后执行 `station <建筑UUID> <x y z>`；`station <建筑UUID> clear` 清除标记。站点和方块实体被自动变更资格过滤器排除。合法拆除工作台会清除当前标记，旧修订仍保留原站点；本阶段没有材料消耗或修复作业。
+
+以上省略前缀的子命令都使用 `/settlement building`。编辑观察先写区块 PDC 日志，再经过现有提交/保护快照发布协调器；稳定操作 ID 防止重启回放旧改造。积压时相关操作会暂时拒绝，不能静默丢弃编辑。恢复只读取自然加载区块；世界实例、权限或边界不一致会安全停止并保留日志，不能删日志强行跳过。仍须配套备份世界与数据库，不能把它们当成一个原子存储。
+
 ## 活跃度与保护边界
 
 活跃度仍为初始 30、上限 100、七游戏日半衰期，低于 20 不活跃，达到 30 恢复；三游戏日后出现生产暂停资格，但实际生产未启用。团队 BUILD +1、INTERACTION +0.25；Public（包括非 Citizen Holder）合法贡献 +0.02，日上限 0.25。团队玩家日上限 5，聚落上限 20，同人同类间隔 200 游戏刻。冻结时间、登录、走动、压力板通行和自动机器不加分。
@@ -242,10 +268,10 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 ## 配置与数据
 
-当前 config 11；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase2-certification` 管理认证，`phase3-acquisition` 管理购置，`phase4-local-activity` 新建空的局部活跃度表。最新配置备份为 `config-before-local-activity.yml`，此前备份保留。
+当前 config 12；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase5-buildings` 增加建筑、修订快照和幂等操作凭据；旧认证、购置和局部活跃度数据保留。最新配置备份为 `config-before-buildings.yml`，此前备份保留。
 
 ```yaml
-config-version: 11
+config-version: 12
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -263,6 +289,8 @@ acquisition:
 local-activity:
   neighbor-weight: 0.25
   support-threshold: 20.0
+buildings:
+  max-volume: 4096
 ```
 
 `activity.public-credit` 替代旧 `visitor-credit`，数值等价的策略会安全迁移。所有玩法期限使用共享游戏刻；睡眠和向前时间跳转计入，回拨不倒扣，停服不补算。正常关闭刷新时钟/待提交观察；崩溃仍可能丢失未检查点的纯计时进度和未提交观察，必须配套备份世界与数据库。
@@ -283,7 +311,7 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 ## 下一步与协作
 
-下一步只做路线图 Phase 5：Owner/Governor 显式注册有体积上限、全部位于一个聚落且已自然加载的建筑区域，建立可随合法改造更新的基线与几何。不做全城自动发现，不提前实现 Decay/Repair 世界变更。
+下一步只做路线图 Phase 6：按建筑足迹局部支持与宽限期选择衰败候选，持久化意图后执行有限 WEATHER/DROP/CAVE_IN；自然加载、当前权限/修订/方块状态重验、无掉落物。不得提前实现 Repair、Era 或自动土地释放。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 

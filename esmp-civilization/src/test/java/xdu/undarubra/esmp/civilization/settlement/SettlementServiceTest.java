@@ -551,6 +551,9 @@ class SettlementServiceTest {
                 .execute("DROP TABLE settlement_acquisitions");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_local_activity");
+        for (String table : List.of("building_operations", "building_revisions", "buildings"))
+            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                    .execute("DROP TABLE " + table);
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_certification_applications");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
