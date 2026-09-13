@@ -550,6 +550,8 @@ class SettlementServiceTest {
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_acquisitions");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                .execute("DROP TABLE settlement_local_activity");
+        xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_certification_applications");
         xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                 .execute("DROP TABLE settlement_activity_lifetime");

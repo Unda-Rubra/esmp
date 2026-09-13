@@ -14,6 +14,7 @@ import xdu.undarubra.esmp.civilization.acquisition.AcquisitionPolicy;
 import xdu.undarubra.esmp.civilization.acquisition.AcquisitionService;
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityService;
+import xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy;
 import xdu.undarubra.esmp.civilization.certification.CertificationPolicy;
 import xdu.undarubra.esmp.civilization.certification.CertificationService;
 import xdu.undarubra.esmp.civilization.settlement.*;
@@ -77,6 +78,7 @@ public final class SettlementRuntime implements AutoCloseable {
             SettlementPolicy policy,
             GameClock clock,
             ActivityPolicy activityPolicy,
+            LocalActivityPolicy localActivityPolicy,
             Consumer<Throwable> fatal,
             SettlementService.ReleaseGuard releaseGuard,
             ClaimPricingPolicy pricingPolicy,
@@ -91,7 +93,11 @@ public final class SettlementRuntime implements AutoCloseable {
         this.clock = clock;
         activity =
                 xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
-                        database, clock, activityPolicy, administrators::contains);
+                        database,
+                        clock,
+                        activityPolicy,
+                        localActivityPolicy,
+                        administrators::contains);
         service =
                 xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
                         database,

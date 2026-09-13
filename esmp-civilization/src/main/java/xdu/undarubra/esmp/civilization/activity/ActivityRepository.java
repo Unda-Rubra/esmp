@@ -1,10 +1,12 @@
 package xdu.undarubra.esmp.civilization.activity;
 
 import xdu.undarubra.esmp.civilization.activity.ActivityService.PauseInterval;
+import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
 import xdu.undarubra.esmp.core.storage.UnitOfWork.Transaction;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,4 +23,17 @@ public interface ActivityRepository {
     CompletableFuture<ActivityStatus> status(UUID settlement);
 
     CompletableFuture<List<PauseInterval>> pauseIntervals(UUID settlement);
+
+    CompletableFuture<LocalActivityView> localActivity(UUID settlement);
+
+    CompletableFuture<Double> localSupport(
+            UUID settlement, UUID world, Map<ChunkPosition, Integer> footprint, long gameTick);
+
+    double localSupport(
+            Transaction transaction,
+            UUID settlement,
+            UUID world,
+            Map<ChunkPosition, Integer> footprint,
+            long gameTick)
+            throws SQLException;
 }

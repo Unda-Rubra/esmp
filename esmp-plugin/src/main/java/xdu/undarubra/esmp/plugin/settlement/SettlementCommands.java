@@ -58,6 +58,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "confirm",
                     "history",
                     "activity",
+                    "local-activity",
                     "price",
                     "landvalue",
                     "ban",
@@ -329,6 +330,66 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     optionalName(args, "activity");
                     showActivity(player, args.length == 2 ? named(args[1]) : here(player));
                 }
+                case "local-activity" -> {
+                    if (!runtime.administrator(actor))
+                        throw new SettlementException("Administrator required.");
+                    if (args.length > 3)
+                        throw new SettlementException(
+                                "Usage: /settlement local-activity [settlement] [page]");
+                    var settlement = args.length >= 2 ? named(args[1]) : here(player);
+                    int page = args.length == 3 ? Integer.parseInt(args[2]) : 1;
+                    if (page < 1) throw new SettlementException("Page must be positive.");
+                    runtime.query(
+                            player,
+                            () -> runtime.activity().localActivity(settlement.id()),
+                            view -> {
+                                var chunks =
+                                        view.rawScores().keySet().stream()
+                                                .sorted(
+                                                        Comparator.comparingInt(ChunkPosition::x)
+                                                                .thenComparingInt(ChunkPosition::z))
+                                                .toList();
+                                int pages = Math.max(1, (chunks.size() + 31) / 32);
+                                if (page > pages)
+                                    throw new SettlementException("Last page: " + pages);
+                                var regions = new java.util.HashMap<ChunkPosition, Integer>();
+                                for (int i = 0; i < view.regions().size(); i++)
+                                    for (var chunk : view.regions().get(i))
+                                        regions.put(chunk, i + 1);
+                                player.sendMessage(
+                                        Component.text(
+                                                "Local Activity · tick "
+                                                        + view.measuredAtTick()
+                                                        + " · threshold "
+                                                        + view.threshold()
+                                                        + " · "
+                                                        + chunks.size()
+                                                        + " chunks · "
+                                                        + view.regions().size()
+                                                        + " derived regions · page "
+                                                        + page
+                                                        + "/"
+                                                        + pages));
+                                for (int i = (page - 1) * 32;
+                                        i < Math.min(page * 32, chunks.size());
+                                        i++) {
+                                    var chunk = chunks.get(i);
+                                    player.sendMessage(
+                                            Component.text(
+                                                    String.format(
+                                                            Locale.ROOT,
+                                                            "%d,%d · raw %.3f · support %.3f ·"
+                                                                + " region %s",
+                                                            chunk.x(),
+                                                            chunk.z(),
+                                                            view.rawScores().get(chunk),
+                                                            view.support().get(chunk),
+                                                            regions.containsKey(chunk)
+                                                                    ? regions.get(chunk).toString()
+                                                                    : "none")));
+                                }
+                            });
+                }
                 case "list" -> {
                     exact(args, 1, "list");
                     var visible =
@@ -434,7 +495,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         if (args.length != 3 && args.length != 4)
                             throw new SettlementException(
                                     "Usage: /settlement review-transfer <id> <approve|deny>"
-                                        + " [note]");
+                                            + " [note]");
                         if (!runtime.administrator(actor))
                             throw new SettlementException("Administrator required.");
                         if (!args[2].equalsIgnoreCase("approve")
@@ -985,12 +1046,14 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/esmp treasury <settlement> deposit <amount> (fund expansion)",
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
+                        "/settlement local-activity [settlement] [page] (admin; derived support"
+                            + " only)",
                         "/settlement invite|promote|kick|demote <name> <player|uuid>",
                         "/settlement transfer <settlement> <recipient> (propose acquisition)",
                         "/settlement acquisition <id> | acquisitions <settlement>",
                         "/settlement accept-transfer <id> <quoted-fee> (recipient consent only)",
                         "/settlement review-transfer <id> <approve|deny> [note] (admin) |"
-                            + " cancel-transfer <id>",
+                                + " cancel-transfer <id>",
                         "/settlement offers | accept|decline|cancel <offer-id> | leave <name>",
                         "/settlement certification <settlement> | applications <settlement> |"
                                 + " verified",
@@ -1039,6 +1102,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 "price",
                                 "info",
                                 "activity",
+                                "local-activity",
                                 "members",
                                 "view",
                                 "invite",

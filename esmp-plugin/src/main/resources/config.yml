@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 10
+config-version: 11
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -28,9 +28,16 @@ acquisition:
   offer-ticks: 36000
   fee-basis-points: 1000
 
+# Read-time local support: own score + a fraction of four cardinal claimed neighbors.
+# Weight must be 0..0.25; 0 disables neighbor support. Threshold must be finite and positive.
+# Scores start at zero and inherit the aggregate half-life/caps; no spatial history is invented.
+local-activity:
+  neighbor-weight: 0.25
+  support-threshold: 20.0
+
 # Create/claim/price request a quote; purchase confirms and pays atomically.
 # Natural profiles must already be committed, including for the first founding (25).
-# No command forces chunk loads. Owner pays from wallet; Governor uses treasury allowance.
+# No command forces chunk loads. Founding uses Wallet; every expansion uses Treasury.
 # Threshold lists start at 0, increase strictly, and contain 'threshold:basisPoints' strings.
 # Basis points and activity factors are positive integers (10000 = 100%).
 # Discounts are integer factors from 1 to 10000; an empty list disables early discounts.

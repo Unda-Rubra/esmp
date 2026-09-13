@@ -12,8 +12,11 @@ import xdu.undarubra.esmp.civilization.activity.ActivityProjection.Value;
 import xdu.undarubra.esmp.civilization.activity.ActivityRepository;
 import xdu.undarubra.esmp.civilization.activity.ActivityService.PauseInterval;
 import xdu.undarubra.esmp.civilization.activity.ActivityStatus;
+import xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy;
+import xdu.undarubra.esmp.civilization.activity.LocalActivityView;
 import xdu.undarubra.esmp.civilization.api.GovernanceQueries;
 import xdu.undarubra.esmp.civilization.persistence.legacy.ObservationLegacyMigrations;
+import xdu.undarubra.esmp.civilization.settlement.ChunkPosition;
 import xdu.undarubra.esmp.civilization.settlement.ParcelAction;
 import xdu.undarubra.esmp.civilization.settlement.ParcelCell;
 import xdu.undarubra.esmp.civilization.settlement.Role;
@@ -26,6 +29,7 @@ import xdu.undarubra.esmp.core.time.GameClock;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -36,16 +40,19 @@ public final class JooqActivityRepository implements ActivityRepository {
     private final GameClock clock;
     private final ActivityPolicy policy;
     private final Predicate<UUID> administrator;
+    private final JooqLocalActivity local;
 
     public JooqActivityRepository(
             UnitOfWork database,
             GameClock clock,
             ActivityPolicy policy,
+            LocalActivityPolicy localPolicy,
             Predicate<UUID> administrator) {
         this.database = database;
         this.clock = clock;
         this.policy = policy;
         this.administrator = administrator;
+        this.local = new JooqLocalActivity(policy, localPolicy);
     }
 
     @Override
@@ -157,6 +164,29 @@ public final class JooqActivityRepository implements ActivityRepository {
                 });
     }
 
+    @Override
+    public CompletableFuture<LocalActivityView> localActivity(UUID settlement) {
+        return database.transact(
+                tx -> local.view(DatabaseAccess.context(tx), settlement, clock.ticks()));
+    }
+
+    @Override
+    public CompletableFuture<Double> localSupport(
+            UUID settlement, UUID world, Map<ChunkPosition, Integer> footprint, long gameTick) {
+        return database.transact(tx -> localSupport(tx, settlement, world, footprint, gameTick));
+    }
+
+    @Override
+    public double localSupport(
+            Transaction tx,
+            UUID settlement,
+            UUID world,
+            Map<ChunkPosition, Integer> footprint,
+            long gameTick)
+            throws SQLException {
+        return local.support(DatabaseAccess.context(tx), settlement, world, footprint, gameTick);
+    }
+
     private void credit(Transaction transaction, DSLContext c, ActivityContribution a, long now)
             throws SQLException {
         var s = SETTLEMENTS.as("s");
@@ -249,6 +279,7 @@ public final class JooqActivityRepository implements ActivityRepository {
             return;
         }
         // Count only the amount that passed authorization, cooldowns and all caps.
+        local.credit(c, a, amount, now);
         c.insertInto(SETTLEMENT_ACTIVITY_LIFETIME)
                 .set(SETTLEMENT_ACTIVITY_LIFETIME.SETTLEMENT_ID, a.settlementId())
                 .set(SETTLEMENT_ACTIVITY_LIFETIME.CREDITED, amount)

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="phase4-local-activity" author="esmp" dbms="sqlite">
+        <!-- No spatial history can be reconstructed from aggregate scores.
+             Claim removal deletes its bucket in the owning application transaction. -->
+        <createTable tableName="settlement_local_activity">
+            <column name="settlement_id" type="TEXT"><constraints nullable="false" primaryKey="true" references="settlements(settlement_id)" foreignKeyName="fk_local_activity_settlement"/></column>
+            <column name="world_instance_id" type="TEXT"><constraints nullable="false" primaryKey="true" references="world_instances(world_instance_id)" foreignKeyName="fk_local_activity_world"/></column>
+            <column name="chunk_x" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="chunk_z" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="score_at_anchor" type="REAL"><constraints nullable="false"/></column>
+            <column name="anchor_game_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="policy_version" type="INTEGER"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

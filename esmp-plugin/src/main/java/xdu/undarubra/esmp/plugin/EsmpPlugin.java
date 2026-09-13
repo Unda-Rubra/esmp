@@ -111,6 +111,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                             readSettlementPolicy(),
                             gameClock,
                             readActivityPolicy(),
+                            readLocalActivityPolicy(),
                             failure -> fail("Settlement storage or publication failed", failure),
                             (connection, id) -> {
                                 try {
@@ -280,7 +281,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 10) {
+        if (!(version instanceof Integer number) || number < 1 || number > 11) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -428,6 +429,20 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 10);
             saveConfig();
         }
+        if (number < 11) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-local-activity.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException(
+                        "Cannot back up Local Activity configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            readLocalActivityPolicy();
+            getConfig().set("config-version", 11);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -497,6 +512,19 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
         return new AcquisitionPolicy(
                 positiveSetting("acquisition.offer-ticks", 36000),
                 Math.toIntExact(positiveSetting("acquisition.fee-basis-points", 1000)));
+    }
+
+    private xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy readLocalActivityPolicy() {
+        Object section = getConfig().get("local-activity");
+        if (section != null && !(section instanceof ConfigurationSection))
+            throw new IllegalArgumentException("local-activity must be a mapping");
+        Object weight = getConfig().get("local-activity.neighbor-weight", .25);
+        Object threshold = getConfig().get("local-activity.support-threshold", 20.0);
+        if (!(weight instanceof Number neighbor) || !(threshold instanceof Number support))
+            throw new IllegalArgumentException(
+                    "Local Activity weight and threshold must be numeric");
+        return new xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy(
+                neighbor.doubleValue(), support.doubleValue());
     }
 
     private CertificationPolicy readCertificationPolicy() {

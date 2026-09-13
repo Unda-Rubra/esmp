@@ -51,7 +51,12 @@ class CertificationServiceTest {
         clock = new GameClock(db);
         clock.initialize(source, raw, true).join();
         activity =
-                ObservationServices.activity(db, clock, ActivityPolicy.defaults(), admin::equals);
+                ObservationServices.activity(
+                        db,
+                        clock,
+                        ActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        admin::equals);
         settlements =
                 SettlementServices.settlement(
                         db,

@@ -2,6 +2,7 @@ package xdu.undarubra.esmp.civilization.api;
 
 import xdu.undarubra.esmp.civilization.activity.ActivityPolicy;
 import xdu.undarubra.esmp.civilization.activity.ActivityService;
+import xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy;
 import xdu.undarubra.esmp.civilization.land.LandValuePolicy;
 import xdu.undarubra.esmp.civilization.land.LandValueService;
 import xdu.undarubra.esmp.civilization.persistence.JooqActivityRepository;
@@ -20,9 +21,10 @@ public final class ObservationServices {
             WorldStore database,
             GameClock clock,
             ActivityPolicy policy,
+            LocalActivityPolicy localPolicy,
             Predicate<UUID> administrator) {
         return new ActivityService(
-                new JooqActivityRepository(database, clock, policy, administrator));
+                new JooqActivityRepository(database, clock, policy, localPolicy, administrator));
     }
 
     public static LandValueService land(WorldStore database, LandValuePolicy policy) {

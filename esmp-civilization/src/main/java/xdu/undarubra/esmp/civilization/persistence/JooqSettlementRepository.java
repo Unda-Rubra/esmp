@@ -310,6 +310,21 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     require(
                             connected(remaining),
                             "Unclaiming this chunk would split the Settlement.");
+                    c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
+                            .where(
+                                    SETTLEMENT_LOCAL_ACTIVITY
+                                            .SETTLEMENT_ID
+                                            .eq(id)
+                                            .and(
+                                                    SETTLEMENT_LOCAL_ACTIVITY.WORLD_INSTANCE_ID.eq(
+                                                            settlement.worldInstanceId()))
+                                            .and(
+                                                    SETTLEMENT_LOCAL_ACTIVITY.CHUNK_X.eq(
+                                                            (long) chunk.x()))
+                                            .and(
+                                                    SETTLEMENT_LOCAL_ACTIVITY.CHUNK_Z.eq(
+                                                            (long) chunk.z())))
+                            .execute();
                     c.deleteFrom(SETTLEMENT_CHUNKS)
                             .where(
                                     SETTLEMENT_CHUNKS
@@ -585,6 +600,11 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                     "Remove Parcels through their consent workflow before"
                                             + " abandoning");
                             releaseGuard.check(DatabaseAccess.transaction(c), settlement.id());
+                            c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
+                                    .where(
+                                            SETTLEMENT_LOCAL_ACTIVITY.SETTLEMENT_ID.eq(
+                                                    settlement.id()))
+                                    .execute();
                             c.deleteFrom(SETTLEMENT_CHUNKS)
                                     .where(SETTLEMENT_CHUNKS.SETTLEMENT_ID.eq(settlement.id()))
                                     .execute();

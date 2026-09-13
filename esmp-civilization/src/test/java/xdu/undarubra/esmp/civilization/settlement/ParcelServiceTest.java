@@ -283,7 +283,11 @@ class ParcelServiceTest {
         assertFalse(p.allows(owner, Role.OWNER, ParcelAction.BUILD));
         var activity =
                 xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
-                        db, clock, ActivityPolicy.defaults(), admins::contains);
+                        db,
+                        clock,
+                        ActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        admins::contains);
         activity.initialize().join();
         long revision = parcels.land(id).join().securityRevision();
         activity.contribute(
@@ -411,6 +415,8 @@ class ParcelServiceTest {
                             // Forward-phase tables did not exist in a genuine legacy database.
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute("DROP TABLE settlement_acquisitions");
+                            xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
+                                    .execute("DROP TABLE settlement_local_activity");
                             xdu.undarubra.esmp.core.storage.DatabaseAccess.context(c)
                                     .execute(
                                             "DROP TABLE IF EXISTS"

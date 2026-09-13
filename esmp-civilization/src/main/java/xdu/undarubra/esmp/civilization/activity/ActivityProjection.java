@@ -16,10 +16,7 @@ public final class ActivityProjection {
             String category) {}
 
     public static Value project(Value value, long now, ActivityPolicy policy) {
-        long elapsed = Math.max(0, now - value.anchor());
-        double score =
-                value.score()
-                        * Math.pow(.5, elapsed / (policy.halfLifeDays() * GameClock.TICKS_PER_DAY));
+        double score = decay(value.score(), value.anchor(), now, policy.halfLifeDays());
         Long inactive = value.inactive();
         if (inactive == null && score < policy.inactiveThreshold()) {
             double crossing =
@@ -37,6 +34,11 @@ public final class ActivityProjection {
                 value.credited(),
                 value.last(),
                 value.category());
+    }
+
+    public static double decay(double score, long anchor, long now, double halfLifeDays) {
+        long elapsed = Math.max(0, now - anchor);
+        return score * Math.pow(.5, elapsed / (halfLifeDays * GameClock.TICKS_PER_DAY));
     }
 
     public static boolean paused(Long inactive, long now, ActivityPolicy policy) {

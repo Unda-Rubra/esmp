@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-13 — Frozen roadmap Phase 4 Local Activity implemented
+
+Admitted meaningful credit now updates aggregate/lifetime/actor-cap state and the exact Claim bucket in one UnitOfWork. Existing authorization, bans, Parcel rules, cooldowns, PUBLIC limits and aggregate cap semantics are unchanged. Buckets begin at zero; no historical spatial distribution is invented from aggregate scores. The structured forward migration adds only `settlement_local_activity`, with a composite lookup key and Settlement/world foreign keys. Claim removal/abandonment delete affected buckets in their owning transaction; ownership acquisition retains Settlement-local data. This prevents unclaim/reclaim from reviving stale support without deleting History.
+
+Permitted tuning: one-hop cardinal same-Settlement neighbor weight defaults to 0.25 and is bounded 0..0.25; support is capped at aggregate maxScore and the supported threshold defaults to 20. Raw scores inherit the existing seven-day default half-life and admitted credit/caps. Neighbor weight/threshold are read-time interpretation, not new stored scoring semantics. Stored version 1 is checked; unknown versions reject. Config 11 backs up prior configuration. Existing aggregate policy identity and released baseline files remain unchanged.
+
+`ActivityService.localSupport` provides read-only, area-weighted footprint projection, both asynchronously and inside an existing opaque transaction. Weights are block columns per chunk (1..256); all footprint chunks must still belong to the given Settlement/world. Future projection is allowed, but pre-anchor history is rejected rather than inferred. Reads never persist scores or load chunks; footprint-only queries omit far-away Claims and do not derive Regions. Inspection returns ephemeral deterministic four-connected components through an administrator-only paginated command.
+
+The frozen bundle is unchanged: this is Phase 4 execution/tuning, not districts, buffs, Building implementation or automatic release. Phase 5 explicit bounded registration is next.
+
+Evidence: clean no-cache `check build` passed 108 tests, including local spatial/weighted/lifecycle/region/rollback regressions and previous-phase migration preservation. Actual Paper preserved prior rows on upgrade, admitted only real authorized credits, applied bounded neighbor support, froze local writes/decay during a time freeze and projected a seven-day half-life without rewriting stored rows. Restart retained all 360 non-clock rows. With only isolated read-time threshold tuning, two supported components merged after a real middle-Claim action; Claims stayed owned. Final empty-data startup reached READY. Server-side block predicates, not client prediction, confirmed successful actions.
+
 ## 2026-09-13 — Frozen roadmap Phase 3 ownership acquisition implemented
 
 Owner proposal discloses the land-only fee before recipient acceptance; acceptance binds that exact amount but never spends or changes ownership. Administrator approval revalidates parties/bans, ownership/Claim/security revisions, every immutable profile and pricing policy, then atomically records recipient Wallet SINK, ownership/membership changes, acquisition decision, History/outbox and GameClock checkpoint. Existing runtime reservation/publication remains authoritative.
@@ -12,7 +24,7 @@ The structured forward migration adds `settlement_acquisitions` and cancels only
 
 The frozen architecture bundle and released baseline changeSets are unchanged. This is Phase 3 execution and permitted coefficient tuning, not a new acquisition/appraisal/contract system. No Local Activity or Building implementation was added.
 
-Evidence: `./gradlew clean check build --no-build-cache --no-daemon --console=plain` under the repository JDK passed 102 tests with no failures/errors/skips. Actual upgraded Paper rejected premature approval/wrong fee/non-admin review/insufficient funds, then charged one 10-unit SINK and retained Treasury 17/VERIFIED name. The former Owner became Citizen and lost Owner-only authority. Restart preserved all 325 non-clock rows; replay kept Wallet 0 and one transfer fact. Outsider stone break failed and new Owner control succeeded before/after restart. Separate empty-data final-JAR startup reached READY. Native book layout remains player acceptance.
+Evidence: `./gradlew clean check build --no-build-cache --no-daemon --console=plain` under the repository JDK passed 102 tests with no failures/errors/skips. Actual upgraded Paper rejected premature approval/wrong fee/non-admin review/insufficient funds, then charged one 10-unit SINK and retained Treasury 17/VERIFIED name. The former Owner became Citizen and lost Owner-only authority. Restart preserved all 325 non-clock rows; replay kept Wallet 0 and one transfer fact. Protocol clients showed outsider denial and Owner break responses; the post-restart Owner response was client prediction, not an authoritative server block assertion (clarified during Phase 4). Separate empty-data final-JAR startup reached READY. Native book layout remains player acceptance.
 
 ## 2026-09-12 — Frozen roadmap Phase 2 certification implemented
 

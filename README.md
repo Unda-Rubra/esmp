@@ -2,7 +2,7 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phases 0–3 已实现并通过相应验收；下一阶段是 Phase 4 Local Activity。** 建镇用创始人钱包，扩张用聚落金库；认证与所有权购置均需管理员审核。阶段通过不等同于整个 MVP 或玩家验收完成。
+**冻结路线图 Phases 0–4 已实现并通过相应验收；下一阶段是 Phase 5 显式建筑注册与基线。** 建镇用创始人钱包，扩张用聚落金库；认证与所有权购置均需管理员审核。阶段通过不等同于整个 MVP 或玩家验收完成。
 
 ## 当前基线功能（待按冻结要求重新验收）
 
@@ -10,13 +10,13 @@ ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依
 - Owner / Governor / Citizen / Public，邀请、接受、升降级、转让、退出及聚落级禁令。Holder 是独立的 Parcel 关系，不自动成为 Citizen。
 - 付费认领：先报价再确认；首次建镇固定 25，后续按不可变地价、土地组合、规模、活跃度和个人优惠计价。缺失自然估值时拒绝购买。
 - 聚落内 8×8×8 单元组成的 Parcel，四类权限、零个或多个 Holder、持久化协商批准，以及命令和书/木棍工具。
-- 共享游戏时钟、活跃度、历史、重启恢复，以及直接操作和活塞/漏斗等间接边界保护。
+- 共享游戏时钟、聚落总活跃度、区块级局部活跃度与派生支持区域、历史、重启恢复，以及直接操作和活塞/漏斗等间接边界保护。
 - 整数钱包、聚落金库、转账、预算内发行及首次加入资金已存在。建镇从创始人钱包付款；所有扩张都从聚落金库付款，无论操作者是 Owner 还是 Governor，均按当前 Owner 的土地组合与优惠评估。
 - 新生成主世界区块的自然估值固定保存；`/settlement landvalue` 查看当前区块。后续挖填建造不改估值，未捕获的旧区块明确显示未知。
 
 新聚落显示 `S#编号`，内部 UUID 和公开编号稳定。新正式名需要先满足认证条件、提交申请并由管理员批准；已 VERIFIED 的正式改名仍由管理员办理。旧审批标记或已有正式名会明确迁移为 VERIFIED，不追造历史活跃贡献。
 
-**尚无 Local Activity、注册建筑、Decay、Repair 或 Era 闭环。** 所有权购置现为 Owner 提议、接收方确认费用、管理员批准后原子扣款和转移；旧两方立即转让入口已移除。
+**尚无注册建筑、Decay、Repair 或 Era 闭环。** Local Activity 只提供空间支持数据，不会自动释放土地、提供增益或创建可管理的行政区。
 
 ## 冻结 MVP 的执行顺序
 
@@ -226,14 +226,26 @@ Phase 1 升级不会改写已付款凭据或个人历史；旧版本未购买报
 
 SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存或旧排队事件获得贡献。迁移保留原评分和上限记录；任意修改已安装的 Activity 数值策略仍需显式迁移，否则启动安全拒绝。
 
+### 局部活跃度与支持区域
+
+每次通过现有权限、冷却和全部上限检查的实际贡献，同时记入聚落总分和动作所在 Claim 区块。局部分数从 0 开始，默认沿用七游戏日半衰期与总分上限；旧总分不会被拆分成虚构的空间历史。没有周期性全区块写入，查询只按共享游戏时间计算。
+
+默认支持值为：本区块分数 ＋ 四个正交相邻、仍属于同一聚落的区块原始分数之和 × 0.25，最高不超过总分上限。不跨聚落、不算对角、不递归传播。`local-activity.neighbor-weight` 允许 0–0.25，设 0 关闭邻近支持；`support-threshold` 默认 20。两者只是查询时调参，不改已有原始分数。
+
+管理员执行 `/settlement local-activity [聚落] [页码]` 查看测量游戏刻、各区块原始分数/支持值及派生区域；每页 32 个区块，省略聚落时查看当前位置。支持值达到阈值的 Claim 按四方向连通形成 ActivityRegion；显示编号只属于当前快照，不是稳定身份，不能创建、命名或分配成员。
+
+取消认领会在同一事务中删除对应局部桶，重新认领从 0 开始；放弃聚落清除其局部桶，历史仍保留。所有权购置保留聚落的局部数据。认证、付费认领的活跃度修正和普通状态仍使用原聚落总活跃度，不被局部结果替换。
+
+开发接口 `ActivityService.localSupport(settlementId, worldInstanceId, footprint, gameTick)` 按足迹面积加权返回支持值；`footprint` 是 `Map<ChunkPosition,Integer>`，每项代表该区块内 1–256 列方块面积。所有区块必须仍属该聚落及世界实例。接口可投影未来，但不推造早于已记录锚点的历史；另有使用已有 `UnitOfWork.Transaction` 的重载，不加载世界区块、不计算无关区域、不写分数。
+
 未归属玩家的内部机械使用 Holder 自动化许可（未分配 Parcel 使用 Owner 许可）；跨保护边界需两侧明确允许 Public 自动化。容器权限与建造权限独立；权限撤销会关闭已打开的非法容器。原有 PvP、地面拾取和自然生物移动范围不变；其他插件/控制台直接改世界仍需要各自权限与集成。
 
 ## 配置与数据
 
-当前 config 10；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase2-certification` 管理认证状态/申请/终身贡献；`phase3-acquisition` 新建购置记录并取消旧待处理转让。旧 `certified` 列已删除。最新配置备份为 `config-before-acquisition.yml`，此前备份保留。
+当前 config 11；旧兼容标记 Core 1、Civilization 3、Economy 2、自然估值 1、Claim pricing 1 保持不变。Liquibase `phase2-certification` 管理认证，`phase3-acquisition` 管理购置，`phase4-local-activity` 新建空的局部活跃度表。最新配置备份为 `config-before-local-activity.yml`，此前备份保留。
 
 ```yaml
-config-version: 10
+config-version: 11
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -248,6 +260,9 @@ settlements:
 acquisition:
   offer-ticks: 36000
   fee-basis-points: 1000
+local-activity:
+  neighbor-weight: 0.25
+  support-threshold: 20.0
 ```
 
 `activity.public-credit` 替代旧 `visitor-credit`，数值等价的策略会安全迁移。所有玩法期限使用共享游戏刻；睡眠和向前时间跳转计入，回拨不倒扣，停服不补算。正常关闭刷新时钟/待提交观察；崩溃仍可能丢失未检查点的纯计时进度和未提交观察，必须配套备份世界与数据库。
@@ -268,7 +283,7 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 ## 下一步与协作
 
-下一步只做路线图 Phase 4：Claim 区块级惰性 Local Activity、有限邻近支持、派生连通 ActivityRegion。不释放土地，不提前实现建筑、衰败、修复或其他后续系统。
+下一步只做路线图 Phase 5：Owner/Governor 显式注册有体积上限、全部位于一个聚落且已自然加载的建筑区域，建立可随合法改造更新的基线与几何。不做全城自动发现，不提前实现 Decay/Repair 世界变更。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 

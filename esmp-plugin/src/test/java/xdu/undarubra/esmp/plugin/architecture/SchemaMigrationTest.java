@@ -195,11 +195,13 @@ class SchemaMigrationTest {
                 var s = c.createStatement()) {
             s.executeUpdate("DROP TABLE settlement_acquisitions");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase3-acquisition'");
+            s.executeUpdate("DROP TABLE settlement_local_activity");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
             for (String state : List.of("PENDING", "ACCEPTED")) {
                 s.executeUpdate(
                         "INSERT INTO settlement_offers"
-                            + "(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,"
-                            + "ownership_revision,chunk_revision,state) SELECT '"
+                            + "(offer_id,settlement_id,type,issuer_uuid,recipient_uuid,expires_at,ownership_revision,chunk_revision,state)"
+                            + " SELECT '"
                                 + UUID.randomUUID()
                                 + "',settlement_id,'TRANSFER',owner_uuid,"
                                 + "owner_uuid,36000,ownership_revision,chunk_revision,'"
@@ -235,6 +237,47 @@ class SchemaMigrationTest {
             assertEquals("TRANSFER", rows.getString(1));
             assertEquals("CANCELLED", rows.getString(2));
             assertFalse(rows.next());
+        }
+    }
+
+    @Test
+    void phaseThreeUpgradeDoesNotInventSpatialHistoryOrChangeAggregateScores() throws Exception {
+        Path file = directory.resolve("phase3.db");
+        legacy(file, false);
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            s.executeUpdate("DROP TABLE settlement_local_activity");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
+            s.executeUpdate(
+                    "INSERT INTO"
+                        + " settlement_activity(settlement_id,score,anchor_tick,day,credited,category)"
+                        + " SELECT settlement_id,42.5,1000,0,2.5,'BUILD' FROM settlements");
+        }
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            try (var r = s.executeQuery("SELECT count(*) FROM settlement_local_activity")) {
+                assertTrue(r.next());
+                assertEquals(0, r.getInt(1));
+            }
+            try (var r =
+                    s.executeQuery("SELECT score,anchor_tick,credited FROM settlement_activity")) {
+                int count = 0;
+                while (r.next()) {
+                    count++;
+                    assertEquals(42.5, r.getDouble(1));
+                    assertEquals(1000, r.getLong(2));
+                    assertEquals(2.5, r.getDouble(3));
+                }
+                assertEquals(3, count);
+            }
         }
     }
 
