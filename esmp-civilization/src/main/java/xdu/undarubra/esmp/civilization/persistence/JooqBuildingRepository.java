@@ -299,11 +299,36 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                     var s = authorized(tx, actor, v.settlement(), stamp, false);
                     var old = baseline(c, id, v.revision());
                     var actual = new HashMap<Position, BuildingCell>();
+                    boolean resolvedDamage = false;
                     for (var entry : changes.entrySet()) {
                         require(
                                 v.bounds().contains(entry.getKey()),
                                 "Building bounds changed before edit publication");
                         allow(tx, actor, s, entry.getKey(), action);
+                        var position = entry.getKey();
+                        resolvedDamage |=
+                                c.deleteFrom(DECAY_DAMAGE)
+                                                .where(
+                                                        DECAY_DAMAGE
+                                                                .BUILDING_ID
+                                                                .eq(id)
+                                                                .and(
+                                                                        DECAY_DAMAGE.X.eq(
+                                                                                (long)
+                                                                                        position
+                                                                                                .x()))
+                                                                .and(
+                                                                        DECAY_DAMAGE.Y.eq(
+                                                                                (long)
+                                                                                        position
+                                                                                                .y()))
+                                                                .and(
+                                                                        DECAY_DAMAGE.Z.eq(
+                                                                                (long)
+                                                                                        position
+                                                                                                .z())))
+                                                .execute()
+                                        > 0;
                         if (!old.at(entry.getKey()).equals(entry.getValue()))
                             actual.put(entry.getKey(), entry.getValue());
                     }
@@ -314,8 +339,8 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                             .set(BUILDING_OPERATIONS.FINGERPRINT, fingerprint)
                             .set(BUILDING_OPERATIONS.GAME_TICK, clock.ticks())
                             .execute();
-                    if (!actual.isEmpty()) {
-                        var nextBase = old.patch(actual);
+                    if (!actual.isEmpty() || resolvedDamage) {
+                        var nextBase = actual.isEmpty() ? old : old.patch(actual);
                         clearInvalidStation(c, v, nextBase);
                         long next = Math.addExact(v.revision(), 1);
                         advance(c, id, next);
@@ -426,7 +451,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 "Building edit is not permitted here");
     }
 
-    private static View current(DSLContext c, UUID id) {
+    static View current(DSLContext c, UUID id) {
         var r = c.selectFrom(BUILDINGS).where(BUILDINGS.BUILDING_ID.eq(id)).fetchOne();
         require(r != null, "Building not found");
         return view(r);
@@ -466,7 +491,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 station);
     }
 
-    private static BuildingBaseline baseline(DSLContext c, UUID id, long revision) {
+    static BuildingBaseline baseline(DSLContext c, UUID id, long revision) {
         byte[] bytes =
                 c.select(BUILDING_REVISIONS.BASELINE)
                         .from(BUILDING_REVISIONS)
@@ -522,6 +547,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 .set(BUILDING_REVISIONS.STATION_Z, point == null ? null : (long) point.z())
                 .set(BUILDING_REVISIONS.BASELINE, baseline.encode())
                 .execute();
+        JooqDecayRepository.rebase(c, id, baseline, tick);
         c.insertInto(SETTLEMENT_EVENTS)
                 .set(SETTLEMENT_EVENTS.EVENT_ID, UUID.randomUUID())
                 .set(SETTLEMENT_EVENTS.SETTLEMENT_ID, v.settlement())

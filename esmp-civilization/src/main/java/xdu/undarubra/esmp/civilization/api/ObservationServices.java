@@ -22,9 +22,11 @@ public final class ObservationServices {
             GameClock clock,
             ActivityPolicy policy,
             LocalActivityPolicy localPolicy,
+            xdu.undarubra.esmp.civilization.decay.DecayService.Policy decayPolicy,
             Predicate<UUID> administrator) {
         return new ActivityService(
-                new JooqActivityRepository(database, clock, policy, localPolicy, administrator));
+                new JooqActivityRepository(
+                        database, clock, policy, localPolicy, decayPolicy, administrator));
     }
 
     public static LandValueService land(WorldStore database, LandValuePolicy policy) {

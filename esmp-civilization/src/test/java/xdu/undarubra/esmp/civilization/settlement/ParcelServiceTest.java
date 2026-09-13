@@ -287,6 +287,7 @@ class ParcelServiceTest {
                         clock,
                         ActivityPolicy.defaults(),
                         xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
                         admins::contains);
         activity.initialize().join();
         long revision = parcels.land(id).join().securityRevision();
@@ -419,6 +420,9 @@ class ParcelServiceTest {
                                     .execute("DROP TABLE settlement_local_activity");
                             for (String table :
                                     java.util.List.of(
+                                            "decay_damage",
+                                            "decay_operations",
+                                            "decay_state",
                                             "building_operations",
                                             "building_revisions",
                                             "buildings"))

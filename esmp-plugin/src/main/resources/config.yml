@@ -1,7 +1,7 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 12
+config-version: 13
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource
@@ -40,6 +40,15 @@ local-activity:
 buildings:
   max-volume: 4096
 
+
+# Registered-only bounded decay, using shared game ticks and local support hysteresis.
+decay:
+  grace-ticks: 72000
+  interval-ticks: 24000
+  check-ticks: 1200
+  inactive-threshold: 20.0
+  recovery-threshold: 30.0
+  ruined-fraction: 0.5
 # Create/claim/price request a quote; purchase confirms and pays atomically.
 # Natural profiles must already be committed, including for the first founding (25).
 # No command forces chunk loads. Founding uses Wallet; every expansion uses Treasury.

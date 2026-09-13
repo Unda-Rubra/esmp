@@ -56,6 +56,7 @@ class CertificationServiceTest {
                         clock,
                         ActivityPolicy.defaults(),
                         xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
                         admin::equals);
         settlements =
                 SettlementServices.settlement(

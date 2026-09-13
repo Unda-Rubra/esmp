@@ -115,6 +115,14 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
         return service.active(settlement);
     }
 
+    public View view(UUID id) {
+        return views.get(id);
+    }
+
+    public boolean containsChunk(UUID world, int x, int z) {
+        return spatial.containsKey(new Key(world, x, z));
+    }
+
     public void publish(UUID settlement, List<View> list) {
         var ids = new HashSet<UUID>();
         for (var v : list) ids.add(v.id());

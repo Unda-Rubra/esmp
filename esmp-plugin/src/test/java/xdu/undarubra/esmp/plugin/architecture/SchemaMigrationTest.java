@@ -197,9 +197,16 @@ class SchemaMigrationTest {
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase3-acquisition'");
             s.executeUpdate("DROP TABLE settlement_local_activity");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
-            for (String table : List.of("building_operations", "building_revisions", "buildings"))
-                s.executeUpdate("DROP TABLE " + table);
+            for (String table :
+                    List.of(
+                            "decay_damage",
+                            "decay_operations",
+                            "decay_state",
+                            "building_operations",
+                            "building_revisions",
+                            "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
             for (String state : List.of("PENDING", "ACCEPTED")) {
                 s.executeUpdate(
                         "INSERT INTO settlement_offers"
@@ -255,9 +262,16 @@ class SchemaMigrationTest {
                 var s = c.createStatement()) {
             s.executeUpdate("DROP TABLE settlement_local_activity");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
-            for (String table : List.of("building_operations", "building_revisions", "buildings"))
-                s.executeUpdate("DROP TABLE " + table);
+            for (String table :
+                    List.of(
+                            "decay_damage",
+                            "decay_operations",
+                            "decay_state",
+                            "building_operations",
+                            "building_revisions",
+                            "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
             s.executeUpdate(
                     "INSERT INTO"
                         + " settlement_activity(settlement_id,score,anchor_tick,day,credited,category)"
@@ -297,9 +311,16 @@ class SchemaMigrationTest {
         }
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
-            for (String table : List.of("building_operations", "building_revisions", "buildings"))
-                s.executeUpdate("DROP TABLE " + table);
+            for (String table :
+                    List.of(
+                            "decay_damage",
+                            "decay_operations",
+                            "decay_state",
+                            "building_operations",
+                            "building_revisions",
+                            "buildings")) s.executeUpdate("DROP TABLE " + table);
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase5-buildings'");
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
             s.executeUpdate(
                     "INSERT INTO settlement_local_activity SELECT"
                             + " settlement_id,world_instance_id,chunk_x,chunk_z,17.5,1000,1 FROM"
@@ -322,6 +343,83 @@ class SchemaMigrationTest {
                                     + " policy_version=1")) {
                 assertTrue(r.next());
                 assertEquals(3, r.getInt(1));
+            }
+        }
+    }
+
+    @Test
+    void phaseFiveUpgradePreservesBaselineAndStartsFreshDecayGrace() throws Exception {
+        Path file = directory.resolve("phase5.db");
+        legacy(file, false);
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+        }
+        UUID building = UUID.randomUUID();
+        var baseline =
+                new xdu.undarubra.esmp.civilization.building.BuildingBaseline(
+                        new xdu.undarubra.esmp.civilization.building.BuildingBounds(
+                                16, 1, 0, 16, 1, 0),
+                        List.of(
+                                new xdu.undarubra.esmp.civilization.building.BuildingCell(
+                                        "minecraft:stone_bricks", false, true, false, false)));
+        byte[] bytes = baseline.encode();
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            for (String table : List.of("decay_damage", "decay_operations", "decay_state"))
+                s.executeUpdate("DROP TABLE " + table);
+            s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase6-decay'");
+            s.executeUpdate(
+                    "INSERT INTO"
+                        + " buildings(building_id,settlement_id,world_instance_id,name,name_key,min_x,min_y,min_z,max_x,max_y,max_z,revision,status,created_tick)"
+                        + " SELECT '"
+                            + building
+                            + "',settlement_id,world_instance_id,'Legacy Building','legacy"
+                            + " building',16,1,0,16,1,0,1,'ACTIVE',0 FROM settlements WHERE"
+                            + " name='Legacy1'");
+            try (var insert =
+                    c.prepareStatement(
+                            "INSERT INTO"
+                                + " building_revisions(building_id,revision,actor_uuid,game_tick,kind,baseline)"
+                                + " VALUES(?,1,?,0,'REGISTERED',?)")) {
+                insert.setString(1, building.toString());
+                insert.setString(2, UUID.randomUUID().toString());
+                insert.setBytes(3, bytes);
+                insert.executeUpdate();
+            }
+        }
+        try (var store = new WorldStore(file)) {
+            initialize(store);
+            store.finishMigration().join();
+            var clock = new xdu.undarubra.esmp.core.time.GameClock(store);
+            clock.initialize(source, 0, true).join();
+            clock.sample(source, 200000, true);
+            var decay =
+                    xdu.undarubra.esmp.civilization.api.SettlementServices.decay(
+                            store,
+                            clock,
+                            xdu.undarubra.esmp.civilization.activity.ActivityPolicy.defaults(),
+                            xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                            xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults());
+            decay.initialize().join();
+            var work = decay.work(building).join();
+            assertFalse(work.state().eligible());
+            assertEquals(200000, work.state().inactiveSince());
+            assertNull(work.offer());
+        }
+        try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
+                var s = c.createStatement()) {
+            try (var r =
+                    s.executeQuery(
+                            "SELECT baseline FROM building_revisions WHERE building_id='"
+                                    + building
+                                    + "'")) {
+                assertTrue(r.next());
+                assertArrayEquals(bytes, r.getBytes(1));
+            }
+            try (var r = s.executeQuery("SELECT count(*) FROM decay_operations")) {
+                assertTrue(r.next());
+                assertEquals(0, r.getInt(1));
             }
         }
     }

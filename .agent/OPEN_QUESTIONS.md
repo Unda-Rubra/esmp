@@ -4,14 +4,14 @@
 
 The [frozen architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical and unchanged.
 
-Phases 0–5 are implemented/verified. Explicit bounded Building registration, geometry/baseline history, authorized-edit journals, resizing/retirement and station metadata are implemented. No Decay/Repair world mutation exists yet. Historical and phase-specific player acceptance remains pending.
+Phases 0–6 are implemented/verified. Registered Buildings now decay through bounded WEATHER/DROP/CAVE_IN with durable intent, independent world/SQL recovery, damage/condition history and local Activity recovery. No station material Repair or Era advancement exists yet. Player acceptance remains pending.
 
-## Phase 6 — next, not yet implemented
+## Phase 7 — next, not yet implemented
 
-1. **Eligibility and selection.** Use Building footprint local support plus grace; index due candidates instead of scanning all blocks. Activity recovery must stop future decay without repairing existing damage.
-2. **Safe bounded mutations.** Implement whitelisted WEATHER, vertical DROP and bounded CAVE_IN. Exclude block entities/stations, unregistered natural terrain, ordinary collectible drops and forced chunk loads.
-3. **Durable intent/apply/outcome.** Persist operations first, then revalidate world, active Building/baseline, ownership/security, local support and expected source immediately before world-thread mutation. Reconcile world saves independently from SQL progress and preserve player conflicts.
-4. **Condition and acceptance.** Compute INTACT/DAMAGED/RUINED and structured facts; test activity recovery, conflicts, restart around all mutation stages, idempotence, no drops and no force loads. No Repair/Era, TOPPLE, horizontal physics, disaster simulation or Claim release.
+1. **Station/material contract.** Use one protected station per Building; derive required materials from current active-baseline damage and define real player delivery/reservations. Do not appraise labor or add villagers/artisans.
+2. **Durable repair.** Persist job/material accounting and bounded GameClock progress; revalidate world, baseline, permissions, expected state and conflicts before naturally-loaded world batches. Exclude block entities and preserve player renovation.
+3. **Interruption recovery.** Test before/after physical mutations and material consumption; stable identities must prevent duplicate consumption or side effects. Never assume world saves, inventories and SQL are atomic.
+4. **History/Era completion.** Emit started/completed facts; RUINED → Repair → INTACT advances Era once per cycle/job, ordinary non-ruined repair does not. No rewards, historical replay, partial-wing UI or automatic release.
 
 ## Resolved infrastructure requirements
 
@@ -21,4 +21,4 @@ Phases 0–5 are implemented/verified. Explicit bounded Building registration, g
 
 ## Later frozen work
 
-Phase 7 adds material/time Repair with History/Era. Phase 8 hardens the entire loop and paired recovery before the MVP tag. Dynamic Settlement Cycle starts only afterward; no deferred-system placeholders now.
+Phase 8 hardens the entire loop, performance and paired recovery before the MVP tag. Dynamic Settlement Cycle starts only afterward; no deferred-system placeholders now.

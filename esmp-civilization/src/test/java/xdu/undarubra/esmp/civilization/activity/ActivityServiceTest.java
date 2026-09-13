@@ -58,6 +58,7 @@ class ActivityServiceTest {
                         clock,
                         ActivityPolicy.defaults(),
                         LocalActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
                         ignored -> false);
         settlements =
                 xdu.undarubra.esmp.civilization.api.SettlementServices.settlement(
@@ -178,6 +179,7 @@ class ActivityServiceTest {
                         clock,
                         ActivityPolicy.defaults(),
                         LocalActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
                         ignored -> false);
         activity.initialize().join();
         activity.contribute(List.of(build)).join();
@@ -316,6 +318,7 @@ class ActivityServiceTest {
                 clock,
                 ActivityPolicy.defaults(),
                 new LocalActivityPolicy(weight, threshold),
+                xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
                 ignored -> false);
     }
 

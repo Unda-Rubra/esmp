@@ -74,4 +74,15 @@ public final class SettlementServices {
                 new xdu.undarubra.esmp.civilization.persistence.JooqBuildingRepository(
                         database, clock, policy, administrator));
     }
+
+    public static xdu.undarubra.esmp.civilization.decay.DecayService decay(
+            UnitOfWork database,
+            GameClock clock,
+            xdu.undarubra.esmp.civilization.activity.ActivityPolicy activity,
+            xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy local,
+            xdu.undarubra.esmp.civilization.decay.DecayService.Policy policy) {
+        return new xdu.undarubra.esmp.civilization.decay.DecayService(
+                new xdu.undarubra.esmp.civilization.persistence.JooqDecayRepository(
+                        database, clock, activity, local, policy));
+    }
 }

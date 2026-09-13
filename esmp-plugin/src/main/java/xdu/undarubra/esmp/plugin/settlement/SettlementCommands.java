@@ -71,6 +71,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "verified",
                     "parcel",
                     "building",
+                    "decay",
                     "bypass",
                     "help");
     private final JavaPlugin plugin;
@@ -115,6 +116,10 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 case "building" ->
                         runtime.buildings()
                                 .command(
+                                        player, java.util.Arrays.copyOfRange(args, 1, args.length));
+                case "decay" ->
+                        runtime.decay()
+                                .inspect(
                                         player, java.util.Arrays.copyOfRange(args, 1, args.length));
                 case "landvalue" -> {
                     exact(args, 1, "landvalue");
@@ -1070,6 +1075,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/esmp tools <parcel_wand|management_book>",
                         "/settlement landvalue (natural base of the current chunk)",
                         "/settlement building help (bounded registration, baseline and station)",
+                        "/settlement decay <buildingUUID> (support, eligibility and condition)",
                         "/settlement parcel help | abandon <settlement> | confirm <offer-id>"))
             player.sendMessage(Component.text(line));
         player.sendMessage(

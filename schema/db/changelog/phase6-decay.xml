@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+<changeSet id="phase6-decay" author="esmp" dbms="sqlite">
+<createTable tableName="decay_state">
+<column name="building_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="buildings(building_id)" foreignKeyName="fk_decay_building"/></column>
+<column name="next_check_tick" type="INTEGER"><constraints nullable="false"/></column><column name="next_operation_tick" type="INTEGER"><constraints nullable="false"/></column>
+<column name="inactive_since_tick" type="INTEGER"/><column name="observed_tick" type="INTEGER"><constraints nullable="false"/></column><column name="observed_support" type="REAL"><constraints nullable="false"/></column>
+<column name="activity_revision" type="INTEGER"><constraints nullable="false"/></column><column name="cursor" type="INTEGER"><constraints nullable="false"/></column><column name="condition" type="TEXT"><constraints nullable="false"/></column><column name="policy_context" type="TEXT"><constraints nullable="false"/></column>
+</createTable>
+<createIndex tableName="decay_state" indexName="decay_due"><column name="next_check_tick"/><column name="building_id"/></createIndex>
+<createTable tableName="decay_operations">
+<column name="sequence" type="INTEGER" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+<column name="operation_id" type="TEXT"><constraints nullable="false" unique="true"/></column><column name="building_id" type="TEXT"><constraints nullable="false" references="buildings(building_id)" foreignKeyName="fk_decay_operation_building"/></column>
+<column name="settlement_id" type="TEXT"><constraints nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_decay_operation_settlement"/></column><column name="world_instance_id" type="TEXT"><constraints nullable="false"/></column>
+<column name="baseline_revision" type="INTEGER"><constraints nullable="false"/></column><column name="owner_uuid" type="TEXT"><constraints nullable="false"/></column><column name="ownership_revision" type="INTEGER"><constraints nullable="false"/></column><column name="chunk_revision" type="INTEGER"><constraints nullable="false"/></column><column name="security_revision" type="INTEGER"><constraints nullable="false"/></column><column name="activity_revision" type="INTEGER"><constraints nullable="false"/></column>
+<column name="policy_context" type="TEXT"><constraints nullable="false"/></column><column name="kind" type="TEXT"><constraints nullable="false"/></column><column name="state" type="TEXT"><constraints nullable="false"/></column>
+<column name="chunk_x" type="INTEGER"><constraints nullable="false"/></column><column name="chunk_z" type="INTEGER"><constraints nullable="false"/></column><column name="prepared_tick" type="INTEGER"><constraints nullable="false"/></column><column name="completed_tick" type="INTEGER"/>
+<column name="payload" type="BLOB"><constraints nullable="false"/></column><column name="detail" type="TEXT"><constraints nullable="false"/></column>
+</createTable>
+<createIndex tableName="decay_operations" indexName="decay_pending"><column name="building_id"/><column name="state"/></createIndex>
+<createIndex tableName="decay_operations" indexName="decay_chunk_recovery"><column name="world_instance_id"/><column name="chunk_x"/><column name="chunk_z"/><column name="sequence"/></createIndex>
+<createTable tableName="decay_damage">
+<column name="building_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="buildings(building_id)" foreignKeyName="fk_decay_damage_building"/></column>
+<column name="x" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column><column name="y" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column><column name="z" type="INTEGER"><constraints primaryKey="true" nullable="false"/></column>
+<column name="baseline_state" type="TEXT"><constraints nullable="false"/></column><column name="current_state" type="TEXT"><constraints nullable="false"/></column><column name="lost" type="INTEGER"><constraints nullable="false"/></column><column name="operation_id" type="TEXT"><constraints nullable="false"/></column>
+</createTable>
+</changeSet></databaseChangeLog>

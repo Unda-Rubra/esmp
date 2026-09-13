@@ -41,18 +41,21 @@ public final class JooqActivityRepository implements ActivityRepository {
     private final ActivityPolicy policy;
     private final Predicate<UUID> administrator;
     private final JooqLocalActivity local;
+    private final JooqDecayRepository decay;
 
     public JooqActivityRepository(
             UnitOfWork database,
             GameClock clock,
             ActivityPolicy policy,
             LocalActivityPolicy localPolicy,
+            xdu.undarubra.esmp.civilization.decay.DecayService.Policy decayPolicy,
             Predicate<UUID> administrator) {
         this.database = database;
         this.clock = clock;
         this.policy = policy;
         this.administrator = administrator;
         this.local = new JooqLocalActivity(policy, localPolicy);
+        this.decay = new JooqDecayRepository(database, clock, policy, localPolicy, decayPolicy);
     }
 
     @Override
@@ -280,6 +283,12 @@ public final class JooqActivityRepository implements ActivityRepository {
         }
         // Count only the amount that passed authorization, cooldowns and all caps.
         local.credit(c, a, amount, now);
+        decay.contribution(
+                transaction,
+                a.settlementId(),
+                Math.floorDiv(a.blockX(), 16),
+                Math.floorDiv(a.blockZ(), 16),
+                now);
         c.insertInto(SETTLEMENT_ACTIVITY_LIFETIME)
                 .set(SETTLEMENT_ACTIVITY_LIFETIME.SETTLEMENT_ID, a.settlementId())
                 .set(SETTLEMENT_ACTIVITY_LIFETIME.CREDITED, amount)

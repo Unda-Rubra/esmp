@@ -113,6 +113,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                             readActivityPolicy(),
                             readLocalActivityPolicy(),
                             readBuildingPolicy(),
+                            readDecayPolicy(),
                             failure -> fail("Settlement storage or publication failed", failure),
                             (connection, id) -> {
                                 try {
@@ -282,7 +283,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 12) {
+        if (!(version instanceof Integer number) || number < 1 || number > 13) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -457,6 +458,19 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().set("config-version", 12);
             saveConfig();
         }
+        if (number < 13) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-decay.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException("Cannot back up Decay configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            readDecayPolicy();
+            getConfig().set("config-version", 13);
+            saveConfig();
+        }
     }
 
     private CurrencyDefinition readCurrency() {
@@ -547,6 +561,26 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             throw new IllegalArgumentException("buildings must be a mapping");
         return new xdu.undarubra.esmp.civilization.building.BuildingService.Policy(
                 Math.toIntExact(positiveSetting("buildings.max-volume", 4096)));
+    }
+
+    private xdu.undarubra.esmp.civilization.decay.DecayService.Policy readDecayPolicy() {
+        Object section = getConfig().get("decay");
+        if (section != null && !(section instanceof ConfigurationSection))
+            throw new IllegalArgumentException("decay must be a mapping");
+        Object low = getConfig().get("decay.inactive-threshold", 20.0);
+        Object high = getConfig().get("decay.recovery-threshold", 30.0);
+        Object ruined = getConfig().get("decay.ruined-fraction", .5);
+        if (!(low instanceof Number inactive)
+                || !(high instanceof Number recovery)
+                || !(ruined instanceof Number fraction))
+            throw new IllegalArgumentException("Decay thresholds must be numeric");
+        return new xdu.undarubra.esmp.civilization.decay.DecayService.Policy(
+                nonNegativeSetting("decay.grace-ticks", 72000),
+                positiveSetting("decay.interval-ticks", 24000),
+                positiveSetting("decay.check-ticks", 1200),
+                inactive.doubleValue(),
+                recovery.doubleValue(),
+                fraction.doubleValue());
     }
 
     private CertificationPolicy readCertificationPolicy() {

@@ -160,6 +160,29 @@ public final class ActivityListener implements Listener, AutoCloseable {
                 });
     }
 
+    /** Drains admitted observations for a now-reserved Settlement before Decay authorization. */
+    public CompletableFuture<Void> barrier(UUID settlement) {
+        var batches = new ArrayList<java.util.List<ActivityContribution>>();
+        var batch = new ArrayList<ActivityContribution>();
+        var iterator = pending.values().iterator();
+        while (iterator.hasNext()) {
+            var observation = iterator.next();
+            if (!observation.settlementId().equals(settlement)) continue;
+            batch.add(observation);
+            iterator.remove();
+            if (batch.size() == 256) {
+                batches.add(batch);
+                batch = new ArrayList<>();
+            }
+        }
+        if (!batch.isEmpty()) batches.add(batch);
+        var result = flight;
+        for (var observations : batches)
+            result = result.thenCompose(ignored -> runtime.activity().contribute(observations));
+        flight = result;
+        return result;
+    }
+
     @Override
     public void close() {
         closed = true;
