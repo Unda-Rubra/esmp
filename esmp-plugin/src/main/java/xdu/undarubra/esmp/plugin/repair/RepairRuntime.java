@@ -244,13 +244,21 @@ public final class RepairRuntime implements Listener, AutoCloseable {
                                                                     job.payer(),
                                                                     job.settlement(),
                                                                     () ->
-                                                                            !inventory.verified(
-                                                                                            job
-                                                                                                    .payer())
-                                                                                    ? service.defer(
-                                                                                            job
-                                                                                                    .id())
-                                                                                    : run(job.id()))
+                                                                            main(() ->
+                                                                                            inventory
+                                                                                                    .verified(
+                                                                                                            job
+                                                                                                                    .payer()))
+                                                                                    .thenCompose(
+                                                                                            verified ->
+                                                                                                    verified
+                                                                                                            ? run(
+                                                                                                                    job
+                                                                                                                            .id())
+                                                                                                            : service
+                                                                                                                    .defer(
+                                                                                                                            job
+                                                                                                                                    .id())))
                                                             .whenComplete(
                                                                     (ignored, failure) -> {
                                                                         busy = false;

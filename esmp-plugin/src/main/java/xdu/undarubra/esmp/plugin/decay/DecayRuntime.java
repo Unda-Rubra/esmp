@@ -159,6 +159,8 @@ public final class DecayRuntime implements Listener, AutoCloseable {
                                                         && !recovering(v)
                                                         && !runtime.buildings()
                                                                 .hasPending(v.settlement())
+                                                        && !runtime.repair()
+                                                                .reserved(v.settlement())
                                                         && runtime.buildingCommitAvailable()) {
                                                     automatic(v);
                                                     return null;
@@ -297,6 +299,8 @@ public final class DecayRuntime implements Listener, AutoCloseable {
                                                 if (!runtime.buildingCommitAvailable()
                                                         || runtime.buildings()
                                                                 .hasPending(op.settlement())) {
+                                                    long retained = recovery.remove(key);
+                                                    recovery.put(key, retained);
                                                     busy = false;
                                                     return null;
                                                 }
@@ -325,6 +329,8 @@ public final class DecayRuntime implements Listener, AutoCloseable {
                                                                         }
                                                                     });
                                                 } catch (SettlementException retry) {
+                                                    long retained = recovery.remove(key);
+                                                    recovery.put(key, retained);
                                                     busy = false;
                                                 }
                                                 return null;

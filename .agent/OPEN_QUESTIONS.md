@@ -4,14 +4,14 @@
 
 The [frozen architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical and unchanged.
 
-Phases 0–7 are implemented/verified. Registered Buildings support bounded Decay and material/time Repair, independent inventory/world/SQL reconciliation, structured History and qualifying-cycle Era advancement. Player acceptance remains pending.
+Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the frozen milestone. Native-client/user acceptance and deployment-specific capacity checks remain explicit in the checklist. `RELEASE.md` records the tested cold upgrade/restore and Resource maintenance procedure.
 
-## Phase 8 — next, not yet accepted
+## MVP+1 — freeze design before implementation
 
-1. Run the full frozen acceptance matrix, including clean install, real development-copy migration, fail-closed startup and all earlier gameplay contracts.
-2. Profile protection hot paths, Activity load, maximum Building capture, Decay/Repair budgets and SQLite queue pressure.
-3. Verify coordinated world/player-data/database backup and restoration plus real Paper upgrade/restart; individual Phase 7 crash cuts are not the entire release gate.
-4. Verify command/help surfaces and produce release/operator migration instructions before an MVP tag. No new features or post-MVP systems.
+1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
+2. Define assigned Parcel/Holder consent, container/property disposition and administrative dispute handling before any automatic ownership loss.
+3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
+4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
 ## Resolved infrastructure requirements
 
@@ -21,4 +21,4 @@ Phases 0–7 are implemented/verified. Registered Buildings support bounded Deca
 
 ## Later frozen work
 
-Phase 8 hardens the entire loop, performance and paired recovery before the MVP tag. Dynamic Settlement Cycle starts only afterward; no deferred-system placeholders now.
+The frozen MVP architecture bundle remains unchanged. Dynamic Settlement Cycle is mandatory next, but its release rules are still unresolved; do not infer implementation details from the earlier pre-freeze architecture.

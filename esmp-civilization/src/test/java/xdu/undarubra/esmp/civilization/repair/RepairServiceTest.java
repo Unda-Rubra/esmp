@@ -562,4 +562,67 @@ class RepairServiceTest {
         repair.finish(next.id(), apply(next), true, Set.of()).join();
         assertEquals(1, repair.job(job).join().era());
     }
+
+    @Test
+    void citizenCannotReserveWholeBuildingRepairButAcceptedGovernorCan() {
+        damage(DecayService.Kind.CAVE_IN);
+        UUID citizen = UUID.randomUUID();
+        var invitation =
+                settlements
+                        .offer(owner, settlement, citizen, SettlementOffer.Type.INVITE)
+                        .join()
+                        .offer();
+        settlements.accept(citizen, invitation.id(), false).join();
+        reject(() -> repair.prepare(UUID.randomUUID(), citizen, building).join());
+        assertTrue(repair.jobs(building).join().isEmpty());
+        var promotion =
+                settlements
+                        .offer(owner, settlement, citizen, SettlementOffer.Type.PROMOTE)
+                        .join()
+                        .offer();
+        settlements.accept(citizen, promotion.id(), false).join();
+        UUID job = UUID.randomUUID();
+        repair.prepare(job, citizen, building).join();
+        assertEquals(citizen, repair.job(job).join().payer());
+    }
+
+    @Test
+    void blockedDueWindowDoesNotHideLaterDecayOrRepairWork() {
+        var expectedBuildings = new HashSet<UUID>();
+        var expectedJobs = new HashSet<UUID>();
+        for (int n = 0; n < 10; n++) {
+            if (n > 0) {
+                baseline =
+                        new BuildingBaseline(
+                                new BuildingBounds(1, 1 + n * 4, 1, 3, 2 + n * 4, 2),
+                                baseline.cells());
+                building = UUID.randomUUID();
+                buildings
+                        .register(owner, building, settlement, world, "Roof" + n, baseline, stamp())
+                        .join();
+                buildings.station(owner, building, 1, new Position(3, 2 + n * 4, 2)).join();
+                physical = new HashMap<>();
+                for (int i = 0; i < baseline.cells().size(); i++)
+                    physical.put(baseline.bounds().position(i), baseline.cells().get(i));
+            }
+            damage(DecayService.Kind.CAVE_IN);
+            expectedBuildings.add(building);
+            UUID job = prepare();
+            repair.confirm(supply(job, 4).id()).join();
+            expectedJobs.add(job);
+        }
+        advance(100);
+        var observedBuildings = new HashSet<UUID>();
+        var observedJobs = new HashSet<UUID>();
+        // The Paper loop attempts only the first runnable candidate per poll.
+        // Leave its deadline due to model continually deferred/unavailable work.
+        for (int poll = 0; poll < expectedJobs.size() + 2; poll++) {
+            var decayPage = decay.due().join();
+            if (!decayPage.isEmpty()) observedBuildings.add(decayPage.getFirst());
+            var repairPage = repair.due().join();
+            if (!repairPage.isEmpty()) observedJobs.add(repairPage.getFirst().id());
+        }
+        assertEquals(expectedBuildings, observedBuildings);
+        assertEquals(expectedJobs, observedJobs);
+    }
 }

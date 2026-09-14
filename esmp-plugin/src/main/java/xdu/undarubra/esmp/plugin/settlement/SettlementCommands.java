@@ -1076,6 +1076,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/esmp treasury <settlement> deposit <amount> (fund expansion)",
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
+                        "/settlement history-catalog (structured event types)",
                         "/settlement local-activity [settlement] [page] (admin; derived support"
                                 + " only)",
                         "/settlement invite|promote|kick|demote <name> <player|uuid>",
@@ -1092,6 +1093,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                 + " (admin)",
                         "/settlement rename <settlement> <official-name> (admin; VERIFIED only)",
                         "/settlement ban|unban <settlement> <player> | bans <settlement>",
+                        "/settlement bypass <on|off> (administrator protection override)",
                         "/esmp tools <parcel_wand|management_book>",
                         "/settlement landvalue (natural base of the current chunk)",
                         "/settlement building help (bounded registration, baseline and station)",

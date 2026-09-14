@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ESMP is a Paper-first, vanilla-client Minecraft SMP architecture for a permanent civilization world and renewable Resource worlds. A dedicated industrial realm is outside current scope; do not restore it from historical decisions without explicit approval.
 
-The canonical authority is `ESMP MVP ARCHITECTURE 2026-09-12/`: its architecture, requirements freeze and ordered roadmap supersede prior plans. Phases 0–7 are implemented/verified; Phase 8 full acceptance/performance/paired recovery and release gates are next. Registered-only durable Decay and material/time Repair use independent inventory/world/SQL reconciliation; qualifying ruin restoration advances Era once. Do not skip release gates or treat the whole MVP as accepted.
+The canonical authority is `ESMP MVP ARCHITECTURE 2026-09-12/`: its architecture, requirements freeze and ordered roadmap supersede prior plans. Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the frozen MVP milestone. Native-client/user acceptance remains tracked separately. Next is a separately frozen MVP+1 Dynamic Settlement Cycle design, not immediate automatic-release implementation. Preserve independent inventory/world/SQL reconciliation and qualifying-cycle Era identity.
 
 Deployment remains one modular Paper JAR. Frozen persistence uses SQLiteDataSource/SQLiteConfig, a bounded database executor, a Core UnitOfWork backed by jOOQ transactions, repository ports and domain DTOs. jOOQ/generated types belong inside persistence adapters, never cross-domain/public gameplay APIs. Structured Liquibase changelogs become canonical schema; the current custom migration machinery becomes compatibility-only behind a verified legacy bridge.
 

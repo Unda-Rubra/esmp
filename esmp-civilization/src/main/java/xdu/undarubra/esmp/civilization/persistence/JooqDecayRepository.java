@@ -29,6 +29,8 @@ public final class JooqDecayRepository implements DecayService.Repository {
     private final JooqLocalActivity local;
     private final double halfLifeTicks;
     private final String context;
+    // SQL-lane cursor: unloaded or reserved candidates cannot monopolize the due window.
+    private UUID dueCursor;
 
     public JooqDecayRepository(
             UnitOfWork db,
@@ -131,20 +133,33 @@ public final class JooqDecayRepository implements DecayService.Repository {
     @Override
     public CompletableFuture<List<UUID>> due() {
         return db.transact(
-                tx ->
-                        DatabaseAccess.context(tx)
-                                .select(DECAY_STATE.BUILDING_ID)
-                                .from(DECAY_STATE)
-                                .join(BUILDINGS)
-                                .on(BUILDINGS.BUILDING_ID.eq(DECAY_STATE.BUILDING_ID))
-                                .where(
-                                        BUILDINGS
-                                                .STATUS
-                                                .eq("ACTIVE")
-                                                .and(DECAY_STATE.NEXT_CHECK_TICK.le(clock.ticks())))
-                                .orderBy(DECAY_STATE.NEXT_CHECK_TICK, DECAY_STATE.BUILDING_ID)
-                                .limit(8)
-                                .fetch(DECAY_STATE.BUILDING_ID));
+                tx -> {
+                    var ids =
+                            DatabaseAccess.context(tx)
+                                    .select(DECAY_STATE.BUILDING_ID)
+                                    .from(DECAY_STATE)
+                                    .join(BUILDINGS)
+                                    .on(BUILDINGS.BUILDING_ID.eq(DECAY_STATE.BUILDING_ID))
+                                    .where(
+                                            BUILDINGS
+                                                    .STATUS
+                                                    .eq("ACTIVE")
+                                                    .and(
+                                                            DECAY_STATE.NEXT_CHECK_TICK.le(
+                                                                    clock.ticks()))
+                                                    .and(
+                                                            dueCursor == null
+                                                                    ? org.jooq.impl.DSL
+                                                                            .noCondition()
+                                                                    : DECAY_STATE.BUILDING_ID.gt(
+                                                                            dueCursor)))
+                                    .orderBy(DECAY_STATE.BUILDING_ID)
+                                    // The runtime attempts one candidate, so advance only past one.
+                                    .limit(1)
+                                    .fetch(DECAY_STATE.BUILDING_ID);
+                    dueCursor = ids.isEmpty() ? null : ids.getLast();
+                    return ids;
+                });
     }
 
     @Override
@@ -162,9 +177,14 @@ public final class JooqDecayRepository implements DecayService.Repository {
 
     private State assess(UnitOfWork.Transaction tx, UUID id, boolean write, long now)
             throws SQLException {
+        return assess(tx, id, write, now, true);
+    }
+
+    private State assess(
+            UnitOfWork.Transaction tx, UUID id, boolean write, long now, boolean assessDamage)
+            throws SQLException {
         var c = DatabaseAccess.context(tx);
         var v = JooqBuildingRepository.current(c, id);
-        var baseline = JooqBuildingRepository.baseline(c, id, v.revision());
         var t = DECAY_STATE;
         var row = c.selectFrom(t).where(t.BUILDING_ID.eq(id)).fetchOne();
         require(row != null, "Decay state not initialized");
@@ -232,19 +252,27 @@ public final class JooqDecayRepository implements DecayService.Repository {
                 c.fetchCount(
                         DECAY_DAMAGE,
                         DECAY_DAMAGE.BUILDING_ID.eq(id).and(DECAY_DAMAGE.LOST.eq(1L)));
-        long occupied = 0;
-        for (int i = 0; i < baseline.cells().size(); i++)
-            if (!baseline.cells().get(i).air()
-                    && v.permitsAutomaticMutation(
-                            baseline.bounds().position(i), baseline.cells().get(i))) occupied++;
-        Condition condition =
-                damaged == 0
-                        ? Condition.INTACT
-                        : lost > 0
-                                        && occupied > 0
-                                        && lost >= Math.ceil(occupied * policy.ruinedFraction())
-                                ? Condition.RUINED
-                                : Condition.DAMAGED;
+        Condition condition = Condition.valueOf(row.get(t.CONDITION));
+        // Activity changes eligibility, not damage. Never decode geometry for each credit.
+        if (assessDamage) {
+            long occupied = 0;
+            if (lost > 0) {
+                var baseline = JooqBuildingRepository.baseline(c, id, v.revision());
+                for (int i = 0; i < baseline.cells().size(); i++)
+                    if (!baseline.cells().get(i).air()
+                            && v.permitsAutomaticMutation(
+                                    baseline.bounds().position(i), baseline.cells().get(i)))
+                        occupied++;
+            }
+            condition =
+                    damaged == 0
+                            ? Condition.INTACT
+                            : lost > 0
+                                            && occupied > 0
+                                            && lost >= Math.ceil(occupied * policy.ruinedFraction())
+                                    ? Condition.RUINED
+                                    : Condition.DAMAGED;
+        }
         if (write) {
             c.update(t)
                     .set(t.INACTIVE_SINCE_TICK, since)
@@ -296,7 +324,11 @@ public final class JooqDecayRepository implements DecayService.Repository {
                                 BUILDINGS
                                         .SETTLEMENT_ID
                                         .eq(settlement)
-                                        .and(BUILDINGS.STATUS.eq("ACTIVE")))
+                                        .and(BUILDINGS.STATUS.eq("ACTIVE"))
+                                        .and(BUILDINGS.MIN_X.le(((long) x + 2) * 16 - 1))
+                                        .and(BUILDINGS.MAX_X.ge(((long) x - 1) * 16))
+                                        .and(BUILDINGS.MIN_Z.le(((long) z + 2) * 16 - 1))
+                                        .and(BUILDINGS.MAX_Z.ge(((long) z - 1) * 16)))
                         .fetch()) {
             UUID id = row.get(BUILDINGS.BUILDING_ID);
             int minX = Math.floorDiv(Math.toIntExact(row.get(BUILDINGS.MIN_X)), 16),
@@ -311,7 +343,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     .set(DECAY_STATE.ACTIVITY_REVISION, DECAY_STATE.ACTIVITY_REVISION.add(1L))
                     .where(DECAY_STATE.BUILDING_ID.eq(id))
                     .execute();
-            assess(tx, id, true, tick);
+            assess(tx, id, true, tick, false);
         }
     }
 

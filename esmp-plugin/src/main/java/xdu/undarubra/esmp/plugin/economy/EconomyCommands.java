@@ -94,7 +94,8 @@ public final class EconomyCommands implements CommandExecutor, TabCompleter, Aut
     private void economy(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage(
-                    Component.text("/esmp economy history | budget | grant | grant-treasury"));
+                    Component.text(
+                            "/esmp economy history [player] | budget | grant | grant-treasury"));
             return;
         }
         var actor = actor(sender);
@@ -173,7 +174,8 @@ public final class EconomyCommands implements CommandExecutor, TabCompleter, Aut
             sender.sendMessage(
                     Component.text(
                             "/esmp treasury <settlement>"
-                                + " balance|history|deposit|withdraw|pay|budget|allowance"));
+                                    + " balance|history|deposit|withdraw|pay|budget|allowance"));
+            sender.sendMessage(Component.text("/esmp treasury <settlement> allowance [governor]"));
             return;
         }
         UUID settlement = settlementId(args[1]);
@@ -246,7 +248,7 @@ public final class EconomyCommands implements CommandExecutor, TabCompleter, Aut
                         5,
                         6,
                         "/esmp treasury <settlement> budget <governor> <remaining-amount>"
-                            + " [operation-id]");
+                                + " [operation-id]");
                 player(sender);
                 UUID governor = resolvePlayer(args[3]);
                 settlements.rememberAdministrator(governor);
@@ -413,7 +415,7 @@ public final class EconomyCommands implements CommandExecutor, TabCompleter, Aut
                                         plugin.getLogger()
                                                 .warning(
                                                         "Currency feedback interrupted by"
-                                                            + " shutdown");
+                                                                + " shutdown");
                                 }
                             });
         } catch (RuntimeException failure) {

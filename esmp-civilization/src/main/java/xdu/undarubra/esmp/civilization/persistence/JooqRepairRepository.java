@@ -31,6 +31,8 @@ public final class JooqRepairRepository implements RepairService.Repository {
     private final Predicate<UUID> admins;
     private final JooqDecayRepository decay;
     private final JooqBuildingRepository buildingWriter;
+    // SQL-lane cursor: blocked candidates must not hide later due jobs.
+    private UUID dueCursor;
 
     public JooqRepairRepository(
             UnitOfWork db,
@@ -286,6 +288,11 @@ public final class JooqRepairRepository implements RepairService.Repository {
                                                                             "PREPARED")))),
                             "Reconcile pending Decay before preparing Repair");
                     var s = authority(tx, actor, v);
+                    require(
+                            admins.test(actor)
+                                    || s.role(actor) == Role.OWNER
+                                    || s.role(actor) == Role.GOVERNOR,
+                            "Owner or Governor required");
                     allow(tx, actor, s, v.station(), ParcelAction.INTERACT);
                     var t = REPAIR_JOBS;
                     c.insertInto(t)
@@ -731,10 +738,18 @@ public final class JooqRepairRepository implements RepairService.Repository {
                                             REPAIR_JOBS
                                                     .STATE
                                                     .in("FUNDED", "CANCELLING")
-                                                    .and(REPAIR_JOBS.NEXT_TICK.le(clock.ticks())))
-                                    .orderBy(REPAIR_JOBS.NEXT_TICK)
-                                    .limit(8)
+                                                    .and(REPAIR_JOBS.NEXT_TICK.le(clock.ticks()))
+                                                    .and(
+                                                            dueCursor == null
+                                                                    ? org.jooq.impl.DSL
+                                                                            .noCondition()
+                                                                    : REPAIR_JOBS.JOB_ID.gt(
+                                                                            dueCursor)))
+                                    .orderBy(REPAIR_JOBS.JOB_ID)
+                                    // The runtime attempts one candidate, so advance only past one.
+                                    .limit(1)
                                     .fetch(REPAIR_JOBS.JOB_ID);
+                    dueCursor = ids.isEmpty() ? null : ids.getLast();
                     var jobs = new ArrayList<Job>();
                     for (var id : ids) jobs.add(job(c, id));
                     return List.copyOf(jobs);

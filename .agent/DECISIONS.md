@@ -2,6 +2,20 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-14 — Phase 8 core server release gates
+
+Kept the frozen architecture and existing balance/schema pins. Hardening addresses defects rather than adding gameplay: Repair preparation now enforces its documented Owner/Governor/admin gate; payer verification reads remain on the Paper thread; Activity eligibility updates spatially filter Buildings and avoid decoding geometry whose damage did not change.
+
+Due scheduling must be fair to unavailable candidates. Each repository presents one due candidate and advances a SQL-lane UUID cursor past only that candidate, matching the runtime's one-attempt-per-poll contract. Advancing past an entire eight-row page could still starve later rows when the first remains due; the consumer-shaped ten-job regression catches that case. Blocked Decay recovery chunks rotate without losing their durable sequence. Physical mutation bounds and saved-world reconciliation remain unchanged.
+
+The real config-5 development-copy migration still requires the verified legacy bridge, so it is retained; deleting it would remove a supported upgrade path. Forward changelogs and the canonical bundle remain untouched. Help/docs now expose the actual optional wallet/Governor history arguments, history catalog and explicit bypass.
+
+Evidence: clean/no-cache check/build passes 141 tests with zero failures/errors/skips. Citizen preparation and first-attempt fairness regressions failed before their fixes. Fresh Paper proved payment/consent/review, Building ruin, partial funding, restart and material Repair/Era; real local Activity recovery stopped new decay without healing. Typed API/SQLite and actual Paper capture timings, limitations and operational steps are recorded in RELEASE.md.
+
+Cold restore reproduced 132 world/player files byte-for-byte and all 414 SQL rows of a funded checkpoint after later edits, material completion and Resource replacement. Without the probe, an offline payer left the distant target unloaded; joining/resuming restored all 20 operation targets, consumed ten materials once and awarded Era once. Resource maintenance replaced all three physical directories together, produced three new identities, retained old identities and left other gameplay tables unchanged.
+
+`mvp-v1.0` is the core server acceptance milestone, not a claim that native visuals/user sign-off or arbitrary deployment load have been validated. The build artifact version remains 0.1.0-SNAPSHOT. MVP+1 release rules must be frozen separately; no automatic release or other deferred system was implemented.
+
 ## 2026-09-13 — Frozen roadmap Phase 7 material Repair and History/Era
 
 Implemented the frozen whole-Building station workflow without changing the architecture bundle. One corresponding plain original block item funds each restored material cell; debris removal consumes no item. Named/modified items are excluded. Partial funding waits; cancellation refunds unused escrow without undoing already restored blocks. Default batch interval is 200 shared game ticks. World work remains bounded, naturally loaded, permission-checked and coordinated with Building/Decay publication.

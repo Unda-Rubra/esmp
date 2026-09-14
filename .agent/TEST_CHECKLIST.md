@@ -6,7 +6,7 @@ Maintenance: append each completed gameplay change with its commit, player-visib
 
 ## 2026-09-12 frozen-MVP supersession
 
-This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–7 are implemented/verified; Phase 8 is next. Old direct naming-toggle and immediate-transfer checks are historical, superseded by the Phase 2/3 sections. Agent results are not native-client/user acceptance.
+This checklist preserves **pre-freeze evidence and 48 pending historical player checks**, followed by frozen-phase evidence. The [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) control acceptance. Phases 0–8 core server gates are verified; `mvp-v1.0` marks that milestone. Native-client/user acceptance remains separate. Next is a separately approved Dynamic Settlement Cycle design, not automatic-release implementation.
 
 In particular, old Owner-wallet expansion expectations are not the frozen target (ALL expansion uses Treasury in Phase 1), and prior public-DSLContext/SQL migration architecture is not Phase 0 complete. Preserve these historical results without checking off or rewriting new unimplemented behavior as delivered. Append each frozen phase's executed evidence only when that phase actually ships.
 
@@ -279,3 +279,21 @@ Saved-refund-before-SQL and SQL-refund/player-data-rollback cuts both recovered 
 - [ ] Change permission or one affected block during repair. Pause/revalidation must retain valid work and preserve the conflicting block; cancellation/refund returns only unused items, including with limited backpack space.
 - [ ] On disposable paired backups, interrupt supply/refund and physical Repair before/after saves. Rejoin/restart must reconcile without duplicated inventory, repeated consumption or repeated Era.
 - [ ] Restore a RUINED Building through Repair: INTACT and one Era increment with durable History. Ordinary damage repair/manual restoration grants no Era; a later genuine ruin cycle can increment again. Inspect config 14, backup and `/settlement history-catalog`.
+
+## Frozen roadmap Phase 8 — release hardening
+
+Implemented hardening: Owner/Governor Repair preparation gate, fair bounded Decay/Repair candidate iteration and blocked Decay recovery rotation, eligibility-only local Activity updates without repeated baseline decoding, Paper-thread payer verification, and corrected command/help documentation. No schema/policy/dependency changes or deferred systems. The legacy bridge remains necessary for real config-5 development data.
+
+Agent proof: final clean/no-cache check/build passed **141 tests, zero failures/errors/skips**. The Citizen-preparation regression failed before the fix and passed afterward; ten unprocessed due Buildings/jobs remain discoverable beyond the first eight. Existing payment, certification/acquisition, Activity, Building, Decay/Repair, migration, outbox and architecture tests pass.
+
+Fresh real Paper exercised paid founding 25 with receipt replay, treasury-funded expansion 50, certification denial/approval/replay, consent and administrator-approved acquisition fee 20, registered roof → RUINED → real materials → restart → INTACT/Era 1. An ordinary Citizen could no longer occupy Repair; partial 3/10 materials waited before seven more funded the job, and an outsider's station break was denied. Parcel Holder assignment waited for recipient approval. These are protocol-client/server-predicate checks, not native visual acceptance.
+
+Real config-5 development data was copied and upgraded to config 14, preserving gameplay/history/balances and intended grandfathered certification; the original development directory was not changed. A separate missing-Claim-table corruption failed closed and stopped without READY. The upgraded copy restarted with protection enabled.
+
+Measured public API and Paper scan costs are in `RELEASE.md`; queue saturation admitted 255 behind one blocked worker, rejected 45, drained accepted work and recovered. Static audit plus ArchUnit found no hot synchronous SQL, forced Decay/Repair chunk loads or new deferred systems. These bounded experiments are not an unlimited throughput guarantee.
+
+Paired cold restoration returned all 132 saved world/player files byte-for-byte and all 414 SQL rows to a FUNDED checkpoint after later Repair completion, player edits and three-Resource-world replacement. Without the probe and before payer login, the distant target stayed unloaded and no Repair operation was created while time advanced. After natural arrival, all 20 persisted targets matched server block predicates; ten materials were consumed, no plain inventory was duplicated and exactly one Era award existed. Three Resource worlds had been replaced together with fresh identities while all other gameplay tables stayed unchanged; each rejected Claims and retained shared inventory. Actual local credit recovered support to approximately 48.05, stopped later Decay and retained 32 damaged cells. Legal station removal revised the current baseline to air while the prior revision retained the crafting table.
+
+- [ ] On a native 26.2 client, inspect all help roots, normal gameplay rejection messages, Management Book and Parcel Wand rendering on the final artifact. Record user acceptance separately from protocol-client results.
+- [ ] On disposable data with representative player/Parcel density and editing backlog, verify practical tick/queue latency under the server's intended load; preserve admission/backpressure safeguards.
+- [ ] Rehearse the cold paired restore and all-three-resource-world maintenance procedure in `RELEASE.md`, including offline player evacuation, rollback and matching world/database/player data.

@@ -2,9 +2,9 @@
 
 ESMP 面向永久文明主世界和可更新资源世界。当前唯一设计依据是 [2026-09-12 冻结 MVP 架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)，包括[架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md)、[需求冻结](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md)和[严格路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md)。根目录旧架构已删除，不再作为执行依据。
 
-**冻结路线图 Phases 0–7 已实现并通过相应验收；下一阶段是 Phase 8 完整验收与发布门禁。** 已有材料／游戏时间修复和 History/Era 闭环；阶段通过不等同于整个 MVP 或玩家验收完成。
+**冻结路线图 Phases 0–8 的核心服务端门禁已通过，里程碑标签为 `mvp-v1.0`。** 材料／游戏时间修复和 History/Era 闭环已验证；原生客户端与玩家验收仍单独记录。下一步只冻结 MVP+1 Dynamic Settlement Cycle 的设计，不直接开始自动释放土地。
 
-## 当前基线功能（待按冻结要求重新验收）
+## 当前已验证核心功能（玩家验收另列）
 
 - 创建、扩展、取消区块认领；四方向连通、默认 64 区块上限、相邻聚落保持独立。
 - Owner / Governor / Citizen / Public，邀请、接受、升降级、转让、退出及聚落级禁令。Holder 是独立的 Parcel 关系，不自动成为 Citizen。
@@ -121,7 +121,7 @@ Parcel 必须位于同一聚落内，单元不重叠、六面连通，名称在�
 
 单元移除先用 `parcel remove` 预览，再 `commit`，仅允许移除表面且不破坏剩余连通性。全 Parcel 用 `delete`；不能绕过协商直接取消其父区块或放弃聚落，必须先按批准流程移除受影响 Parcel。
 
-禁令优先于普通角色/Holder 权限，不阻止进入、离开和查看必要信息。管理员按在线 `esmp.admin` 权限或离线 OP 身份识别；不能将已识别管理员加入禁令。禁令豁免本身不是建筑权限豁免，普通世界保护的管理员绕过仍需显式 `/settlement bypass on`。
+禁令优先于普通角色/Holder 权限，不阻止进入、离开和查看必要信息。管理员按在线 `esmp.admin` 权限或离线 OP 身份识别；不能将已识别管理员加入禁令。禁令豁免本身不是建筑权限豁免，普通世界保护的管理员绕过仍需显式 `/settlement bypass on`；测试后用 `/settlement bypass off` 关闭。
 
 ## 两名玩家的验证清单
 
@@ -194,17 +194,18 @@ Phase 1 升级不会改写已付款凭据或个人历史；旧版本未购买报
 ```text
 /balance
 /pay Bob 25
-/esmp economy history
+/esmp economy history [玩家]
 /esmp treasury 1 balance
 /esmp treasury 1 deposit 30
 /esmp treasury 1 withdraw 10
 /esmp treasury 1 pay Bob 5
 /esmp treasury 1 history
 /esmp treasury 1 budget GovernorName 50
-/esmp treasury 1 allowance
+/esmp treasury 1 allowance [Governor]
 ```
 
 钱包只能由本人支出；金库提款仅限 Owner。Governor 支付需要 Owner 用 `budget` 设置剩余额度（不是增加额度），每次支付消耗额度；换 Owner 或降级后重新晋升都会使旧额度失效。金库有余额时不能放弃聚落。普通玩家不能发行货币。
+查看其他玩家的钱包历史需要管理员权限；Owner 可用 `allowance <Governor>` 查看指定 Governor 的剩余额度。
 
 管理员测试发放：`/esmp economy grant Alice 100`；直接发给金库用 `grant-treasury 1 100`。查看发行与总供给用 `/esmp economy budget`。金额必须是正整数；额度允许设为 0。转账、发放、存取、金库支付和额度变更可在末尾附交易/操作 UUID；重复提交同一 UUID 和同一内容只返回旧凭据，不重复扣款。点击成功消息可复制凭据 UUID。
 
@@ -246,6 +247,7 @@ Owner/Governor 可注册已经存在或新建的建筑。整个选择必须属�
 设置修复站：在建筑内放置工作台，待基线更新后执行 `station <建筑UUID> <x y z>`；`station <建筑UUID> clear` 清除标记。站点和方块实体不会被自动衰败／修复。合法拆除工作台会清除当前标记，旧修订仍保留原站点；已有修复任务会重新检查站点与权限。
 
 以上省略前缀的子命令都使用 `/settlement building`。编辑观察先写区块 PDC 日志，再经过现有提交/保护快照发布协调器；稳定操作 ID 防止重启回放旧改造。积压时相关操作会暂时拒绝，不能静默丢弃编辑。恢复只读取自然加载区块；世界实例、权限或边界不一致会安全停止并保留日志，不能删日志强行跳过。仍须配套备份世界与数据库，不能把它们当成一个原子存储。
+`/settlement building clear` 清除当前选择；`/settlement building help` 和 `/settlement repair help` 显示完整操作入口。
 
 ## 材料修复与 Era
 
@@ -304,7 +306,7 @@ SQL 会重验角色、禁令、Parcel 策略及相关修订，不能只凭缓存
 
 每次先保存稳定操作 ID、基线／权限／活跃度上下文、原状态和目标状态，再在主线程检查并变更。区块未加载就等待，不添加加载票。区块保存标记与 SQL 结果分别恢复：已完成的目标不重复执行，部分批次可以收敛；玩家冲突优先，不覆盖意外新方块。新任务不会越过同区块尚未完成的恢复。
 
-损伤与基线分开保存。无有效损伤为 INTACT，有损伤为 DAMAGED；原可变占据格中达到默认 50% 变为空气时为 RUINED，单纯风化不会误报结构坍塌。活跃恢复不会减少损伤。玩家手动重建、移除残块或合法改造会更新当前设计／损伤并推进基线修订，避免旧衰败意图覆盖新作品；这不是尚未实现的站点修复，也不会推进 Era。
+损伤与基线分开保存。无有效损伤为 INTACT，有损伤为 DAMAGED；原可变占据格中达到默认 50% 变为空气时为 RUINED，单纯风化不会误报结构坍塌。活跃恢复不会减少损伤。玩家手动重建、移除残块或合法改造会更新当前设计／损伤并推进基线修订，避免旧衰败意图覆盖新作品；手工修复不消耗站点预留材料，也不会推进 Era。
 
 ## 配置与数据
 
@@ -360,7 +362,7 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 ## 下一步与协作
 
-下一步只做路线图 Phase 7：整栋建筑站点材料提交、持久化材料保留与修复任务、游戏时间进度、当前基线／权限／冲突重验，以及 RUINED 经修复回到 INTACT 后每周期只推进一次 Era。不做村民工匠、分翼修复界面、奖励或自动土地释放。
+Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.md)。下一步只冻结 MVP+1 Dynamic Settlement Cycle 的边界释放、Parcel/Holder 权利、财产处置与历史规则，再按批准的设计实施；不提前加入其他后续玩法。
 
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
