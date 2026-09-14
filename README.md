@@ -364,6 +364,8 @@ Phase 0 已将应用服务改为领域接口/Repository 门面。跨模块事务
 
 Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.md)。下一步只冻结 MVP+1 Dynamic Settlement Cycle 的边界释放、Parcel/Holder 权利、财产处置与历史规则，再按批准的设计实施；不提前加入其他后续玩法。
 
+已确定一条边界：自动回收不会使已分配 Parcel 的 Holder 同意权过期，也不能通过取消父 Claim 间接解除保护；长期离线纠纷由管理员明确、留痕处理。这可能长期阻止部分外围退缩。其他回收规则仍待定，尚未实现自动回收。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

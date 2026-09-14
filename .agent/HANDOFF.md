@@ -3,11 +3,13 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- Next is a separately approved MVP+1 Dynamic Settlement Cycle design. No automatic Claim release, Civic Capacity, Server Trade, Facility, workforce, rewards or historical replay was added. The frozen architecture bundle is unchanged.
+- MVP+1 is still a separately approved design, not an implemented release system. The user selected preservation of assigned Holder consent: architecture §30.1 now records that boundary. The frozen MVP behavior is unchanged; other MVP+1 release rules and Civic Capacity remain unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
+
+- Latest design decision: inactivity/absence/notice/grace expiry cannot waive assigned Holder consent or release its parent Claim indirectly. Offline disputes require explicit audited administrator handling; protected land may indefinitely constrain retreat. Only this option was approved, not the other suggested design defaults.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -17,6 +19,8 @@
 - Retained the verified legacy bridge: the real development copy is config 5 and needs that supported upgrade path. It is not an alternate current runtime.
 
 ## Changed files
+
+- Latest decision changes only architecture §30.1, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -41,10 +45,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
+- Latest work is documentation-only Holder-consent clarification in architecture §30.1, README, decisions, open gates and this handoff. No runtime/schema/test-checklist behavior changed; the Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: removing the new §30.1 insertion reproduces the prior canonical architecture exactly. Frozen MVP text and all other architecture sections are unchanged.
 
 ## Next action
 
-Freeze the MVP+1 Dynamic Settlement Cycle design with the user: boundary-only topology-safe release, Local Activity thresholds/hysteresis, Parcel/Holder consent/property handling and history/reclaim semantics. Do not implement automatic release from the old pre-freeze architecture or add deferred dependencies.
+Next decide how registered Buildings, unassigned Parcels and their contents affect automatic boundary release. Then freeze timing, topology/final-Claim behavior and any capacity model. Assigned Holder consent is settled by architecture §30.1; do not reopen it or implement the remaining discussion proposals without approval.
 
 ## Risks or blockers
 

@@ -2,14 +2,14 @@
 
 ## Authority and status
 
-The [frozen architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical and unchanged.
+The [architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical. Frozen MVP behavior is unchanged; accepted post-MVP decisions are recorded separately in architecture §30.
 
 Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the frozen milestone. Native-client/user acceptance and deployment-specific capacity checks remain explicit in the checklist. `RELEASE.md` records the tested cold upgrade/restore and Resource maintenance procedure.
 
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define assigned Parcel/Holder consent, container/property disposition and administrative dispute handling before any automatic ownership loss.
+2. Define Building and unassigned-Parcel handling, container/property disposition and operational details for explicit administrator dispute resolution. Assigned Holder consent is already settled: architecture §30.1 forbids automatic expiry or indirect parent-release bypass.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-The frozen MVP architecture bundle remains unchanged. Dynamic Settlement Cycle is mandatory next, but its release rules are still unresolved; do not infer implementation details from the earlier pre-freeze architecture.
+Architecture §30.1 now fixes the assigned Holder consent boundary for MVP+1. Other release rules remain unresolved; do not infer implementation details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.

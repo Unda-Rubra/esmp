@@ -1102,6 +1102,17 @@ Desired emergent result: unused pre-claimed outskirts disappear first; active ne
 
 MVP+1 must be frozen separately after MVP v1.0 acceptance.
 
+## 30.1 Accepted MVP+1 boundary — Holder consent (2026-09-14)
+
+Automatic release must preserve the existing consent rights of assigned Parcel Holders. Low Activity, long absence, a notice or an expired grace period does not constitute consent.
+
+- An assigned Parcel cannot automatically lose protection. Its revocation, Holder removal or boundary change continues to require governance and all applicable current/new Holders under the existing consent workflow.
+- A Claim intersecting such a Parcel cannot be automatically released while that protection remains. Automatic parent unclaim or Settlement termination must not indirectly bypass the Parcel's rights.
+- An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
+- Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
+
+This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Building handling, unassigned Parcels, property disposition, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+
 ---
 
 # Appendix A — Persistence coding standard

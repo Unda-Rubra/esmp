@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-14 — MVP+1 preserves assigned Holder consent
+
+The user selected option 1: retain Holder consent rather than allow timeout-based automatic revocation. Canonical details are in architecture §30.1. Inactivity, absence, notice and grace expiry do not waive consent; parent Claim/Settlement release cannot remove assigned Parcel protection indirectly. Offline disputes remain explicit audited administrator cases, not scheduled overrides.
+
+Accepted tradeoff: protected Parcels can indefinitely constrain boundary retreat; topology safeguards still apply. This preserves the existing rights contract rather than silently converting ownership-related consent into an expiring privilege.
+
+Only this rights boundary was approved. The preceding suggested Local Activity-only scope, omission of Civic Capacity, timing and other MVP+1 release rules were not collectively accepted by that selection. Frozen MVP behavior, including the absence of passive land tax, remains unchanged. Buildings, unassigned Parcels, property disposition and final-Claim handling still need decisions. Documentation only; no runtime/schema/test acceptance changes and no automatic release implementation.
+
 ## 2026-09-14 — Phase 8 core server release gates
 
 Kept the frozen architecture and existing balance/schema pins. Hardening addresses defects rather than adding gameplay: Repair preparation now enforces its documented Owner/Governor/admin gate; payer verification reads remain on the Paper thread; Activity eligibility updates spatially filter Buildings and avoid decoding geometry whose damage did not change.
