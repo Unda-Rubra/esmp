@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 releases whole unassigned Parcels with eligible land
+
+The user selected option 1: an unassigned Parcel may end automatically with an otherwise eligible safe land-release group, provided the entire Parcel is included and it still has no Holders at commit. Canonical details are in §30.4. History remains; no partial Parcel cut or early protection removal at notice is allowed.
+
+Rationale: a permission subdivision without Holders should not itself become a permanent land-release veto. This does not weaken assigned Holder rights: a new assignment invalidates the unassigned assumption and restores §30.1 consent requirements. Whole-building, topology, notice and container safeguards remain in force.
+
+Only this lifecycle boundary is approved. Pending proposals/commit reconciliation, remaining property and Repair accounting, timing, final-Claim and capacity decisions remain open. No runtime/schema or player acceptance changes; ordinary MVP unclaim remains unchanged.
+
 ## 2026-09-15 — MVP+1 leaves container contents on released land
 
 The user selected option 1: advance notice and relocation grace, then keep land-local containers and contents in place as land protection changes. Canonical details are in §30.3. Nonempty contents alone do not prevent release; access changes only when release commits and then follows unclaimed/new Settlement permissions. Items left behind may be taken by others: that consequence was explicitly disclosed and accepted.

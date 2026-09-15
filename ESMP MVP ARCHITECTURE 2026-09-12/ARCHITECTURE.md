@@ -1111,7 +1111,7 @@ Automatic release must preserve the existing consent rights of assigned Parcel H
 - An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
 - Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
 
-This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2 and land-local container disposition in §30.3. Unassigned Parcels, remaining property cases, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2, land-local container disposition in §30.3 and unassigned Parcels in §30.4. Remaining property cases, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
 
 ## 30.2 Accepted MVP+1 boundary — whole registered ruins (2026-09-15)
 
@@ -1123,7 +1123,7 @@ A registered Building may enter the automatic-release candidate process only as 
 - Holder consent under §30.1 remains mandatory. Ruin, including a Building overlapping an assigned Parcel, cannot override that boundary.
 - Release must not automatically demolish the physical structure or erase its history. RUINED condition, group completeness, topology and rights must be revalidated before any eventual release commits.
 
-This approves candidate eligibility, not immediate release or an implementation. Land-local container contents follow §30.3; other property cases, unassigned Parcels, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
+This approves candidate eligibility, not immediate release or an implementation. Land-local container contents follow §30.3 and unassigned Parcels follow §30.4; other property cases, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
 
 ## 30.3 Accepted MVP+1 boundary — containers remain in place (2026-09-15)
 
@@ -1136,6 +1136,17 @@ Before eligible land or whole ruins lose protection, provide advance notice and 
 - Assigned Holder consent under §30.1 and whole-Building safeguards under §30.2 still apply. Notice or nonempty-container policy cannot waive those constraints.
 
 Notice delivery, grace duration/revalidation, cross-boundary storage such as double chests, other property/entity cases and pending-job accounting remain explicit design gates. This decision neither authorizes exposing a still-protected neighboring region nor implements automatic release.
+
+## 30.4 Accepted MVP+1 boundary — whole unassigned Parcels (2026-09-15)
+
+An unassigned Parcel may automatically end its permission subdivision as part of an otherwise eligible land-release group, without a separate manual deletion by governance. Its history must be retained.
+
+- Every cell of the Parcel must lie within the same safe release group. Do not split, truncate or partially release the Parcel; if the whole Parcel cannot be included safely, it remains protected.
+- The Parcel must still have zero Holders at commit. Candidate selection or notice does not freeze the Holder set or authorize ignoring later assignments. If a Holder is added, the release must not proceed on the old unassigned assumption; §30.1 consent applies again.
+- End the subdivision only with the actual coordinated parent land release, not at candidate selection or notice. Do not erase the historical record or leave a live Parcel outside its Settlement's Claims.
+- This does not waive low-support/notice requirements, boundary/topology constraints, whole-Building safeguards or container disposition rules. Empty Holder membership is not proof that the land is otherwise releasable.
+
+This is a post-MVP lifecycle decision, not a change to ordinary MVP unclaim or an implementation. Commit/proposal reconciliation details, remaining property and job accounting, release timing and final-Claim behavior still need design.
 
 ---
 

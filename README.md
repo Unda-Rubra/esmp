@@ -370,6 +370,8 @@ Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.m
 
 地块内箱子等容器先经过通知和搬迁宽限期，再随土地改变保护状态；非空不单独阻止回收。容器和内容原地保留，不自动搬运、删除或生成掉落物。真正释放后按未认领土地／新聚落权限访问，未搬走的物品可能被别人取走；玩家背包和末影箱个人物品不受影响。通知方式、宽限期长度及跨边界存储等细节仍待定，不能绕过 Holder 同意权。
 
+没有 Holder 的 Parcel 可以随符合条件的土地整体结束权限划分并保留历史，但整个 Parcel 必须都在同一个安全释放组内，且提交时仍无 Holder。不切开 Parcel，也不在通知时提前取消保护；期间新增 Holder 后，不能再按“无 Holder”直接释放，须遵守已确定的同意规则。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)
