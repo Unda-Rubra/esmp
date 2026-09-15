@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 retains historical Treasury for manual collection
+
+The user selected option 2: leave the balance in the historical Treasury after land ownership ends, with a post-termination collection path for the last Owner. Canonical details are in §30.6. Automatic Wallet payout was not selected. A nonzero balance alone need not block the terminal land transition.
+
+Rationale: preserve funds, account identity and audit history while separating land lifecycle from the player's decision to collect. The final Owner's entitlement must survive removal of active ownership, cannot depend on future Claim ownership, and must not pass to later reclaimers. Collection is a supply-conserving ledger TRANSFER, with existing atomic/idempotent accounting; no issuance, sink or forfeiture policy was approved.
+
+Only Treasury currency disposition is settled. Active membership/roles, proposals, Repair material refunds and unresolved physical/inventory work still need rules. No runtime/schema/test-checklist behavior changed; exact collection commands are not yet implemented.
+
 ## 2026-09-15 — MVP+1 may terminate all Settlement land ownership
 
 The user first answered option 1, then immediately corrected it to option 2. The final authoritative choice permits releasing the final Claim or a valid whole remaining group and ending all active Settlement land ownership when every release condition is met. Canonical details are in §30.5; a permanent one-Claim floor was not adopted.

@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define registered-Building lifecycle transition, pending-job/material accounting and release/proposal reconciliation. §§30.1–30.4 settle Holder consent, whole ruins, in-place containers and whole unassigned Parcels; §30.5 permits complete termination without a final-Claim floor. Decide terminal Treasury balances, active membership/roles and pending obligations separately. Define notice delivery/duration/revalidation, cross-boundary storage (including double chests), other property/entities and explicit administrator dispute handling.
+2. Define registered-Building lifecycle transition, pending-job/material accounting and release/proposal reconciliation. §§30.1–30.5 settle rights, whole ruins/Parcels, contents and complete termination; §30.6 retains historical Treasury funds for manual collection by the last Owner. Decide active membership/roles and pending obligations, plus collection-interface details, separately. Define notice delivery/duration/revalidation, cross-boundary storage (including double chests), other property/entities and explicit administrator dispute handling.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §§30.1–30.5 fix Holder consent, whole registered ruin candidacy, container disposition, whole unassigned-Parcel release and complete ownership-termination eligibility for MVP+1. Terminal accounting and other release rules remain unresolved; do not infer details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.
+Architecture §§30.1–30.6 fix Holder consent, whole registered ruin candidacy, container disposition, whole unassigned-Parcel release, complete termination eligibility and historical Treasury collection for MVP+1. Remaining lifecycle/accounting and release rules are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.

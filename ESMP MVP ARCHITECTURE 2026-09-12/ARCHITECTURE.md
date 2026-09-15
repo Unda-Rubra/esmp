@@ -1157,7 +1157,19 @@ Automatic release need not reserve a final Claim. If all remaining land satisfie
 - The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
 - This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
 
-Treasury balances, active membership/roles, pending proposals and unfinished Decay/Repair jobs/materials require separately approved terminal settlement and reconciliation rules. This choice selects no payout, confiscation, currency sink or material disposal policy; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
+Treasury disposition follows §30.6. Active membership/roles, pending proposals and unfinished Decay/Repair jobs/materials still require separately approved terminal settlement and reconciliation rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
+
+## 30.6 Accepted MVP+1 boundary — historical Treasury awaiting collection (2026-09-15)
+
+When an eligible Settlement ends active land ownership, its remaining Treasury balance stays in its historical Treasury for the last legitimate Owner to collect manually. Do not automatically pay it into that player's Wallet.
+
+- A nonzero Treasury balance alone does not require retaining land or keeping active Settlement governance alive. Preserve the Treasury's identity, balance and transaction history independently of the ended land ownership.
+- Persist the entitled last Owner UUID from the terminal ownership transition. Manual collection must remain available after termination without depending on a still-active Owner role. Former membership or later Claim acquisition does not transfer that entitlement; a new claimant receives neither the old balance nor withdrawal authority.
+- Until collection, funds remain in the historical Treasury. Termination does not delete, confiscate or silently expire the balance; no forfeiture deadline was selected.
+- Collection transfers existing integer currency from the historical Treasury to the entitled player's Wallet, preserving supply. Apply existing atomic debit/credit/history and stable transaction-ID replay rules; retries cannot pay twice. This is neither ISSUANCE nor a SINK.
+- Preserve a post-termination inspection/collection interface. Exact commands, amount selection and exceptional handling remain implementation/design details, not already implemented behavior.
+
+This decision concerns Treasury currency only, not container contents or Repair material escrow. Active membership/roles, pending proposals and unfinished job/material reconciliation remain unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
 
 ---
 
