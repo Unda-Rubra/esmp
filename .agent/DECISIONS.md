@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 leaves container contents on released land
+
+The user selected option 1: advance notice and relocation grace, then keep land-local containers and contents in place as land protection changes. Canonical details are in §30.3. Nonempty contents alone do not prevent release; access changes only when release commits and then follows unclaimed/new Settlement permissions. Items left behind may be taken by others: that consequence was explicitly disclosed and accepted.
+
+Rationale: avoid making one nonempty chest a permanent release veto, without introducing automatic item relocation, deletion, dropped loot or a storage service. Player inventories and personal Ender Chest contents are not in scope. Assigned Holder consent and whole registered ruin requirements remain binding.
+
+Only land-local container disposition is settled. Notice delivery/duration, cross-boundary storage, other property/entities, unassigned Parcels, Treasury/final-Claim handling and Repair accounting are not implicitly approved by this choice. No runtime, schema or acceptance-checklist behavior changed.
+
 ## 2026-09-15 — MVP+1 admits whole registered ruins as candidates
 
 The user selected option 2: a whole RUINED registered Building may enter the automatic-release process if its claimed footprint can safely exit together without violating Holder rights. Canonical details are in architecture §30.2. Buildings are not split across release steps; a group touching several registered Buildings must satisfy the whole-RUINED rule for all of them. Boundary/topology constraints and §30.1 consent remain binding.

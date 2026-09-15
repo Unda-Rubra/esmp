@@ -1111,19 +1111,31 @@ Automatic release must preserve the existing consent rights of assigned Parcel H
 - An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
 - Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
 
-This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2; unassigned Parcels, property disposition, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2 and land-local container disposition in §30.3. Unassigned Parcels, remaining property cases, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
 
 ## 30.2 Accepted MVP+1 boundary — whole registered ruins (2026-09-15)
 
 A registered Building may enter the automatic-release candidate process only as a whole RUINED Building, rather than being permanently exempt solely because it is registered.
 
-- RUINED is the existing damage condition, not the ACTIVE/RETIRED registration lifecycle. It is necessary but not sufficient for release; the remaining eligibility and property rules still have to be frozen.
+- RUINED is the existing damage condition, not the ACTIVE/RETIRED registration lifecycle. It is necessary but not sufficient for release; remaining eligibility and unresolved property cases still have to be frozen.
 - A proposed release touching a registered Building must include all Claims intersecting its registered footprint in one safe whole-Building release group. It must not release that Building piecemeal by chunk. Every registered Building touched by that group must satisfy the same whole-RUINED requirement.
 - The group must satisfy boundary-only release and Settlement topology safeguards, without internal holes or disconnection. If a safe whole group cannot be formed, the Building remains protected.
 - Holder consent under §30.1 remains mandatory. Ruin, including a Building overlapping an assigned Parcel, cannot override that boundary.
 - Release must not automatically demolish the physical structure or erase its history. RUINED condition, group completeness, topology and rights must be revalidated before any eventual release commits.
 
-This approves candidate eligibility, not immediate release or an implementation. Container contents and other property, unassigned Parcels, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
+This approves candidate eligibility, not immediate release or an implementation. Land-local container contents follow §30.3; other property cases, unassigned Parcels, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
+
+## 30.3 Accepted MVP+1 boundary — containers remain in place (2026-09-15)
+
+Before eligible land or whole ruins lose protection, provide advance notice and a relocation grace period. Land-local containers and their contents remain physically in place; nonempty contents alone do not veto release.
+
+- Release does not automatically move, delete, recreate or convert the containers or their contents into dropped items. It does not create an automatic storage/escrow service for abandoned contents.
+- Existing protection remains until the actual authorized release commits, not merely when land becomes a candidate or notice begins. After release, access follows ordinary unclaimed-land rules; after reclaim, it follows the new Settlement/Parcel permissions.
+- The accepted consequence is that items not removed during the grace period may be taken by others. Previous ownership does not retain a separate container-access lock solely because those items were left behind.
+- This applies only to containers left on the released land. Player inventories and personal Ender Chest contents are unaffected. It does not authorize spending a Settlement Treasury or refunding/unreserving pending Repair materials.
+- Assigned Holder consent under §30.1 and whole-Building safeguards under §30.2 still apply. Notice or nonempty-container policy cannot waive those constraints.
+
+Notice delivery, grace duration/revalidation, cross-boundary storage such as double chests, other property/entity cases and pending-job accounting remain explicit design gates. This decision neither authorizes exposing a still-protected neighboring region nor implements automatic release.
 
 ---
 

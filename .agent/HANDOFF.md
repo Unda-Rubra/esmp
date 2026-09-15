@@ -3,14 +3,14 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- MVP+1 remains design-only. Accepted boundaries are assigned Holder consent (§30.1) and whole registered RUINED Building candidacy (§30.2). The frozen MVP runtime is unchanged; property disposition, unassigned Parcels, release mechanics/timing and Civic Capacity remain unresolved.
+- MVP+1 remains design-only. Accepted boundaries are assigned Holder consent (§30.1), whole registered RUINED Building candidacy (§30.2), and in-place land-local container contents after notice/grace (§30.3). Frozen MVP runtime is unchanged; unassigned Parcels, notice details, remaining property cases, lifecycle/accounting, release timing and Civic Capacity remain unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
 
-- Latest decision: whole registered RUINED Buildings can become automatic-release candidates only when all Claims in their registered footprint can safely exit together, without splitting Buildings or bypassing Holder rights. Other registered Buildings touched by the group must meet the same requirements. Physical structures and history remain; property and lifecycle/job handling are not yet approved.
-- Prior decision remains binding: inactivity/absence/notice/grace expiry cannot waive assigned Holder consent or remove parent Claim protection indirectly. Offline disputes require explicit audited administrator handling; protected land may indefinitely constrain retreat.
+- Latest decision: give advance notice and relocation grace, then leave land-local containers/contents in place as protection changes. Nonempty contents alone do not veto release; abandoned items may be taken under unclaimed/new Settlement permissions. No automatic relocation, deletion or dropped loot, and no change to personal inventories/Ender Chest contents.
+- Prior boundaries remain binding: assigned Holder consent never expires through inactivity/notice, and registered Buildings enter candidacy only as whole RUINED groups satisfying topology and rights. The container choice does not approve unassigned-Parcel removal, notice details, other property or pending-job/Treasury handling.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -21,7 +21,7 @@
 
 ## Changed files
 
-- Latest decision updates architecture §30.2 and the unresolved-items sentence in §30.1, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
+- Latest decision adds architecture §30.3 and updates related unresolved-items text in §§30.1–30.2, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -46,12 +46,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
-- Latest work is documentation-only whole-ruin candidate eligibility in architecture §30.2 and synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; the Phase 8 build/Paper evidence above was not rerun for this decision.
-- Documentation scope check passed: reversing only the new §30.2 section and §30.1 unresolved-items sentence reproduces the prior architecture exactly. Frozen MVP text and the accepted Holder safeguards are unchanged; property disposition remains explicitly unresolved.
+- Latest work is documentation-only in-place container disposition under §30.3 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: reversing §30.3 and the three related unresolved-scope sentences reproduces the prior architecture exactly. Frozen MVP and prior Holder/whole-ruin safeguards are unchanged; personal inventories are excluded and cross-boundary storage/notice details remain open.
 
 ## Next action
 
-Next decide container contents and other property disposition when eligible land/whole ruins leave protection, plus unassigned-Parcel and registration/pending-job handling. Then freeze timing, topology/final-Claim behavior and any capacity model. Holder consent and whole-RUINED candidacy are settled by §§30.1–30.2; do not reopen them or treat candidacy as permission to implement automatic release.
+Next decide unassigned-Parcel handling during otherwise eligible release. Then freeze notice delivery/grace/revalidation, cross-boundary storage and other property cases, Building lifecycle/pending-job accounting, timing, final-Claim behavior and any capacity model. §§30.1–30.3 are settled boundaries, not permission to implement automatic release.
 
 ## Risks or blockers
 

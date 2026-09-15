@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define unassigned-Parcel handling, container/property disposition, registered-Building lifecycle transition and pending-job/material reconciliation. Holder consent is settled in §30.1; whole-RUINED Building candidacy is settled in §30.2. Operational details of explicit administrator dispute resolution remain open.
+2. Define unassigned-Parcel handling, registered-Building lifecycle transition and pending-job/material reconciliation. Holder consent (§30.1), whole-RUINED Building candidacy (§30.2) and in-place land-local container contents after notice/grace (§30.3) are settled. Define notice delivery/duration/revalidation, cross-boundary storage (including double chests), other property/entities and explicit administrator dispute handling.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §§30.1–30.2 fix assigned Holder consent and whole registered ruin candidacy for MVP+1. Other release rules remain unresolved; do not infer implementation details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.
+Architecture §§30.1–30.3 fix assigned Holder consent, whole registered ruin candidacy and land-local container disposition for MVP+1. Other release rules remain unresolved; do not infer implementation details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.
