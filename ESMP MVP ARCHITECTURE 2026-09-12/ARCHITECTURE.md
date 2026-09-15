@@ -1111,7 +1111,19 @@ Automatic release must preserve the existing consent rights of assigned Parcel H
 - An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
 - Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
 
-This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Building handling, unassigned Parcels, property disposition, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2; unassigned Parcels, property disposition, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+
+## 30.2 Accepted MVP+1 boundary — whole registered ruins (2026-09-15)
+
+A registered Building may enter the automatic-release candidate process only as a whole RUINED Building, rather than being permanently exempt solely because it is registered.
+
+- RUINED is the existing damage condition, not the ACTIVE/RETIRED registration lifecycle. It is necessary but not sufficient for release; the remaining eligibility and property rules still have to be frozen.
+- A proposed release touching a registered Building must include all Claims intersecting its registered footprint in one safe whole-Building release group. It must not release that Building piecemeal by chunk. Every registered Building touched by that group must satisfy the same whole-RUINED requirement.
+- The group must satisfy boundary-only release and Settlement topology safeguards, without internal holes or disconnection. If a safe whole group cannot be formed, the Building remains protected.
+- Holder consent under §30.1 remains mandatory. Ruin, including a Building overlapping an assigned Parcel, cannot override that boundary.
+- Release must not automatically demolish the physical structure or erase its history. RUINED condition, group completeness, topology and rights must be revalidated before any eventual release commits.
+
+This approves candidate eligibility, not immediate release or an implementation. Container contents and other property, unassigned Parcels, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
 
 ---
 

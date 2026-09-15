@@ -366,6 +366,8 @@ Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.m
 
 已确定一条边界：自动回收不会使已分配 Parcel 的 Holder 同意权过期，也不能通过取消父 Claim 间接解除保护；长期离线纠纷由管理员明确、留痕处理。这可能长期阻止部分外围退缩。其他回收规则仍待定，尚未实现自动回收。
 
+注册建筑也可进入候选回收，但必须整栋为 RUINED，所占 Claims 能作为一个整体安全退出，且不触犯 Holder 权利；同组涉及的其他注册建筑也必须满足这些条件。不按区块切开建筑，不自动拆除实体，保留历史。箱子等财产处置和具体释放流程仍待定，当前运行时尚不会自动释放。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define Building and unassigned-Parcel handling, container/property disposition and operational details for explicit administrator dispute resolution. Assigned Holder consent is already settled: architecture §30.1 forbids automatic expiry or indirect parent-release bypass.
+2. Define unassigned-Parcel handling, container/property disposition, registered-Building lifecycle transition and pending-job/material reconciliation. Holder consent is settled in §30.1; whole-RUINED Building candidacy is settled in §30.2. Operational details of explicit administrator dispute resolution remain open.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §30.1 now fixes the assigned Holder consent boundary for MVP+1. Other release rules remain unresolved; do not infer implementation details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.
+Architecture §§30.1–30.2 fix assigned Holder consent and whole registered ruin candidacy for MVP+1. Other release rules remain unresolved; do not infer implementation details from the pre-freeze architecture or treat unaccepted discussion proposals as approved.

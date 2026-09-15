@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 admits whole registered ruins as candidates
+
+The user selected option 2: a whole RUINED registered Building may enter the automatic-release process if its claimed footprint can safely exit together without violating Holder rights. Canonical details are in architecture §30.2. Buildings are not split across release steps; a group touching several registered Buildings must satisfy the whole-RUINED rule for all of them. Boundary/topology constraints and §30.1 consent remain binding.
+
+Rationale: permanent exemption of every registered Building would strand registered ruins indefinitely, preventing the intended decline/reclaim cycle. Whole-group candidacy permits that cycle without tearing a Building's ownership boundary apart. Existing physical structures and historical records are preserved, not automatically demolished or erased.
+
+This choice does not authorize public access to container contents, evacuation/storage, unassigned-Parcel removal, timing, final-Claim loss or an implementation. Registration retirement/ownership transition and pending Repair/material reconciliation still need design. The MVP runtime, schema and test acceptance remain unchanged.
+
 ## 2026-09-14 — MVP+1 preserves assigned Holder consent
 
 The user selected option 1: retain Holder consent rather than allow timeout-based automatic revocation. Canonical details are in architecture §30.1. Inactivity, absence, notice and grace expiry do not waive consent; parent Claim/Settlement release cannot remove assigned Parcel protection indirectly. Offline disputes remain explicit audited administrator cases, not scheduled overrides.
