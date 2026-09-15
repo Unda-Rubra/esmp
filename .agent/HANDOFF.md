@@ -3,14 +3,14 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- MVP+1 remains design-only. Accepted boundaries are Holder consent (§30.1), whole registered RUINED candidacy (§30.2), in-place containers after notice/grace (§30.3) and whole unassigned-Parcel release with commit-time zero Holders (§30.4). Frozen MVP runtime is unchanged; notice, remaining property, lifecycle/accounting/reconciliation, timing, final-Claim and capacity details remain unresolved.
+- MVP+1 remains design-only. §§30.1–30.4 settle Holder consent, whole registered ruins, in-place containers and whole unassigned Parcels. The user's corrected final choice in §30.5 allows complete active land-ownership termination without retaining one Claim. Frozen MVP runtime is unchanged; terminal accounting/membership/jobs, notice, remaining property, timing and capacity details remain unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
 
-- Latest decision: a whole unassigned Parcel may end its permission subdivision with otherwise eligible land, preserving history. Every cell must be inside the same safe release group and zero Holders must be revalidated at commit. No partial cut or early notice-time removal; any new Holder prevents release on the old unassigned assumption.
-- Prior safeguards remain binding: assigned Holder consent does not expire, registered Buildings need whole-RUINED eligibility, and land-local contents remain in place after notice/grace. This choice does not settle final-Claim loss, timing or pending-job/proposal/Treasury handling.
+- Latest decision: the user's immediate correction from option 1 to option 2 is authoritative. Eligible automatic release may remove the last Claim or valid whole remaining group and end active Settlement land ownership while preserving history. No permanent one-Claim floor was adopted for MVP+1.
+- Prior Holder/whole-Building/whole-Parcel/notice safeguards still apply to every affected region; whole-Settlement termination cannot bypass them. Treasury, active membership/roles, pending proposals and unfinished job/material handling remain unapproved. Ordinary MVP last-Claim behavior has not changed.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -21,7 +21,7 @@
 
 ## Changed files
 
-- Latest decision adds architecture §30.4 and updates related unresolved-items text in §§30.1–30.2, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
+- Latest decision adds architecture §30.5 and updates related unresolved-items text in §§30.1/30.4, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -46,12 +46,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
-- Latest work is documentation-only whole unassigned-Parcel lifecycle under §30.4, with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
-- Documentation scope check passed: reversing §30.4 and its two related unresolved-scope sentences reproduces the prior architecture exactly. Frozen MVP and prior rights/ruin/container safeguards are unchanged; whole inclusion and commit-time zero Holders are explicit.
+- Latest work is documentation-only corrected complete-termination eligibility under §30.5 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: reversing §30.5 and its two related scope sentences reproduces the prior architecture exactly. The final option 2 is recorded; frozen MVP and prior safeguards remain unchanged, and Treasury/member/job disposition is explicitly unapproved.
 
 ## Next action
 
-Next decide whether automatic release must retain the last Claim or may terminate an entire Settlement. Then freeze notice/grace/revalidation, cross-boundary property, Building lifecycle, pending-job/proposal/Treasury handling, timing and any capacity model. §§30.1–30.4 are settled boundaries, not permission to implement automatic release.
+Next decide disposition of a terminating Settlement's Treasury, then active membership/roles and pending job/proposal/material obligations. Continue with notice/grace/revalidation, cross-boundary property, timing and capacity design. The final choice is §30.5 complete termination eligibility, not the superseded one-Claim-retention option; §§30.1–30.5 do not authorize implementation yet.
 
 ## Risks or blockers
 

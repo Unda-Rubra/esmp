@@ -1111,7 +1111,7 @@ Automatic release must preserve the existing consent rights of assigned Parcel H
 - An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
 - Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
 
-This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2, land-local container disposition in §30.3 and unassigned Parcels in §30.4. Remaining property cases, release timing, final-Claim rules and whether Civic Capacity is needed remain unresolved.
+This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2, land-local container disposition in §30.3, unassigned Parcels in §30.4 and final-Claim termination eligibility in §30.5. Remaining property cases, release timing, terminal settlement/accounting rules and whether Civic Capacity is needed remain unresolved.
 
 ## 30.2 Accepted MVP+1 boundary — whole registered ruins (2026-09-15)
 
@@ -1146,7 +1146,18 @@ An unassigned Parcel may automatically end its permission subdivision as part of
 - End the subdivision only with the actual coordinated parent land release, not at candidate selection or notice. Do not erase the historical record or leave a live Parcel outside its Settlement's Claims.
 - This does not waive low-support/notice requirements, boundary/topology constraints, whole-Building safeguards or container disposition rules. Empty Holder membership is not proof that the land is otherwise releasable.
 
-This is a post-MVP lifecycle decision, not a change to ordinary MVP unclaim or an implementation. Commit/proposal reconciliation details, remaining property and job accounting, release timing and final-Claim behavior still need design.
+This is a post-MVP lifecycle decision, not a change to ordinary MVP unclaim or an implementation. Final-Claim termination eligibility follows §30.5; commit/proposal reconciliation, remaining property/job accounting, release timing and terminal settlement rules still need design.
+
+## 30.5 Accepted MVP+1 boundary — complete ownership termination (2026-09-15)
+
+Automatic release need not reserve a final Claim. If all remaining land satisfies the release conditions, the final Claim or valid whole remaining release group may be released and the Settlement's active land ownership ended. Historical identity and records must survive.
+
+- There is no permanent one-Claim floor for this future automatic lifecycle.
+- Every remaining Claim and affected Building/Parcel must satisfy the applicable safeguards. A blocked Holder relationship, incomplete whole-Building/Parcel group, unmet notice requirement or other ineligible land cannot be bypassed by labeling the operation whole-Settlement termination.
+- The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
+- This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
+
+Treasury balances, active membership/roles, pending proposals and unfinished Decay/Repair jobs/materials require separately approved terminal settlement and reconciliation rules. This choice selects no payout, confiscation, currency sink or material disposal policy; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
 
 ---
 

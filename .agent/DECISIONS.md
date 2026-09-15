@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 may terminate all Settlement land ownership
+
+The user first answered option 1, then immediately corrected it to option 2. The final authoritative choice permits releasing the final Claim or a valid whole remaining group and ending all active Settlement land ownership when every release condition is met. Canonical details are in §30.5; a permanent one-Claim floor was not adopted.
+
+Rationale: permit a complete decline/reclaim cycle instead of leaving every abandoned Settlement with protected residual land. History remains. Holder consent and whole Building/Parcel safeguards still block ineligible termination; a terminal lifecycle is not an alternate way around those rights or permission for ordinary unclaim to remove its last Claim.
+
+Treasury disposition, active membership/roles, pending proposals and unfinished Decay/Repair/material reconciliation still require decisions. No payout, sink, confiscation or deletion of obligations was selected. Documentation only: frozen MVP runtime/schema and existing test acceptance remain unchanged.
+
 ## 2026-09-15 — MVP+1 releases whole unassigned Parcels with eligible land
 
 The user selected option 1: an unassigned Parcel may end automatically with an otherwise eligible safe land-release group, provided the entire Parcel is included and it still has no Holders at commit. Canonical details are in §30.4. History remains; no partial Parcel cut or early protection removal at notice is allowed.
