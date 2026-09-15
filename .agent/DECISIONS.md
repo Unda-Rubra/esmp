@@ -2,6 +2,16 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-15 — MVP+1 reconciles Repair before cancelling remaining work
+
+The user selected option 1 for unfinished Repair at Settlement termination. Canonical §30.7 requires safe inventory/world/SQL reconciliation first, then cancellation of unexecuted work. Completed physical repairs and consumed-material accounting remain; cancellation does not itself complete a qualifying Repair cycle or award Era.
+
+Rationale: an otherwise settled unfinished job should not require its payer to return and voluntarily finish/cancel the whole restoration before land can end. This is not permission to discard pending intents: offline payer proof or naturally unloaded world work may still block safe reconciliation.
+
+Unused reconciled materials stay claimable manually by their original payer, not by the last Owner merely because of that role. Durable post-termination entitlement and idempotent/capacity-safe item transfers are required; material escrow is not Treasury currency. After safe cancellation, uncollected refunds alone need not keep land owned.
+
+Only terminal Repair settlement is approved. Notice-stage admission/recovery, active membership/roles, pending proposals, Building/Decay lifecycle and exact command/API details remain open. No runtime/schema/test-checklist behavior changed.
+
 ## 2026-09-15 — MVP+1 retains historical Treasury for manual collection
 
 The user selected option 2: leave the balance in the historical Treasury after land ownership ends, with a post-termination collection path for the last Owner. Canonical details are in §30.6. Automatic Wallet payout was not selected. A nonzero balance alone need not block the terminal land transition.

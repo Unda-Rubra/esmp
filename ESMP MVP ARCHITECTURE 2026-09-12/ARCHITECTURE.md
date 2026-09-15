@@ -1157,7 +1157,7 @@ Automatic release need not reserve a final Claim. If all remaining land satisfie
 - The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
 - This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
 
-Treasury disposition follows §30.6. Active membership/roles, pending proposals and unfinished Decay/Repair jobs/materials still require separately approved terminal settlement and reconciliation rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
+Treasury disposition follows §30.6 and unfinished Repair settlement follows §30.7. Active membership/roles, pending proposals and remaining Building/Decay lifecycle details still require separately approved rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
 
 ## 30.6 Accepted MVP+1 boundary — historical Treasury awaiting collection (2026-09-15)
 
@@ -1169,7 +1169,20 @@ When an eligible Settlement ends active land ownership, its remaining Treasury b
 - Collection transfers existing integer currency from the historical Treasury to the entitled player's Wallet, preserving supply. Apply existing atomic debit/credit/history and stable transaction-ID replay rules; retries cannot pay twice. This is neither ISSUANCE nor a SINK.
 - Preserve a post-termination inspection/collection interface. Exact commands, amount selection and exceptional handling remain implementation/design details, not already implemented behavior.
 
-This decision concerns Treasury currency only, not container contents or Repair material escrow. Active membership/roles, pending proposals and unfinished job/material reconciliation remain unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
+This decision concerns Treasury currency only, not container contents or Repair material escrow; the latter follows §30.7 during termination. Active membership/roles, pending proposals and remaining lifecycle details are unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
+
+## 30.7 Accepted MVP+1 boundary — reconcile Repair, then cancel remaining work (2026-09-15)
+
+During eligible Settlement termination, safely reconcile unfinished Repair inventory/world operations, then cancel the remaining unexecuted Repair work. Do not require an otherwise settled unfinished job to complete its entire restoration or await voluntary cancellation by its payer.
+
+- Preserve already completed physical repairs and their accounting/history. Materials actually consumed by completed work are not refundable; cancellation/termination itself is not a qualifying Repair completion or an Era award.
+- Resolve outstanding supply/refund transfers and physical intents through the existing independent inventory/world/SQL reconciliation model before releasing affected protection or deciding refundable stock. Do not assume SQL completion proves a world save, force through a conflict, delete a journal or discard an unresolved reservation.
+- Required inventory proof from an offline payer or a naturally unloaded target may still delay safe termination. This choice does not permit forced chunk loads or bypassing reconciliation to guarantee immediate release.
+- Coordinate terminal settlement with Repair admission/mutation so new work cannot race the cancellation/accounting boundary. This does not approve freezing ordinary Repair merely because a release notice has begun; notice/recovery rules remain to be designed.
+- Unused, reconciled materials remain reserved for manual collection by their original job payer after termination. Entitlement is based on supplying those materials, not on being the last Owner, a former member or a later claimant. Do not move them into the historical Treasury or convert them to currency.
+- Once jobs are safely cancelled and collection entitlements durably preserved, uncollected refundable materials alone do not require retaining land. Preserve a post-termination collection path independent of active Settlement roles, using existing inventory-capacity and idempotent transfer safeguards; do not auto-drop items or duplicate refunds.
+
+This selects terminal Repair settlement only. Active membership/roles, proposals, Building/Decay lifecycle transitions, exact collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
 
 ---
 
