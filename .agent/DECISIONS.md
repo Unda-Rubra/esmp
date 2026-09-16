@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — Valid edits become the current unowned ruin baseline
+
+The user selected option 1: legitimate construction/replacement within still-unowned tracked bounds updates the current baseline. Canonical §30.12 distinguishes invalidating old queued plans from preventing all future decay. Meaningful maintenance can suppress decay; after later inactivity, old and newly incorporated mutable structures may decay under the current design.
+
+Rationale: use the existing evolving-baseline model rather than permanent exemption for every replaced block. Preserve historical revisions, treat intentional demolition as design change, and never let obsolete plans restore removed walls or overwrite current work.
+
+No automatic bounds expansion/discovery, protection bypass, block-entity mutation or free Repair/Era is approved. Exact observation/revision coordination, major reinterpretation, numerical Activity rules and partial/full reclaim/takeover remain open. Documentation only; frozen MVP runtime/schema and player acceptance are unchanged.
+
 ## 2026-09-16 — Unowned maintenance support is shared within a bounded neighborhood
 
 The user selected option 2: finite, attenuated neighboring support using the Local Activity spatial-support approach, rather than independent maintenance accounts for each ruin. Canonical §30.11 records this direction. Support is not shared across an entire former Settlement merely through historical identity.

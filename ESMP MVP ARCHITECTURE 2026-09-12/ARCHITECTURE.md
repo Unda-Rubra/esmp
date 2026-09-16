@@ -1206,7 +1206,7 @@ After a registered whole ruin's land is validly released, it continues as an uno
 - Preserve expected-state, revision, permission-boundary and independent world/SQL reconciliation safeguards. Player edits and newly protected regions must not be overwritten by blindly replaying old decay plans. Pending old-context operations require safe reconciliation and transition, not unconditional continuation.
 - This selects continued Decay, not continued old Repair or automatic restoration. Existing Treasury/material entitlements and terminal Repair settlement remain intact; partial-release job handling and exact old/new-context transitions still need design.
 
-Meaningful player Activity can suppress unowned ruin Decay under §30.10, with bounded spatial sharing under §30.11. Before implementation, freeze eligibility/rate, exact contribution range/values and recovery rules, player-edit/baseline protection, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
+Meaningful player Activity can suppress unowned ruin Decay under §30.10, with bounded spatial sharing under §30.11 and current-baseline edits under §30.12. Before implementation, freeze eligibility/rate, exact contribution range/values and recovery rules, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
 
 ## 30.10 Accepted MVP+1 boundary — Activity can sustain unowned ruins (2026-09-16)
 
@@ -1217,7 +1217,7 @@ Players may suppress further system Decay of an unowned ruin through meaningful 
 - Activity recovery suppresses future eligible Decay; it does not repair existing damage, create materials, advance Era or confer Holder/member/ownership rights. Queue/application revalidation must honor recovery rather than blindly applying stale eligible work.
 - Keep processing bounded and use shared GameClock semantics, including freeze and no downtime accrual. This choice does not authorize global per-block scans or reuse of a former Settlement's aggregate score as an unowned maintenance account.
 
-Bounded spatial sharing is selected in §30.11. Contribution categories/amounts/caps, exact range/attenuation, initialization/transition, thresholds/hysteresis/duration, edit/baseline handling and takeover rules remain unresolved. This rejects Activity-independent decay as the selected unowned policy but does not freeze a numeric formula or implement the mode.
+Bounded spatial sharing is selected in §30.11 and unowned current-baseline edits in §30.12. Contribution categories/amounts/caps, exact range/attenuation, initialization/transition, thresholds/hysteresis/duration, detailed edit coordination and takeover rules remain unresolved. This rejects Activity-independent decay as the selected unowned policy but does not freeze a numeric formula or implement the mode.
 
 ## 30.11 Accepted MVP+1 boundary — bounded neighboring support (2026-09-16)
 
@@ -1229,6 +1229,18 @@ Meaningful unowned maintenance Activity may provide limited, spatially attenuate
 - Use bounded/indexed spatial work rather than scanning every ruin or block for each contribution. Spatial sharing selects gameplay scope, not a new player-managed region or dormant Settlement.
 
 Exact spatial units/shape/range, attenuation coefficients, cap aggregation, source eligibility at claimed/unclaimed boundaries and recovery thresholds remain to be frozen. Existing MVP neighbor coefficients are not automatically adopted. No runtime/schema change or implementation is authorized by this decision.
+
+## 30.12 Accepted MVP+1 boundary — player edits update the unowned baseline (2026-09-16)
+
+Valid player construction and replacement within the still-unowned tracked ruin update its current baseline. Newly placed/replaced parts are not permanently excluded from unowned Decay solely because players changed them.
+
+- Scope remains the existing tracked bounds. This choice neither expands the ruin automatically nor discovers/registers new Buildings outside that scope; newly claimed/protected areas require their own takeover/authority handling.
+- Authorized edits establish a new current design/revision. Invalidate or revalidate affected queued work against that revision and the actual expected state; never replay an obsolete plan through the new construction.
+- Player demolition changes intended design to air rather than creating damage that resurrects the old wall. Preserve previous revisions/history without making them current automatic restoration targets.
+- Under sufficient meaningful maintenance support, further eligible Decay is suppressed. If maintenance later falls below the eventual eligibility rules, both old and newly incorporated mutable parts may decay against the current baseline. This is future decay of current design, not a stale-plan overwrite.
+- Existing material/safety limits, block-entity exclusions, protection boundaries, natural-load constraints and independent persistence reconciliation still apply. An accepted edit is not a blanket permission bypass or unlimited Activity credit.
+
+This selects baseline behavior only. Exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling, contribution/recovery values and partial/full reclaim/takeover rules still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
 
 ---
 
