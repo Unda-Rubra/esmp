@@ -1,24 +1,25 @@
-# ESMP Current Phase Gates
+# ESMP Current Scope and Execution Notes
 
-## Authority and status
+## Authority
 
-The [architecture](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md), [requirements freeze](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) and [strict roadmap](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) remain canonical. Frozen MVP behavior is unchanged; accepted post-MVP decisions are recorded separately in architecture §30.
+The frozen MVP remains implemented at `mvp-v1.0`. The next increment is the simplified Dynamic Settlement Cycle in [architecture §30](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md). That section supersedes the accumulated edge-case questionnaire and earlier partial-building decisions.
 
-Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the frozen milestone. Native-client/user acceptance and deployment-specific capacity checks remain explicit in the checklist. `RELEASE.md` records the tested cold upgrade/restore and Resource maintenance procedure.
+## Next work
 
-## MVP+1 — freeze design before implementation
+Implement WILD / CLAIMED classification and whole-Building transitions using the existing services, repositories and publication gate. WILD is wholly outside Settlements; CLAIMED is wholly inside one Settlement. Cross-boundary tracked Buildings are unsupported: reject invalid registration/boundary changes instead of adding a mixed state, fragments or split/merge logic.
 
-1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Complete the unowned ruin mode: §§30.9–30.13 settle unowned Decay/Activity/baselines and safe partial reclaim; §30.14 selects automatic whole takeover into one Settlement after current permission/safety checks, without extra confirmation. Define multiple-Settlement coverage/registration, baseline/identity initialization, admission retry/coordination, exact spatial/numeric/recovery rules, claimed-source Activity, structural/storage boundaries and end-of-decay/major reinterpretation. §§30.1–30.8 remain binding. Freeze concrete APIs, notice-stage admission/recovery, notice delivery/duration/revalidation, other property cases and administrator dispute handling separately.
-3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
-4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
+Then connect the small Activity → notice/grace → safe peripheral release loop. Keep the selected Holder, container, historical Treasury and Repair-refund rules in §30. Do not reopen them as a sequence of design votes.
 
-## Resolved infrastructure requirements
+## Implementation choices, not new architecture gates
 
-- `db.changelog-baseline.xml` contains only the immutable Phase 0 includes. Legacy shape verification/changeLogSync target it; the full master applies later changes normally. New-schema projections load only after forward migrations finish.
-- Phase 2 uses structured update/table/index changes plus three documented SQLite-native ALTER exceptions. Pinned Liquibase's rebuild path lost constraints/defaults and failed on unnamed legacy foreign keys; tests verify preservation and old-column removal. Do not expand this exception into raw gameplay SQL or new legacy migrations.
-- Lifetime credit begins with actual post-migration awards. Old decaying scores and initial Activity do not reconstruct historic lifetime contributions. Existing explicitly approved/named Settlements were grandfathered VERIFIED by the migration.
+- Start from existing configurable Activity/Decay policies and bounded work budgets; tune through focused tests and actual server evidence.
+- Reuse current permission, history, baseline, job and reconciliation patterns. Keep storage/API details local to the implementation.
+- Reject unsupported cases safely. Do not add Civic Capacity, maintenance simulation, extra region models, arbitrary Building discovery or deferred systems.
 
-## Later frozen work
+## Retained migration constraints
 
-Architecture §§30.1–30.14 fix accepted release/termination, unowned Activity/baselines, partial-reclaim continuation and automatic whole takeover direction. Mixed-ownership and detailed operating/release rules remain unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
+- `db.changelog-baseline.xml` contains only immutable Phase 0 includes; verify the old shape before baseline synchronization, then apply the forward master.
+- Retain the tested legacy bridge for supported development-data upgrades. Do not rewrite released changelogs or expand documented SQLite-specific exceptions into gameplay SQL.
+- Historical Activity is not reconstructed from old scores. Existing certification grandfathering and financial histories remain intact.
+
+Native-client acceptance and deployment-specific performance checks remain in `TEST_CHECKLIST.md`; they are not new feature-design questions.

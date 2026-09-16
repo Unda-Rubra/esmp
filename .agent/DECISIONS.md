@@ -2,123 +2,15 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
-## 2026-09-16 — A fully covered eligible ruin is taken over automatically
+## 2026-09-16 — Cut the cycle design back to a small MVP
 
-The user selected option 2: once the entire ruin belongs within one Settlement and current permission/safety checks pass, automatically enter that Settlement's Building lifecycle without another Owner/Governor confirmation. Canonical §30.14 records this path; manual takeover confirmation was not selected.
+The user rejected the expanding edge-case questionnaire: a Building is WILD outside Settlements or CLAIMED inside one Settlement. Canonical §30 now replaces the fourteen accumulated subsections with this binary model and a short implementation scope.
 
-Rationale: completed land acquisition should not require a redundant adoption step for a known tracked ruin. The same-Settlement requirement is identity-based, not shared Owner identity. Partial/multiple-Settlement coverage does not qualify; current Parcel permissions, safe reconciliation and committed publication remain mandatory.
+Cross-boundary Buildings are unsupported. Reject operations that would create one instead of implementing partial-building Decay, ownership masks, multi-Settlement takeover, automatic splitting/merging or a dormant team. This explicitly supersedes the earlier partial-reclaim continuation decision and the pending mixed-ownership alternatives; their detailed chronology remains in Git history, not as active requirements here.
 
-Automatic admission may wait for valid naturally available state, without stripping Claim protection or using stale unowned authority. History remains, with no free physical repair, resumed old Repair job, old entitlement transfer or Era award. Exact baseline/identity initialization, mixed-ownership handling and concrete transition APIs remain open. No runtime/schema/test-checklist behavior changed.
+Retain the substantive gameplay choices: whole RUINED release, automatic whole takeover, wild Decay with meaningful bounded local support, evolving current baselines, Holder consent, in-place containers after notice, complete termination with history, historical Treasury collection by the last Owner, and reconciled unused Repair materials claimable by their original payer.
 
-## 2026-09-16 — Partial reclaim protects claimed cells without freezing all unowned work
-
-The user selected option 2: stop unowned Decay only in newly claimed portions; safe remaining unclaimed portions continue. Canonical §30.13 rejects a blanket whole-ruin pause caused by claiming one corner.
-
-Rationale: preserve the selected living unowned-ruin behavior while respecting new Claims. Source/destination and structural effects must not cross into protected damage. Changed Claims invalidate/replan affected work; genuinely unaffected unclaimed operations may continue, with bounded natural-load and reconciliation safeguards.
-
-This does not automatically register an owned fragment or settle full takeover/identity handling. Current-world protection, structural dependencies, mixed ownership, claimed-source Activity and exact coordination remain design work. No free Repair, inherited old permissions or Era follows; runtime/schema/test-checklist behavior is unchanged.
-
-## 2026-09-16 — Valid edits become the current unowned ruin baseline
-
-The user selected option 1: legitimate construction/replacement within still-unowned tracked bounds updates the current baseline. Canonical §30.12 distinguishes invalidating old queued plans from preventing all future decay. Meaningful maintenance can suppress decay; after later inactivity, old and newly incorporated mutable structures may decay under the current design.
-
-Rationale: use the existing evolving-baseline model rather than permanent exemption for every replaced block. Preserve historical revisions, treat intentional demolition as design change, and never let obsolete plans restore removed walls or overwrite current work.
-
-No automatic bounds expansion/discovery, protection bypass, block-entity mutation or free Repair/Era is approved. Exact observation/revision coordination, major reinterpretation, numerical Activity rules and partial/full reclaim/takeover remain open. Documentation only; frozen MVP runtime/schema and player acceptance are unchanged.
-
-## 2026-09-16 — Unowned maintenance support is shared within a bounded neighborhood
-
-The user selected option 2: finite, attenuated neighboring support using the Local Activity spatial-support approach, rather than independent maintenance accounts for each ruin. Canonical §30.11 records this direction. Support is not shared across an entire former Settlement merely through historical identity.
-
-Rationale: maintaining a public ruin cluster should not require checking in at every individual Building. Influence remains bounded to original validated contributions; derived support cannot relay itself indefinitely through a chain of ruins. Existing permission, anti-farming and no-ownership/no-healing/no-Era rules remain.
-
-No radius, spatial unit/shape, coefficient, cap aggregation or owned/unowned source-boundary policy was selected. Those details and recovery/edit/takeover rules remain open; the existing MVP coefficients are not silently reused. Documentation only; runtime/schema/test-checklist behavior is unchanged.
-
-## 2026-09-16 — Meaningful Activity may suppress unowned ruin Decay
-
-The user selected option 2: meaningful activity can inhibit further Decay of an unowned ruin without requiring land acquisition first. Canonical §30.10 records the direction. An Activity-independent schedule was not selected; this is not a freeze of contribution values or timing.
-
-Rationale: players may maintain public ruins without becoming their owners. Contributions require explicit unowned records, valid actions/location and bounded anti-farming rules. Login, walking/idling and automatic machines do not qualify. Current world/protection rules still apply; credit does not grant governance or restore former permissions.
-
-Recovery prevents further eligible decay rather than healing existing damage, minting materials or advancing Era. Spatial attribution/sharing, categories/amounts/caps, initialization, thresholds/hysteresis/duration, edit handling and reclaim/takeover still need design. Frozen MVP runtime/schema and player acceptance remain unchanged.
-
-## 2026-09-16 — MVP+1 continues Decay on released unowned ruins
-
-The user selected option 2: after land release, previously registered ruins remain subject to system Decay as unowned ruins. Canonical §30.9 records this explicit MVP+1 extension. Automatic retirement merely to stop further Decay was not selected; physical/history continuity remains.
-
-Rationale: ownership loss should not freeze the physical ruin indefinitely. The extension requires an unowned authority/eligibility model rather than reuse of the former Settlement's Owner, Activity or stale operations. It is limited to released registered ruins, not automatic discovery or general natural-world erosion.
-
-Safe bounded/naturally-loaded processing, player-edit precedence, protection of newly claimed regions and independent world/SQL reconciliation remain required. The choice does not continue old Repair, erase material entitlements, grant former permissions or award Era.
-
-Unowned timing/Activity response, player-edit/baseline handling, takeover/reclaim, old-context reconciliation and end-of-decay behavior remain open. No runtime/schema/test-checklist behavior changed and no implementation is authorized yet.
-
-## 2026-09-16 — MVP+1 ends active membership and governance at termination
-
-The user selected option 1: end effective Owner/Governor/Citizen relationships, retain history, and invalidate old invitations/unexecuted governance proposals. Canonical details are in §30.8. A landless dormant-team model was not selected.
-
-Rationale: historical identity should not preserve actionable governance after the owned Settlement ends. Stale invitations, transfers, reviews or Parcel requests cannot revive it; committed facts remain historical rather than being rolled back. Invalidation belongs to actual termination, not the beginning of a release notice.
-
-Treasury and Repair refund entitlements survive independently under §§30.6–30.7, without restoring an active role to collect. Other Settlements' memberships are unaffected. Holder safeguards and unresolved material/world obligations cannot be discarded as though they were merely stale proposals.
-
-Documentation only. Runtime/schema/test-checklist behavior is unchanged; Building/Decay lifecycle, concrete terminal storage/API mapping, notice/recovery and timing remain open.
-
-## 2026-09-15 — MVP+1 reconciles Repair before cancelling remaining work
-
-The user selected option 1 for unfinished Repair at Settlement termination. Canonical §30.7 requires safe inventory/world/SQL reconciliation first, then cancellation of unexecuted work. Completed physical repairs and consumed-material accounting remain; cancellation does not itself complete a qualifying Repair cycle or award Era.
-
-Rationale: an otherwise settled unfinished job should not require its payer to return and voluntarily finish/cancel the whole restoration before land can end. This is not permission to discard pending intents: offline payer proof or naturally unloaded world work may still block safe reconciliation.
-
-Unused reconciled materials stay claimable manually by their original payer, not by the last Owner merely because of that role. Durable post-termination entitlement and idempotent/capacity-safe item transfers are required; material escrow is not Treasury currency. After safe cancellation, uncollected refunds alone need not keep land owned.
-
-Only terminal Repair settlement is approved. Notice-stage admission/recovery, active membership/roles, pending proposals, Building/Decay lifecycle and exact command/API details remain open. No runtime/schema/test-checklist behavior changed.
-
-## 2026-09-15 — MVP+1 retains historical Treasury for manual collection
-
-The user selected option 2: leave the balance in the historical Treasury after land ownership ends, with a post-termination collection path for the last Owner. Canonical details are in §30.6. Automatic Wallet payout was not selected. A nonzero balance alone need not block the terminal land transition.
-
-Rationale: preserve funds, account identity and audit history while separating land lifecycle from the player's decision to collect. The final Owner's entitlement must survive removal of active ownership, cannot depend on future Claim ownership, and must not pass to later reclaimers. Collection is a supply-conserving ledger TRANSFER, with existing atomic/idempotent accounting; no issuance, sink or forfeiture policy was approved.
-
-Only Treasury currency disposition is settled. Active membership/roles, proposals, Repair material refunds and unresolved physical/inventory work still need rules. No runtime/schema/test-checklist behavior changed; exact collection commands are not yet implemented.
-
-## 2026-09-15 — MVP+1 may terminate all Settlement land ownership
-
-The user first answered option 1, then immediately corrected it to option 2. The final authoritative choice permits releasing the final Claim or a valid whole remaining group and ending all active Settlement land ownership when every release condition is met. Canonical details are in §30.5; a permanent one-Claim floor was not adopted.
-
-Rationale: permit a complete decline/reclaim cycle instead of leaving every abandoned Settlement with protected residual land. History remains. Holder consent and whole Building/Parcel safeguards still block ineligible termination; a terminal lifecycle is not an alternate way around those rights or permission for ordinary unclaim to remove its last Claim.
-
-Treasury disposition, active membership/roles, pending proposals and unfinished Decay/Repair/material reconciliation still require decisions. No payout, sink, confiscation or deletion of obligations was selected. Documentation only: frozen MVP runtime/schema and existing test acceptance remain unchanged.
-
-## 2026-09-15 — MVP+1 releases whole unassigned Parcels with eligible land
-
-The user selected option 1: an unassigned Parcel may end automatically with an otherwise eligible safe land-release group, provided the entire Parcel is included and it still has no Holders at commit. Canonical details are in §30.4. History remains; no partial Parcel cut or early protection removal at notice is allowed.
-
-Rationale: a permission subdivision without Holders should not itself become a permanent land-release veto. This does not weaken assigned Holder rights: a new assignment invalidates the unassigned assumption and restores §30.1 consent requirements. Whole-building, topology, notice and container safeguards remain in force.
-
-Only this lifecycle boundary is approved. Pending proposals/commit reconciliation, remaining property and Repair accounting, timing, final-Claim and capacity decisions remain open. No runtime/schema or player acceptance changes; ordinary MVP unclaim remains unchanged.
-
-## 2026-09-15 — MVP+1 leaves container contents on released land
-
-The user selected option 1: advance notice and relocation grace, then keep land-local containers and contents in place as land protection changes. Canonical details are in §30.3. Nonempty contents alone do not prevent release; access changes only when release commits and then follows unclaimed/new Settlement permissions. Items left behind may be taken by others: that consequence was explicitly disclosed and accepted.
-
-Rationale: avoid making one nonempty chest a permanent release veto, without introducing automatic item relocation, deletion, dropped loot or a storage service. Player inventories and personal Ender Chest contents are not in scope. Assigned Holder consent and whole registered ruin requirements remain binding.
-
-Only land-local container disposition is settled. Notice delivery/duration, cross-boundary storage, other property/entities, unassigned Parcels, Treasury/final-Claim handling and Repair accounting are not implicitly approved by this choice. No runtime, schema or acceptance-checklist behavior changed.
-
-## 2026-09-15 — MVP+1 admits whole registered ruins as candidates
-
-The user selected option 2: a whole RUINED registered Building may enter the automatic-release process if its claimed footprint can safely exit together without violating Holder rights. Canonical details are in architecture §30.2. Buildings are not split across release steps; a group touching several registered Buildings must satisfy the whole-RUINED rule for all of them. Boundary/topology constraints and §30.1 consent remain binding.
-
-Rationale: permanent exemption of every registered Building would strand registered ruins indefinitely, preventing the intended decline/reclaim cycle. Whole-group candidacy permits that cycle without tearing a Building's ownership boundary apart. Existing physical structures and historical records are preserved, not automatically demolished or erased.
-
-This choice does not authorize public access to container contents, evacuation/storage, unassigned-Parcel removal, timing, final-Claim loss or an implementation. Registration retirement/ownership transition and pending Repair/material reconciliation still need design. The MVP runtime, schema and test acceptance remain unchanged.
-
-## 2026-09-14 — MVP+1 preserves assigned Holder consent
-
-The user selected option 1: retain Holder consent rather than allow timeout-based automatic revocation. Canonical details are in architecture §30.1. Inactivity, absence, notice and grace expiry do not waive consent; parent Claim/Settlement release cannot remove assigned Parcel protection indirectly. Offline disputes remain explicit audited administrator cases, not scheduled overrides.
-
-Accepted tradeoff: protected Parcels can indefinitely constrain boundary retreat; topology safeguards still apply. This preserves the existing rights contract rather than silently converting ownership-related consent into an expiring privilege.
-
-Only this rights boundary was approved. The preceding suggested Local Activity-only scope, omission of Civic Capacity, timing and other MVP+1 release rules were not collectively accepted by that selection. Frozen MVP behavior, including the absence of passive land tax, remains unchanged. Buildings, unassigned Parcels, property disposition and final-Claim handling still need decisions. Documentation only; no runtime/schema/test acceptance changes and no automatic release implementation.
+Use existing configurable policies and implementation patterns; tune numbers through tests rather than continuing one-question-per-detail design votes. Civic Capacity and extra simulation are outside this increment. Keep persistence/permission/item-safety invariants. No new runtime/schema behavior was implemented by this documentation cut; the frozen MVP and its prior evidence remain intact.
 
 ## 2026-09-14 — Phase 8 core server release gates
 

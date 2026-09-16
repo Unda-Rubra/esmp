@@ -1080,191 +1080,44 @@ See `ARCHITECTURE_BOUNDARY.svg`.
 
 ---
 
-# 30. First post-MVP system
+# 30. MVP+1 — minimal Dynamic Settlement Cycle
 
-**MVP+1: Dynamic Settlement Cycle** is mandatory next.
+**Scope cut, 2026-09-16.** This replaces the accumulated post-MVP decision questionnaire. Keep the frozen MVP above unchanged; implement the next small gameplay loop, not a general building/ownership simulator.
 
-It consumes Local Activity data and may add Civic Capacity/maintenance demand if real design still needs them.
+## 30.1 Two Building classifications
 
-Target behavior:
+| Classification | Meaning |
+|---|---|
+| WILD | The tracked Building is wholly outside Settlement Claims. |
+| CLAIMED | The tracked Building is wholly inside one Settlement. |
 
-```text
-local support
-+ demand/capacity
-+ topology
-+ Holder/property guarantees
-→ peripheral decline
-→ boundary-only gradual release
-→ reclaim/history inheritance
-```
+This describes location/ownership, not a replacement for existing damage conditions or history.
 
-Desired emergent result: unused pre-claimed outskirts disappear first; active new districts can survive while old districts decline; a city may gradually shift geographically.
+Cross-boundary Buildings are unsupported in this increment. Reject a registration or boundary change that would leave a tracked Building partly claimed or spanning multiple Settlements, with a clear reason. Transition whole Buildings only. Do not introduce mixed-ownership states, ownership masks, per-fragment Decay, automatic splitting/merging or a takeover negotiation system.
 
-MVP+1 must be frozen separately after MVP v1.0 acceptance.
+## 30.2 Minimal gameplay loop
 
-## 30.1 Accepted MVP+1 boundary — Holder consent (2026-09-14)
+- Use Local Activity and a notice/grace period for gradual peripheral land release. Retained Settlement land stays contiguous and without internal holes; a valid final release may end all ownership.
+- A claimed Building becomes wild only through eligible whole release while RUINED. Preserve the structure and history; do not demolish it as part of release.
+- A wild Building continues bounded Decay. Meaningful legal activity can suppress further decay, with finite neighboring support; login, idling and automation do not count.
+- Legal edits update the current baseline inside existing bounds. Invalidate stale work; later inactivity may decay the new design. Do not automatically expand bounds or discover new structures.
+- When a whole wild Building is inside one Settlement and current permission/safety checks pass, associate it automatically with that Settlement. Use its current physical state as the inherited restoration baseline, retain history, and grant no old permissions, free repair or Era.
 
-Automatic release must preserve the existing consent rights of assigned Parcel Holders. Low Activity, long absence, a notice or an expired grace period does not constitute consent.
+## 30.3 Keep the selected rights and accounting
 
-- An assigned Parcel cannot automatically lose protection. Its revocation, Holder removal or boundary change continues to require governance and all applicable current/new Holders under the existing consent workflow.
-- A Claim intersecting such a Parcel cannot be automatically released while that protection remains. Automatic parent unclaim or Settlement termination must not indirectly bypass the Parcel's rights.
-- An offline-Holder dispute requires explicit, audited administrator handling through the existing override path; a scheduled timeout is not an administrative resolution.
-- Such protected land may indefinitely constrain boundary retreat. Existing Settlement contiguity requirements remain; the system must not sever the Settlement to work around a protected Parcel.
+- Assigned Holder consent does not expire through inactivity or notice. Do not release its parent land indirectly; explicit audited administrator dispute handling remains.
+- A whole unassigned Parcel may end with eligible land if it still has zero Holders at commit. Keep its history.
+- After notice/grace, containers and contents stay in place and follow the released/new land permissions. No automatic moving, deletion or dropped loot; personal inventory and Ender Chest contents are unaffected.
+- Complete termination ends active roles and unfinished governance requests, not history. Historical Treasury funds remain manually claimable by the last Owner.
+- Reconcile pending inventory/world work before release; cancel remaining Repair work and preserve unused-material collection for its original payer. Role termination does not erase collection rights, and uncollected settled balances alone do not keep land owned.
 
-This is a partial post-MVP design decision, not an implementation authorization or a change to the frozen MVP behavior. Registered-Building candidacy is specified in §30.2, land-local container disposition in §30.3, unassigned Parcels in §30.4 and final-Claim termination eligibility in §30.5. Remaining property cases, release timing, terminal settlement/accounting rules and whether Civic Capacity is needed remain unresolved.
+## 30.4 Implementation discipline
 
-## 30.2 Accepted MVP+1 boundary — whole registered ruins (2026-09-15)
+Reuse the existing Building, Activity, ledger, job and publication patterns. Start balance settings from existing configurable policies and tune with tests; do not make every coefficient another architecture vote. No Civic Capacity, maintenance simulation, new region system or other deferred gameplay in this increment.
 
-A registered Building may enter the automatic-release candidate process only as a whole RUINED Building, rather than being permanently exempt solely because it is registered.
+Keep the load-bearing safeguards: bounded work, naturally loaded chunks only, Paper-thread world access, current permissions/revisions/expected-state checks, block-entity safety, durable reconciliation and idempotent accounting. Simplification is not permission to lose items or overwrite player work.
 
-- RUINED is the existing damage condition, not the ACTIVE/RETIRED registration lifecycle. It is necessary but not sufficient for release; remaining eligibility and unresolved property cases still have to be frozen.
-- A proposed release touching a registered Building must include all Claims intersecting its registered footprint in one safe whole-Building release group. It must not release that Building piecemeal by chunk. Every registered Building touched by that group must satisfy the same whole-RUINED requirement.
-- The group must satisfy boundary-only release and Settlement topology safeguards, without internal holes or disconnection. If a safe whole group cannot be formed, the Building remains protected.
-- Holder consent under §30.1 remains mandatory. Ruin, including a Building overlapping an assigned Parcel, cannot override that boundary.
-- Release must not automatically demolish the physical structure or erase its history. RUINED condition, group completeness, topology and rights must be revalidated before any eventual release commits.
-
-This approves candidate eligibility, not immediate release or an implementation. Land-local container contents follow §30.3 and unassigned Parcels follow §30.4; other property cases, the registration-lifecycle transition and pending-job/material reconciliation still need explicit rules. No new repair, restored former permissions or Era benefit follows merely from release/reclaim.
-
-## 30.3 Accepted MVP+1 boundary — containers remain in place (2026-09-15)
-
-Before eligible land or whole ruins lose protection, provide advance notice and a relocation grace period. Land-local containers and their contents remain physically in place; nonempty contents alone do not veto release.
-
-- Release does not automatically move, delete, recreate or convert the containers or their contents into dropped items. It does not create an automatic storage/escrow service for abandoned contents.
-- Existing protection remains until the actual authorized release commits, not merely when land becomes a candidate or notice begins. After release, access follows ordinary unclaimed-land rules; after reclaim, it follows the new Settlement/Parcel permissions.
-- The accepted consequence is that items not removed during the grace period may be taken by others. Previous ownership does not retain a separate container-access lock solely because those items were left behind.
-- This applies only to containers left on the released land. Player inventories and personal Ender Chest contents are unaffected. It does not authorize spending a Settlement Treasury or refunding/unreserving pending Repair materials.
-- Assigned Holder consent under §30.1 and whole-Building safeguards under §30.2 still apply. Notice or nonempty-container policy cannot waive those constraints.
-
-Notice delivery, grace duration/revalidation, cross-boundary storage such as double chests, other property/entity cases and pending-job accounting remain explicit design gates. This decision neither authorizes exposing a still-protected neighboring region nor implements automatic release.
-
-## 30.4 Accepted MVP+1 boundary — whole unassigned Parcels (2026-09-15)
-
-An unassigned Parcel may automatically end its permission subdivision as part of an otherwise eligible land-release group, without a separate manual deletion by governance. Its history must be retained.
-
-- Every cell of the Parcel must lie within the same safe release group. Do not split, truncate or partially release the Parcel; if the whole Parcel cannot be included safely, it remains protected.
-- The Parcel must still have zero Holders at commit. Candidate selection or notice does not freeze the Holder set or authorize ignoring later assignments. If a Holder is added, the release must not proceed on the old unassigned assumption; §30.1 consent applies again.
-- End the subdivision only with the actual coordinated parent land release, not at candidate selection or notice. Do not erase the historical record or leave a live Parcel outside its Settlement's Claims.
-- This does not waive low-support/notice requirements, boundary/topology constraints, whole-Building safeguards or container disposition rules. Empty Holder membership is not proof that the land is otherwise releasable.
-
-This is a post-MVP lifecycle decision, not a change to ordinary MVP unclaim or an implementation. Final-Claim termination eligibility follows §30.5; commit/proposal reconciliation, remaining property/job accounting, release timing and terminal settlement rules still need design.
-
-## 30.5 Accepted MVP+1 boundary — complete ownership termination (2026-09-15)
-
-Automatic release need not reserve a final Claim. If all remaining land satisfies the release conditions, the final Claim or valid whole remaining release group may be released and the Settlement's active land ownership ended. Historical identity and records must survive.
-
-- There is no permanent one-Claim floor for this future automatic lifecycle.
-- Every remaining Claim and affected Building/Parcel must satisfy the applicable safeguards. A blocked Holder relationship, incomplete whole-Building/Parcel group, unmet notice requirement or other ineligible land cannot be bypassed by labeling the operation whole-Settlement termination.
-- The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
-- This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
-
-Treasury disposition follows §30.6, unfinished Repair settlement follows §30.7, terminal membership/governance follows §30.8, and released registered ruins continue under §30.9. Exact lifecycle/coordination rules still need design; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
-
-## 30.6 Accepted MVP+1 boundary — historical Treasury awaiting collection (2026-09-15)
-
-When an eligible Settlement ends active land ownership, its remaining Treasury balance stays in its historical Treasury for the last legitimate Owner to collect manually. Do not automatically pay it into that player's Wallet.
-
-- A nonzero Treasury balance alone does not require retaining land or keeping active Settlement governance alive. Preserve the Treasury's identity, balance and transaction history independently of the ended land ownership.
-- Persist the entitled last Owner UUID from the terminal ownership transition. Manual collection must remain available after termination without depending on a still-active Owner role. Former membership or later Claim acquisition does not transfer that entitlement; a new claimant receives neither the old balance nor withdrawal authority.
-- Until collection, funds remain in the historical Treasury. Termination does not delete, confiscate or silently expire the balance; no forfeiture deadline was selected.
-- Collection transfers existing integer currency from the historical Treasury to the entitled player's Wallet, preserving supply. Apply existing atomic debit/credit/history and stable transaction-ID replay rules; retries cannot pay twice. This is neither ISSUANCE nor a SINK.
-- Preserve a post-termination inspection/collection interface. Exact commands, amount selection and exceptional handling remain implementation/design details, not already implemented behavior.
-
-This decision concerns Treasury currency only, not container contents or Repair material escrow; the latter follows §30.7 during termination. Membership/governance follows §30.8; remaining lifecycle and collection-interface details are unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
-
-## 30.7 Accepted MVP+1 boundary — reconcile Repair, then cancel remaining work (2026-09-15)
-
-During eligible Settlement termination, safely reconcile unfinished Repair inventory/world operations, then cancel the remaining unexecuted Repair work. Do not require an otherwise settled unfinished job to complete its entire restoration or await voluntary cancellation by its payer.
-
-- Preserve already completed physical repairs and their accounting/history. Materials actually consumed by completed work are not refundable; cancellation/termination itself is not a qualifying Repair completion or an Era award.
-- Resolve outstanding supply/refund transfers and physical intents through the existing independent inventory/world/SQL reconciliation model before releasing affected protection or deciding refundable stock. Do not assume SQL completion proves a world save, force through a conflict, delete a journal or discard an unresolved reservation.
-- Required inventory proof from an offline payer or a naturally unloaded target may still delay safe termination. This choice does not permit forced chunk loads or bypassing reconciliation to guarantee immediate release.
-- Coordinate terminal settlement with Repair admission/mutation so new work cannot race the cancellation/accounting boundary. This does not approve freezing ordinary Repair merely because a release notice has begun; notice/recovery rules remain to be designed.
-- Unused, reconciled materials remain reserved for manual collection by their original job payer after termination. Entitlement is based on supplying those materials, not on being the last Owner, a former member or a later claimant. Do not move them into the historical Treasury or convert them to currency.
-- Once jobs are safely cancelled and collection entitlements durably preserved, uncollected refundable materials alone do not require retaining land. Preserve a post-termination collection path independent of active Settlement roles, using existing inventory-capacity and idempotent transfer safeguards; do not auto-drop items or duplicate refunds.
-
-This selects terminal Repair settlement only. Membership/governance follows §30.8 and unowned ruin Decay follows §30.9; exact job/lifecycle transitions, collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
-
-## 30.8 Accepted MVP+1 boundary — end active governance, retain history (2026-09-16)
-
-When a Settlement terminates, end its effective Owner/Governor/Citizen membership and governance relationships while preserving their historical record. Do not keep a landless dormant team as an active membership model.
-
-- At the actual terminal transition, old invitations and unexecuted governance proposals become non-actionable. This includes pending membership, ownership-transfer, certification/naming and Parcel-governance requests belonging to that Settlement; they cannot later be accepted/replayed to revive governance or change ended ownership.
-- Preserve proposal outcomes, membership history and already committed facts. Invalidating unfinished requests does not undo a completed transfer, approval or other committed event. This does not authorize revoking governance merely at candidate selection or notice.
-- Treasury collection under §30.6 and Repair material collection under §30.7 remain independent durable beneficiary rights. Ending roles must not erase those rights, require restoring an Owner/Citizen role to collect, or confer ordinary governance on a beneficiary.
-- Termination grants no former role permissions over unclaimed land or a later Settlement. Existing roles in other Settlements and personal player state are unaffected. No dormant-team revival or automatic restoration of former permissions is selected.
-- Coordinate terminal role/proposal invalidation with the authorized release and committed permission publication; stale commands cannot bypass the terminal state. Holder safeguards and unresolved inventory/world obligations remain prerequisites, not requests that can simply be invalidated to make release possible.
-
-This is a post-MVP terminal policy, not implemented behavior. Unowned ruin continuation follows §30.9; exact lifecycle storage, request-state mapping and collection interfaces, notice/recovery/timing and the rest of the release algorithm remain to be frozen.
-
-## 30.9 Accepted MVP+1 boundary — continued Decay of unowned ruins (2026-09-16)
-
-After a registered whole ruin's land is validly released, it continues as an unowned ruin subject to system Decay rather than automatically retiring solely to stop all further Decay. Preserve Building identity/history continuity; exact lifecycle representation remains to be designed.
-
-- Scope is formerly registered ruins released under the preceding safeguards, including release from a Settlement that retains other land. This does not authorize automatic discovery, unregistered-structure decay or general erosion of unclaimed natural terrain.
-- Release itself does not instantly demolish the structure. Subsequent Decay may change the ruin through bounded safe work; no full-world scans, forced chunk loading, arbitrary asynchronous world mutation, ordinary collectible drops or automatic block-entity mutation are authorized.
-- Unowned work needs its own authority and eligibility rules. Former Owner/Governor permissions, old Settlement Activity or stale ownership-bound intents cannot simply stand in for that authority. No former land rights survive merely because the Building remains tracked.
-- Preserve expected-state, revision, permission-boundary and independent world/SQL reconciliation safeguards. Player edits and newly protected regions must not be overwritten by blindly replaying old decay plans. Pending old-context operations require safe reconciliation and transition, not unconditional continuation.
-- This selects continued Decay, not continued old Repair or automatic restoration. Existing Treasury/material entitlements and terminal Repair settlement remain intact; partial-release job handling and exact old/new-context transitions still need design.
-
-Meaningful player Activity can suppress unowned ruin Decay under §30.10, with bounded spatial sharing under §30.11 and current-baseline edits under §30.12. Before implementation, freeze eligibility/rate, exact contribution range/values and recovery rules, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
-
-## 30.10 Accepted MVP+1 boundary — Activity can sustain unowned ruins (2026-09-16)
-
-Players may suppress further system Decay of an unowned ruin through meaningful valid activity without first claiming its land. Public maintenance is permitted as a Decay-eligibility input, not as a new ownership or governance relationship.
-
-- Define explicit unowned contribution records, qualifying actions, spatial attribution, credit limits and anti-farming rules before implementation. Login, movement/idle presence and automatic machines do not qualify; repeated trivial actions must not yield unbounded credit.
-- Validate contributions against the current actor, exact action/location, world instance and applicable world/protection rules. Maintenance credit does not grant permission to perform an otherwise denied action, preserve former Owner authority or bypass new Claims.
-- Activity recovery suppresses future eligible Decay; it does not repair existing damage, create materials, advance Era or confer Holder/member/ownership rights. Queue/application revalidation must honor recovery rather than blindly applying stale eligible work.
-- Keep processing bounded and use shared GameClock semantics, including freeze and no downtime accrual. This choice does not authorize global per-block scans or reuse of a former Settlement's aggregate score as an unowned maintenance account.
-
-Bounded spatial sharing is selected in §30.11 and unowned current-baseline edits in §30.12. Contribution categories/amounts/caps, exact range/attenuation, initialization/transition, thresholds/hysteresis/duration, detailed edit coordination and takeover rules remain unresolved. This rejects Activity-independent decay as the selected unowned policy but does not freeze a numeric formula or implement the mode.
-
-## 30.11 Accepted MVP+1 boundary — bounded neighboring support (2026-09-16)
-
-Meaningful unowned maintenance Activity may provide limited, spatially attenuated support to nearby unowned ruins rather than being isolated to exactly one ruin. Follow the existing Local Activity approach of local support, not a former Settlement-wide shared pool.
-
-- Attribute source credit to the validated action/location and world instance. Derive neighboring support only within a finite spatial neighborhood with attenuation; shared historical Settlement identity does not make distant ruins beneficiaries.
-- Keep influence bounded relative to the original contribution. Derived support must not recursively become fresh credit relayed through a chain of ruins beyond that neighborhood.
-- Shared support remains a Decay-eligibility input. It does not transfer ownership, confer permission, repair damage or grant Era; all action validation, anti-farming, cap and recovery safeguards under §30.10 remain binding.
-- Use bounded/indexed spatial work rather than scanning every ruin or block for each contribution. Spatial sharing selects gameplay scope, not a new player-managed region or dormant Settlement.
-
-Exact spatial units/shape/range, attenuation coefficients, cap aggregation, source eligibility at claimed/unclaimed boundaries and recovery thresholds remain to be frozen. Existing MVP neighbor coefficients are not automatically adopted. No runtime/schema change or implementation is authorized by this decision.
-
-## 30.12 Accepted MVP+1 boundary — player edits update the unowned baseline (2026-09-16)
-
-Valid player construction and replacement within the still-unowned tracked ruin update its current baseline. Newly placed/replaced parts are not permanently excluded from unowned Decay solely because players changed them.
-
-- Scope remains the existing tracked bounds. This choice neither expands the ruin automatically nor discovers/registers new Buildings outside that scope; newly claimed/protected areas require their own takeover/authority handling.
-- Authorized edits establish a new current design/revision. Invalidate or revalidate affected queued work against that revision and the actual expected state; never replay an obsolete plan through the new construction.
-- Player demolition changes intended design to air rather than creating damage that resurrects the old wall. Preserve previous revisions/history without making them current automatic restoration targets.
-- Under sufficient meaningful maintenance support, further eligible Decay is suppressed. If maintenance later falls below the eventual eligibility rules, both old and newly incorporated mutable parts may decay against the current baseline. This is future decay of current design, not a stale-plan overwrite.
-- Existing material/safety limits, block-entity exclusions, protection boundaries, natural-load constraints and independent persistence reconciliation still apply. An accepted edit is not a blanket permission bypass or unlimited Activity credit.
-
-This selects baseline behavior only. Partial reclaim follows §30.13 and automatic whole takeover follows §30.14; exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling and contribution/recovery values still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
-
-## 30.13 Accepted MVP+1 boundary — partial reclaim does not freeze the whole ruin (2026-09-16)
-
-When only part of an unowned ruin is newly claimed, stop unowned Decay in the claimed portion and keep normal Claim protection there. The remaining unclaimed portion may continue under the unowned rules; one claimed corner does not automatically pause the entire ruin.
-
-- Determine mutation eligibility from current world/Claim/protection state, not merely the historical ruin footprint or former Settlement. Claimed cells are not targets of the unowned Decay mode, even if their data still appears in an older ruin baseline or operation.
-- Revalidate source, destination and relevant structural/support effects before each operation. Reject or defer work whose movement, removal or dependent effects would damage a protected claimed region. A source outside a Claim is not sufficient authorization to affect blocks inside it.
-- Invalidate/replan affected stale work when Claims or revisions change, retaining independent world/SQL reconciliation. Unaffected safe unclaimed work may continue; safety dependencies can block a particular operation without imposing a blanket whole-ruin pause.
-- Normal protection in a claimed portion does not by itself register or transfer that part as a new owned Building, resume old Repair, restore former permissions, heal damage or grant Era. Whole takeover follows §30.14; mixed-ownership registration/identity handling remains a separate design gate.
-- Existing bounds, safe material/block-entity rules, Activity suppression, natural-load-only execution and bounded work still apply. This does not authorize scanning/loading the entire ruin merely because one Claim changes.
-
-This selects partial-reclaim behavior, not a complete takeover algorithm or an implementation. Whole takeover direction follows §30.14; ownership-mask/revision coordination, cross-boundary storage and structural dependency details, claimed-source Activity policy and mixed-ownership handling still need to be frozen.
-
-## 30.14 Accepted MVP+1 boundary — automatic whole Building takeover (2026-09-16)
-
-When the entire tracked ruin lies within one Settlement and current permission and safety conditions pass, automatically admit it into that Settlement's Building lifecycle. Do not require an additional Owner/Governor takeover confirmation.
-
-- Complete coverage must be by the same Settlement identity, not merely adjacent Settlements with the same Owner. Partial coverage continues to follow §30.13; coverage split across multiple Settlements is not whole takeover under this rule.
-- Revalidate current world instance, full Claim coverage, ownership/permissions, applicable Parcel policy and Building safety/state before committing admission. Automatic does not mean unconditional or an administrator/Holder-policy bypass.
-- Coordinate transition from the unowned mode to the new owned lifecycle without competing old/new mutation authority. Reconcile pending old-context work and publish the new authoritative association through the existing commit/publication model; do not replay stale unowned work inside Claims.
-- If necessary state is unavailable or validation fails, defer admission rather than force-load chunks, invent a baseline or remove already committed Claim protection. This selects an automatic path when conditions pass, not a guarantee of immediate synchronous takeover during purchase.
-- Preserve Building history continuity. Takeover itself does not physically repair the ruin, resume the old payer's Repair jobs, restore former roles/permissions, transfer historical Treasury/material entitlements or advance Era.
-
-Exact baseline/identity representation and initialization, admission retry/state mapping, mixed-ownership registration, major reinterpretation and the remaining operating rules still need design. This exception to manual confirmation concerns known reclaimed ruins only, not automatic discovery/registration of arbitrary new structures. Frozen MVP behavior and schema are unchanged.
+Next implement the binary classification and whole-Building transition path with focused regressions, then connect the release loop. Unsupported boundary cases get a safe rejection, not another subsystem. This is the implementation scope; the new behavior is not yet shipped.
 
 ---
 
