@@ -2,6 +2,16 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — MVP+1 ends active membership and governance at termination
+
+The user selected option 1: end effective Owner/Governor/Citizen relationships, retain history, and invalidate old invitations/unexecuted governance proposals. Canonical details are in §30.8. A landless dormant-team model was not selected.
+
+Rationale: historical identity should not preserve actionable governance after the owned Settlement ends. Stale invitations, transfers, reviews or Parcel requests cannot revive it; committed facts remain historical rather than being rolled back. Invalidation belongs to actual termination, not the beginning of a release notice.
+
+Treasury and Repair refund entitlements survive independently under §§30.6–30.7, without restoring an active role to collect. Other Settlements' memberships are unaffected. Holder safeguards and unresolved material/world obligations cannot be discarded as though they were merely stale proposals.
+
+Documentation only. Runtime/schema/test-checklist behavior is unchanged; Building/Decay lifecycle, concrete terminal storage/API mapping, notice/recovery and timing remain open.
+
 ## 2026-09-15 — MVP+1 reconciles Repair before cancelling remaining work
 
 The user selected option 1 for unfinished Repair at Settlement termination. Canonical §30.7 requires safe inventory/world/SQL reconciliation first, then cancellation of unexecuted work. Completed physical repairs and consumed-material accounting remain; cancellation does not itself complete a qualifying Repair cycle or award Era.

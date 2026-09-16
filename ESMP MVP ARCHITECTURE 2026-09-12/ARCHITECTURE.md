@@ -1157,7 +1157,7 @@ Automatic release need not reserve a final Claim. If all remaining land satisfie
 - The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
 - This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
 
-Treasury disposition follows §30.6 and unfinished Repair settlement follows §30.7. Active membership/roles, pending proposals and remaining Building/Decay lifecycle details still require separately approved rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
+Treasury disposition follows §30.6, unfinished Repair settlement follows §30.7, and terminal membership/governance follows §30.8. Remaining Building/Decay lifecycle and coordination details still require approved rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
 
 ## 30.6 Accepted MVP+1 boundary — historical Treasury awaiting collection (2026-09-15)
 
@@ -1169,7 +1169,7 @@ When an eligible Settlement ends active land ownership, its remaining Treasury b
 - Collection transfers existing integer currency from the historical Treasury to the entitled player's Wallet, preserving supply. Apply existing atomic debit/credit/history and stable transaction-ID replay rules; retries cannot pay twice. This is neither ISSUANCE nor a SINK.
 - Preserve a post-termination inspection/collection interface. Exact commands, amount selection and exceptional handling remain implementation/design details, not already implemented behavior.
 
-This decision concerns Treasury currency only, not container contents or Repair material escrow; the latter follows §30.7 during termination. Active membership/roles, pending proposals and remaining lifecycle details are unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
+This decision concerns Treasury currency only, not container contents or Repair material escrow; the latter follows §30.7 during termination. Membership/governance follows §30.8; remaining lifecycle and collection-interface details are unresolved. Frozen MVP behavior and ordinary abandonment rules are unchanged.
 
 ## 30.7 Accepted MVP+1 boundary — reconcile Repair, then cancel remaining work (2026-09-15)
 
@@ -1182,7 +1182,19 @@ During eligible Settlement termination, safely reconcile unfinished Repair inven
 - Unused, reconciled materials remain reserved for manual collection by their original job payer after termination. Entitlement is based on supplying those materials, not on being the last Owner, a former member or a later claimant. Do not move them into the historical Treasury or convert them to currency.
 - Once jobs are safely cancelled and collection entitlements durably preserved, uncollected refundable materials alone do not require retaining land. Preserve a post-termination collection path independent of active Settlement roles, using existing inventory-capacity and idempotent transfer safeguards; do not auto-drop items or duplicate refunds.
 
-This selects terminal Repair settlement only. Active membership/roles, proposals, Building/Decay lifecycle transitions, exact collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
+This selects terminal Repair settlement only. Membership/governance follows §30.8; Building/Decay lifecycle transitions, exact collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
+
+## 30.8 Accepted MVP+1 boundary — end active governance, retain history (2026-09-16)
+
+When a Settlement terminates, end its effective Owner/Governor/Citizen membership and governance relationships while preserving their historical record. Do not keep a landless dormant team as an active membership model.
+
+- At the actual terminal transition, old invitations and unexecuted governance proposals become non-actionable. This includes pending membership, ownership-transfer, certification/naming and Parcel-governance requests belonging to that Settlement; they cannot later be accepted/replayed to revive governance or change ended ownership.
+- Preserve proposal outcomes, membership history and already committed facts. Invalidating unfinished requests does not undo a completed transfer, approval or other committed event. This does not authorize revoking governance merely at candidate selection or notice.
+- Treasury collection under §30.6 and Repair material collection under §30.7 remain independent durable beneficiary rights. Ending roles must not erase those rights, require restoring an Owner/Citizen role to collect, or confer ordinary governance on a beneficiary.
+- Termination grants no former role permissions over unclaimed land or a later Settlement. Existing roles in other Settlements and personal player state are unaffected. No dormant-team revival or automatic restoration of former permissions is selected.
+- Coordinate terminal role/proposal invalidation with the authorized release and committed permission publication; stale commands cannot bypass the terminal state. Holder safeguards and unresolved inventory/world obligations remain prerequisites, not requests that can simply be invalidated to make release possible.
+
+This is a post-MVP terminal policy, not implemented behavior. Exact lifecycle storage, request-state mapping and collection interfaces, Building/Decay transitions, notice/recovery/timing and the rest of the release algorithm remain to be frozen.
 
 ---
 

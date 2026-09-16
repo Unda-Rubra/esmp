@@ -3,14 +3,14 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- MVP+1 remains design-only. §§30.1–30.6 settle rights, regions, containers, complete termination and historical Treasury collection; §30.7 requires Repair reconciliation before cancelling unexecuted work, with unused materials claimable by the original payer. Frozen MVP runtime is unchanged; membership/proposals, remaining lifecycle, notice/property/timing/capacity and collection-interface details remain unresolved.
+- MVP+1 remains design-only. §§30.1–30.7 settle rights, whole regions, containers, termination and Treasury/Repair settlement; §30.8 ends active membership/governance and invalidates unfinished requests while preserving history and independent collection entitlements. Frozen MVP runtime is unchanged; Building/Decay lifecycle, exact coordination/storage/APIs, notice/property/timing and capacity remain unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
 
-- Latest decision: safely reconcile pending Repair inventory/world/SQL work, then cancel unexecuted restoration during termination. Preserve completed repairs and consumed-material accounting; cancellation does not award Era. Unused reconciled materials remain manually claimable by the original payer after termination, separately from Treasury funds.
-- Outstanding proof/intents can still delay release; no forced loading, journal deletion, premature refund or conflict overwrite is approved. After safe cancellation and durable entitlement, uncollected refunds alone do not keep land owned. Active membership/roles, proposals, Building/Decay lifecycle and notice-stage admission remain open.
+- Latest decision: terminate effective Owner/Governor/Citizen relationships and invalidate old invitations/unexecuted governance proposals at actual Settlement termination. Preserve history and committed outcomes; no active landless dormant team or automatic role restoration was selected.
+- Treasury and original-payer material collection rights remain independent and cannot be erased with roles. Other Settlements' memberships are unaffected. Prior Holder safeguards and unresolved physical/inventory obligations remain prerequisites; they are not stale proposals that can be discarded.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -21,7 +21,7 @@
 
 ## Changed files
 
-- Latest decision adds architecture §30.7 and updates related scope sentences in §§30.5–30.6, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
+- Latest decision adds architecture §30.8 and updates related scope sentences in §§30.5–30.7, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -46,12 +46,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
-- Latest work is documentation-only terminal Repair reconciliation/cancellation under §30.7 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
-- Documentation scope check passed: reversing §30.7 and its two related scope sentences reproduces the prior architecture exactly. Frozen MVP/prior safeguards remain unchanged; original-payer entitlement, no refund of consumed materials and blocking on unresolved proof are explicit.
+- Latest work is documentation-only terminal membership/governance under §30.8 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: reversing §30.8 and three related scope sentences reproduces the prior architecture exactly. Frozen MVP/prior safeguards are unchanged; invalidation occurs only at termination, while committed history and independent collection rights remain.
 
 ## Next action
 
-Next settle active membership/roles and pending proposals at termination, followed by remaining Building/Decay lifecycle, notice/grace/recovery, cross-boundary property, timing and capacity design. Historical Treasury and Repair material collection are settled separately in §§30.6–30.7; exact interfaces remain open. No automatic-release implementation is authorized yet.
+Next settle registered-Building/Decay lifecycle on released land, then notice/grace/recovery, cross-boundary property, timing/capacity and concrete coordination/storage/API rules. §§30.1–30.8 are accepted boundaries; active membership/proposals and independent collection rights are no longer open policy questions. No automatic-release implementation is authorized yet.
 
 ## Risks or blockers
 

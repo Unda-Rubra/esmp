@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define active membership/roles, pending proposals and registered-Building/Decay lifecycle transitions. §§30.1–30.6 settle rights, whole regions, containers, complete termination and historical Treasury collection; §30.7 settles reconcile-then-cancel Repair with unused materials claimable by the original payer. Define terminal coordination/collection-interface details and notice-stage admission/recovery separately, plus notice delivery/duration/revalidation, cross-boundary storage, other property/entities and explicit administrator dispute handling.
+2. Define registered-Building/Decay lifecycle transitions and exact terminal coordination/storage/interface details. §§30.1–30.7 settle rights, whole regions, containers, termination and Treasury/Repair settlement; §30.8 ends active membership/governance and invalidates old invitations/unexecuted proposals while retaining history and independent collection entitlements. Define notice-stage admission/recovery, notice delivery/duration/revalidation, cross-boundary storage, other property/entities and explicit administrator dispute handling.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §§30.1–30.7 fix Holder consent, whole registered ruin candidacy, containers, whole unassigned Parcels, complete termination, historical Treasury collection and terminal Repair settlement for MVP+1. Remaining lifecycle and release rules are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
+Architecture §§30.1–30.8 fix the accepted rights, region, property, termination, collection and terminal governance boundaries for MVP+1. Remaining lifecycle and release rules are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
