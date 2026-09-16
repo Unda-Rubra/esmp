@@ -386,6 +386,8 @@ Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.m
 
 在仍无主的既有追踪范围内，合法新建、替换和拆除会更新当前基线，受影响的旧任务须失效或重验。有效维护抑制后续衰败；日后再次缺乏维护时，新旧可变结构都可能按当前基线衰败，新换的方块不永久免疫。拆掉的旧墙不会因旧计划自动复原，也不会因此扩大追踪范围或发现新建筑。
 
+遗迹只被认领一部分时，已认领部分停止无主衰败并受正常 Claim 保护，剩余未认领部分可继续运行，不因一个边角区块就整处暂停。每次都须检查源、目的地和结构影响，不能从外部衰败间接破坏已认领区域；受影响的旧任务重验，其他安全工作可继续。认领本身不自动注册建筑、免费修复或恢复旧权限，完整接管规则仍待定。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

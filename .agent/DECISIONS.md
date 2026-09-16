@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — Partial reclaim protects claimed cells without freezing all unowned work
+
+The user selected option 2: stop unowned Decay only in newly claimed portions; safe remaining unclaimed portions continue. Canonical §30.13 rejects a blanket whole-ruin pause caused by claiming one corner.
+
+Rationale: preserve the selected living unowned-ruin behavior while respecting new Claims. Source/destination and structural effects must not cross into protected damage. Changed Claims invalidate/replan affected work; genuinely unaffected unclaimed operations may continue, with bounded natural-load and reconciliation safeguards.
+
+This does not automatically register an owned fragment or settle full takeover/identity handling. Current-world protection, structural dependencies, mixed ownership, claimed-source Activity and exact coordination remain design work. No free Repair, inherited old permissions or Era follows; runtime/schema/test-checklist behavior is unchanged.
+
 ## 2026-09-16 — Valid edits become the current unowned ruin baseline
 
 The user selected option 1: legitimate construction/replacement within still-unowned tracked bounds updates the current baseline. Canonical §30.12 distinguishes invalidating old queued plans from preventing all future decay. Meaningful maintenance can suppress decay; after later inactivity, old and newly incorporated mutable structures may decay under the current design.

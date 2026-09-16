@@ -1240,7 +1240,19 @@ Valid player construction and replacement within the still-unowned tracked ruin 
 - Under sufficient meaningful maintenance support, further eligible Decay is suppressed. If maintenance later falls below the eventual eligibility rules, both old and newly incorporated mutable parts may decay against the current baseline. This is future decay of current design, not a stale-plan overwrite.
 - Existing material/safety limits, block-entity exclusions, protection boundaries, natural-load constraints and independent persistence reconciliation still apply. An accepted edit is not a blanket permission bypass or unlimited Activity credit.
 
-This selects baseline behavior only. Exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling, contribution/recovery values and partial/full reclaim/takeover rules still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
+This selects baseline behavior only. Partial reclaim behavior follows §30.13; exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling, contribution/recovery values and full Building takeover still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
+
+## 30.13 Accepted MVP+1 boundary — partial reclaim does not freeze the whole ruin (2026-09-16)
+
+When only part of an unowned ruin is newly claimed, stop unowned Decay in the claimed portion and keep normal Claim protection there. The remaining unclaimed portion may continue under the unowned rules; one claimed corner does not automatically pause the entire ruin.
+
+- Determine mutation eligibility from current world/Claim/protection state, not merely the historical ruin footprint or former Settlement. Claimed cells are not targets of the unowned Decay mode, even if their data still appears in an older ruin baseline or operation.
+- Revalidate source, destination and relevant structural/support effects before each operation. Reject or defer work whose movement, removal or dependent effects would damage a protected claimed region. A source outside a Claim is not sufficient authorization to affect blocks inside it.
+- Invalidate/replan affected stale work when Claims or revisions change, retaining independent world/SQL reconciliation. Unaffected safe unclaimed work may continue; safety dependencies can block a particular operation without imposing a blanket whole-ruin pause.
+- Normal protection in a claimed portion does not by itself register or transfer that part as a new owned Building, resume old Repair, restore former permissions, heal damage or grant Era. Full takeover and any mixed-ownership registration/identity handling remain separate design gates.
+- Existing bounds, safe material/block-entity rules, Activity suppression, natural-load-only execution and bounded work still apply. This does not authorize scanning/loading the entire ruin merely because one Claim changes.
+
+This selects partial-reclaim behavior, not a complete takeover algorithm or an implementation. Ownership-mask/revision coordination, cross-boundary storage and structural dependency details, claimed-source Activity policy and full takeover still need to be frozen.
 
 ---
 

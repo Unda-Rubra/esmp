@@ -3,14 +3,14 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- MVP+1 remains design-only. §§30.1–30.11 settle release/termination, unowned Activity and bounded support sharing; §30.12 makes valid edits within still-unowned tracked bounds part of the current baseline, not permanently decay-exempt. Frozen MVP runtime is unchanged; detailed operating/numeric/coordination and takeover rules remain unresolved.
+- MVP+1 remains design-only. §§30.1–30.12 settle release/termination and unowned Activity/baselines; §30.13 stops unowned work in newly claimed portions while safe unclaimed portions continue, rather than pausing the whole ruin. Frozen MVP runtime is unchanged; full takeover/mixed ownership and detailed operating/coordination rules remain unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
 
-- Latest decision: valid construction/replacement/demolition updates the unowned ruin's current design/revision within existing tracked bounds. Obsolete affected plans must be invalidated/revalidated; demolition is intended air, not restorable damage. Historical revisions remain.
-- Maintained ruins suppress future eligible Decay; after later inactivity, newly incorporated mutable parts can decay under the current baseline. No permanent replacement immunity, automatic scope growth/discovery, protection bypass, block-entity mutation or free Repair/Era was selected. Exact edit coordination, numerical rules and takeover remain open.
+- Latest decision: partial reclaim protects the claimed portion and excludes it from unowned Decay; safe remaining unclaimed work continues. One claimed corner does not globally pause the ruin. Validate source/destination and structural effects so unowned work cannot damage protected land indirectly.
+- Claim/revision changes require affected-work revalidation/replanning and durable reconciliation. Unaffected safe work may continue. This does not automatically register an owned fragment, resume old Repair, restore permissions, heal or award Era; full takeover and mixed-ownership identity handling remain open.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -21,7 +21,7 @@
 
 ## Changed files
 
-- Latest decision adds architecture §30.12 and updates scope references in §§30.9–30.10, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
+- Latest decision adds architecture §30.13 and updates the takeover-scope sentence in §30.12, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -46,12 +46,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
-- Latest work is documentation-only current-baseline edits for unowned ruins under §30.12 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
-- Documentation scope check passed: reversing §30.12 and its two scope references reproduces the prior architecture exactly. Frozen MVP/prior safeguards remain unchanged; current-revision edits, no stale resurrection, future eligibility and no automatic bounds growth are explicit.
+- Latest work is documentation-only partial-reclaim continuation under §30.13 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: reversing §30.13 and its §30.12 scope sentence reproduces the prior architecture exactly. Frozen MVP/prior safeguards remain unchanged; claimed-cell exclusion, structural boundary safety and continued safe unclaimed work are explicit, while full takeover remains open.
 
 ## Next action
 
-Next settle partial/full reclaim and takeover: how new Claims interrupt unowned work and when a ruin enters a new Settlement's Building lifecycle. Then freeze concrete spatial/credit/recovery values, notice/revalidation, remaining property and release timing/capacity. §§30.1–30.12 remain design decisions, not implementation authorization.
+Next settle full Building takeover once its footprint is claimed, including confirmation/automatic admission and mixed-ownership cases. Then freeze exact boundary/Claim-mask/revision coordination, spatial/credit/recovery values, notice/revalidation, remaining property and release timing/capacity. §§30.1–30.13 remain design decisions, not implementation authorization.
 
 ## Risks or blockers
 
