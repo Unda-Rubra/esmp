@@ -1206,7 +1206,18 @@ After a registered whole ruin's land is validly released, it continues as an uno
 - Preserve expected-state, revision, permission-boundary and independent world/SQL reconciliation safeguards. Player edits and newly protected regions must not be overwritten by blindly replaying old decay plans. Pending old-context operations require safe reconciliation and transition, not unconditional continuation.
 - This selects continued Decay, not continued old Repair or automatic restoration. Existing Treasury/material entitlements and terminal Repair settlement remain intact; partial-release job handling and exact old/new-context transitions still need design.
 
-Before implementation, freeze unowned eligibility/rate and any Activity response, player-edit/baseline protection, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
+Meaningful player Activity can suppress unowned ruin Decay under §30.10. Before implementation, freeze eligibility/rate, contribution scope/values and recovery rules, player-edit/baseline protection, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
+
+## 30.10 Accepted MVP+1 boundary — Activity can sustain unowned ruins (2026-09-16)
+
+Players may suppress further system Decay of an unowned ruin through meaningful valid activity without first claiming its land. Public maintenance is permitted as a Decay-eligibility input, not as a new ownership or governance relationship.
+
+- Define explicit unowned contribution records, qualifying actions, spatial attribution, credit limits and anti-farming rules before implementation. Login, movement/idle presence and automatic machines do not qualify; repeated trivial actions must not yield unbounded credit.
+- Validate contributions against the current actor, exact action/location, world instance and applicable world/protection rules. Maintenance credit does not grant permission to perform an otherwise denied action, preserve former Owner authority or bypass new Claims.
+- Activity recovery suppresses future eligible Decay; it does not repair existing damage, create materials, advance Era or confer Holder/member/ownership rights. Queue/application revalidation must honor recovery rather than blindly applying stale eligible work.
+- Keep processing bounded and use shared GameClock semantics, including freeze and no downtime accrual. This choice does not authorize global per-block scans or reuse of a former Settlement's aggregate score as an unowned maintenance account.
+
+Contribution categories/amounts/caps, whether support is per ruin or spatially shared, initialization/transition, thresholds/hysteresis/duration, edit/baseline handling and takeover rules remain unresolved. This rejects Activity-independent decay as the selected unowned policy but does not freeze a numeric formula or implement the mode.
 
 ---
 

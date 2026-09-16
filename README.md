@@ -382,6 +382,8 @@ Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.m
 
 释放后的注册废墟不会仅因失去土地归属就停止系统衰败，而是作为无主遗迹继续变化，保留建筑历史连续性。这只针对已释放的注册废墟，不扩大到野外自动发现或自然地形侵蚀；不能沿用原 Owner 权限，也不能覆盖玩家新改造或新认领区域。无主衰败的触发／速度、编辑保护及重新接管规则仍待定，尚未实现。
 
+无须先认领，玩家在无主遗迹中的有效维护活动也可以抑制后续衰败；不会自动修好损伤、增加 Era 或获得所有权。登录、走动、挂机和自动机器不算有效活动，仍须遵守当前操作权限。贡献记录、作用范围、有效行为、分值上限、防刷规则及恢复阈值仍待设计，当前运行时尚无此功能。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

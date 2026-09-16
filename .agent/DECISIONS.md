@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — Meaningful Activity may suppress unowned ruin Decay
+
+The user selected option 2: meaningful activity can inhibit further Decay of an unowned ruin without requiring land acquisition first. Canonical §30.10 records the direction. An Activity-independent schedule was not selected; this is not a freeze of contribution values or timing.
+
+Rationale: players may maintain public ruins without becoming their owners. Contributions require explicit unowned records, valid actions/location and bounded anti-farming rules. Login, walking/idling and automatic machines do not qualify. Current world/protection rules still apply; credit does not grant governance or restore former permissions.
+
+Recovery prevents further eligible decay rather than healing existing damage, minting materials or advancing Era. Spatial attribution/sharing, categories/amounts/caps, initialization, thresholds/hysteresis/duration, edit handling and reclaim/takeover still need design. Frozen MVP runtime/schema and player acceptance remain unchanged.
+
 ## 2026-09-16 — MVP+1 continues Decay on released unowned ruins
 
 The user selected option 2: after land release, previously registered ruins remain subject to system Decay as unowned ruins. Canonical §30.9 records this explicit MVP+1 extension. Automatic retirement merely to stop further Decay was not selected; physical/history continuity remains.
