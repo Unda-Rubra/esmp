@@ -3,14 +3,14 @@
 ## State
 
 - Frozen roadmap Phases 0–8 core server gates are implemented/verified. Release marker: `mvp-v1.0`. Native-client/user sign-off is separate: 80 pending checklist items (previous 77 plus three Phase 8 checks).
-- MVP+1 remains design-only. §§30.1–30.9 settle release/termination boundaries and continued unowned ruin Decay; §30.10 selects meaningful Activity suppression without prior claiming. Frozen MVP runtime is unchanged; unowned contribution scope/values, recovery/timing, edit/takeover and remaining release/coordination rules remain unresolved.
+- MVP+1 remains design-only. §§30.1–30.10 settle release/termination and meaningful unowned Activity suppression; §30.11 selects bounded, attenuated neighboring support rather than per-ruin isolation or former-Settlement-wide sharing. Frozen MVP runtime is unchanged; exact spatial/numeric rules, edit/recovery/takeover and remaining release/coordination details are unresolved.
 - One modular JAR, config 14 and existing bridge/schema/dependency pins remain. No Phase 8 migration was added. Artifact version intentionally remains `0.1.0-SNAPSHOT`; the MVP tag is a frozen core acceptance milestone.
 - Final JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
 
 ## Completed
 
-- Latest decision: meaningful valid player Activity may suppress further unowned ruin Decay without land acquisition. It does not confer ownership/governance, heal damage, create materials or advance Era. Login, walking/idling and automation do not qualify; current action/location/world/protection validation and anti-farming limits remain required.
-- Spatial attribution/sharing, qualifying categories/values/caps, initialization, recovery thresholds/hysteresis/duration, edit/baseline handling and takeover remain open. Prior rights and unowned-mode safety constraints remain binding; no Activity-independent policy or numeric formula was adopted.
+- Latest decision: valid unowned maintenance Activity can support nearby ruins within a finite attenuated neighborhood, following the Local Activity spatial-support approach. Historical Settlement identity does not share credit with distant ruins, and derived support cannot relay new credit indefinitely.
+- Prior action/permission/anti-farming and no-ownership/no-healing/no-Era safeguards remain. Spatial units/shape/range, coefficients, cap aggregation, claimed/unclaimed source policy and recovery/edit/takeover details remain open; no MVP numeric defaults were implicitly adopted.
 
 - Repair preparation now requires Owner/Governor or the explicit administrator path, retaining station/damage permissions. An ordinary Citizen cannot occupy the whole-Building Repair slot.
 - Decay and Repair due queries present one candidate per SQL-lane cursor step, matching the runtime's one-attempt-per-poll behavior. Cursor advancement over an eight-row page was insufficient: a continually due first row could hide its siblings. The consumer-shaped ten-Building/job regression now defends actual fairness. Blocked Decay recovery chunks rotate with their durable sequence retained.
@@ -21,7 +21,7 @@
 
 ## Changed files
 
-- Latest decision adds architecture §30.10 and updates the operating-scope sentence in §30.9, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
+- Latest decision adds architecture §30.11 and updates related operating-scope sentences in §§30.9–30.10, README, `.agent/DECISIONS.md`, `.agent/OPEN_QUESTIONS.md` and this handoff. The following code paths describe the prior Phase 8 milestone and were not edited in this decision.
 
 - `esmp-civilization/.../persistence/JooqDecayRepository.java`: eligibility-only credit updates, nearby query and single-candidate fair scheduling.
 - `esmp-civilization/.../persistence/JooqRepairRepository.java`: preparation governance and single-candidate fair scheduling.
@@ -46,12 +46,12 @@
 - Evidence remains ignored in `.run/phase8-post-scenario`, `.run/phase8-fresh`, `.run/phase8-dev-upgrade`, `.run/phase8-fail-closed`, paired snapshots/manifests, `.run/phase8-static-audit.txt`, and `.run/phase8-perf/output.txt`. Test probe JARs/source/classes, temporary driver and benchmark source/class were removed. Static audit is explicitly pre-fix evidence, not post-fix proof.
 - Harness corrections are not product successes: wrong SQL column/removed command assumptions, RCON broadcast versus reply semantics, PTY input truncation, falling players during floor-breaking setup, and retained Python SQLite handles were corrected before acceptance. Cold file replacement now uses closed/independent readers. Controlled negative tests remain in logs; only the successful cases above count.
 - All Phase 8 verification servers and clients are stopped. Final standalone Paper shutdown exited zero; driver termination 143 was intentional supervisor shutdown. No deployed Phase 8 probe JAR remains. Local README/RELEASE/handoff/gate document links were checked with no missing targets.
-- Latest work is documentation-only meaningful Activity suppression of unowned ruin Decay under §30.10 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
-- Documentation scope check passed: reversing §30.10 and its §30.9 scope sentence reproduces the prior architecture exactly. Frozen MVP/prior safeguards remain unchanged; meaningful unclaimed maintenance is selected, passive/automated credit excluded, and spatial/numeric rules remain open.
+- Latest work is documentation-only bounded unowned Activity support sharing under §30.11 with synchronized README/decision/gate/handoff text. No runtime/schema/test-checklist behavior changed; Phase 8 build/Paper evidence above was not rerun for this decision.
+- Documentation scope check passed: reversing §30.11 and its two scope references reproduces the prior architecture exactly. Frozen MVP/prior rights remain unchanged; finite attenuated sharing and no recursive credit relay are explicit, while numeric/spatial settings remain open.
 
 ## Next action
 
-Next freeze unowned Activity's spatial scope (per ruin versus bounded sharing), qualifying actions/caps and recovery rules; then edit/baseline and takeover handling. Continue notice/grace/revalidation, cross-boundary property, timing/capacity and concrete coordination/storage/API design. Activity suppression without claiming is selected, but no automatic-release or unowned-mode implementation is authorized yet.
+Next settle player-edit/baseline treatment inside still-unowned tracked ruins and takeover/reclaim. Then freeze concrete spatial range/attenuation, qualifying actions/caps, recovery, notice/revalidation, remaining property and release timing/capacity. §§30.1–30.11 remain accepted design boundaries, not implementation authorization.
 
 ## Risks or blockers
 

@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Complete the unowned ruin mode: §30.9 selects continued Decay and §30.10 allows meaningful Activity to suppress it without claiming land. Define spatial attribution/sharing, qualifying actions/amounts/caps, initialization, thresholds/hysteresis/duration, authority, edit/baseline protection, cross-boundary effects, takeover/reclaim, old-context reconciliation and end-of-decay behavior. §§30.1–30.8 remain binding. Freeze exact coordination/storage/APIs, notice-stage admission/recovery, notice delivery/duration/revalidation, other property cases and administrator dispute handling separately.
+2. Complete the unowned ruin mode: §§30.9–30.10 select continued Decay with meaningful Activity suppression without claiming; §30.11 selects bounded, attenuated neighboring support, not whole-former-Settlement sharing. Define exact spatial units/shape/range, coefficients/cap aggregation, claimed/unclaimed source eligibility, actions/amounts, initialization, recovery, authority, edit/baseline protection, takeover and end-of-decay behavior. §§30.1–30.8 remain binding. Freeze concrete coordination/storage/APIs, notice-stage admission/recovery, notice delivery/duration/revalidation, other property cases and administrator dispute handling separately.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §§30.1–30.10 fix the accepted release/termination boundaries and continued unowned-ruin Decay with meaningful Activity suppression. Detailed operating rules and the remaining release algorithm are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
+Architecture §§30.1–30.11 fix the accepted release/termination boundaries and unowned-ruin Decay with meaningful Activity and bounded neighboring support. Detailed operating rules and the remaining release algorithm are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.

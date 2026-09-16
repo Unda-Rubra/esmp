@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — Unowned maintenance support is shared within a bounded neighborhood
+
+The user selected option 2: finite, attenuated neighboring support using the Local Activity spatial-support approach, rather than independent maintenance accounts for each ruin. Canonical §30.11 records this direction. Support is not shared across an entire former Settlement merely through historical identity.
+
+Rationale: maintaining a public ruin cluster should not require checking in at every individual Building. Influence remains bounded to original validated contributions; derived support cannot relay itself indefinitely through a chain of ruins. Existing permission, anti-farming and no-ownership/no-healing/no-Era rules remain.
+
+No radius, spatial unit/shape, coefficient, cap aggregation or owned/unowned source-boundary policy was selected. Those details and recovery/edit/takeover rules remain open; the existing MVP coefficients are not silently reused. Documentation only; runtime/schema/test-checklist behavior is unchanged.
+
 ## 2026-09-16 — Meaningful Activity may suppress unowned ruin Decay
 
 The user selected option 2: meaningful activity can inhibit further Decay of an unowned ruin without requiring land acquisition first. Canonical §30.10 records the direction. An Activity-independent schedule was not selected; this is not a freeze of contribution values or timing.
