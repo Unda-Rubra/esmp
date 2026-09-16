@@ -1240,7 +1240,7 @@ Valid player construction and replacement within the still-unowned tracked ruin 
 - Under sufficient meaningful maintenance support, further eligible Decay is suppressed. If maintenance later falls below the eventual eligibility rules, both old and newly incorporated mutable parts may decay against the current baseline. This is future decay of current design, not a stale-plan overwrite.
 - Existing material/safety limits, block-entity exclusions, protection boundaries, natural-load constraints and independent persistence reconciliation still apply. An accepted edit is not a blanket permission bypass or unlimited Activity credit.
 
-This selects baseline behavior only. Partial reclaim behavior follows §30.13; exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling, contribution/recovery values and full Building takeover still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
+This selects baseline behavior only. Partial reclaim follows §30.13 and automatic whole takeover follows §30.14; exact event/admission/revision coordination, major reinterpretation/end-of-ruin handling and contribution/recovery values still need design. No free Repair, Era award, automatic scope growth or runtime/schema implementation is selected.
 
 ## 30.13 Accepted MVP+1 boundary — partial reclaim does not freeze the whole ruin (2026-09-16)
 
@@ -1249,10 +1249,22 @@ When only part of an unowned ruin is newly claimed, stop unowned Decay in the cl
 - Determine mutation eligibility from current world/Claim/protection state, not merely the historical ruin footprint or former Settlement. Claimed cells are not targets of the unowned Decay mode, even if their data still appears in an older ruin baseline or operation.
 - Revalidate source, destination and relevant structural/support effects before each operation. Reject or defer work whose movement, removal or dependent effects would damage a protected claimed region. A source outside a Claim is not sufficient authorization to affect blocks inside it.
 - Invalidate/replan affected stale work when Claims or revisions change, retaining independent world/SQL reconciliation. Unaffected safe unclaimed work may continue; safety dependencies can block a particular operation without imposing a blanket whole-ruin pause.
-- Normal protection in a claimed portion does not by itself register or transfer that part as a new owned Building, resume old Repair, restore former permissions, heal damage or grant Era. Full takeover and any mixed-ownership registration/identity handling remain separate design gates.
+- Normal protection in a claimed portion does not by itself register or transfer that part as a new owned Building, resume old Repair, restore former permissions, heal damage or grant Era. Whole takeover follows §30.14; mixed-ownership registration/identity handling remains a separate design gate.
 - Existing bounds, safe material/block-entity rules, Activity suppression, natural-load-only execution and bounded work still apply. This does not authorize scanning/loading the entire ruin merely because one Claim changes.
 
-This selects partial-reclaim behavior, not a complete takeover algorithm or an implementation. Ownership-mask/revision coordination, cross-boundary storage and structural dependency details, claimed-source Activity policy and full takeover still need to be frozen.
+This selects partial-reclaim behavior, not a complete takeover algorithm or an implementation. Whole takeover direction follows §30.14; ownership-mask/revision coordination, cross-boundary storage and structural dependency details, claimed-source Activity policy and mixed-ownership handling still need to be frozen.
+
+## 30.14 Accepted MVP+1 boundary — automatic whole Building takeover (2026-09-16)
+
+When the entire tracked ruin lies within one Settlement and current permission and safety conditions pass, automatically admit it into that Settlement's Building lifecycle. Do not require an additional Owner/Governor takeover confirmation.
+
+- Complete coverage must be by the same Settlement identity, not merely adjacent Settlements with the same Owner. Partial coverage continues to follow §30.13; coverage split across multiple Settlements is not whole takeover under this rule.
+- Revalidate current world instance, full Claim coverage, ownership/permissions, applicable Parcel policy and Building safety/state before committing admission. Automatic does not mean unconditional or an administrator/Holder-policy bypass.
+- Coordinate transition from the unowned mode to the new owned lifecycle without competing old/new mutation authority. Reconcile pending old-context work and publish the new authoritative association through the existing commit/publication model; do not replay stale unowned work inside Claims.
+- If necessary state is unavailable or validation fails, defer admission rather than force-load chunks, invent a baseline or remove already committed Claim protection. This selects an automatic path when conditions pass, not a guarantee of immediate synchronous takeover during purchase.
+- Preserve Building history continuity. Takeover itself does not physically repair the ruin, resume the old payer's Repair jobs, restore former roles/permissions, transfer historical Treasury/material entitlements or advance Era.
+
+Exact baseline/identity representation and initialization, admission retry/state mapping, mixed-ownership registration, major reinterpretation and the remaining operating rules still need design. This exception to manual confirmation concerns known reclaimed ruins only, not automatic discovery/registration of arbitrary new structures. Frozen MVP behavior and schema are unchanged.
 
 ---
 

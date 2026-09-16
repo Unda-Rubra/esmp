@@ -2,6 +2,14 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — A fully covered eligible ruin is taken over automatically
+
+The user selected option 2: once the entire ruin belongs within one Settlement and current permission/safety checks pass, automatically enter that Settlement's Building lifecycle without another Owner/Governor confirmation. Canonical §30.14 records this path; manual takeover confirmation was not selected.
+
+Rationale: completed land acquisition should not require a redundant adoption step for a known tracked ruin. The same-Settlement requirement is identity-based, not shared Owner identity. Partial/multiple-Settlement coverage does not qualify; current Parcel permissions, safe reconciliation and committed publication remain mandatory.
+
+Automatic admission may wait for valid naturally available state, without stripping Claim protection or using stale unowned authority. History remains, with no free physical repair, resumed old Repair job, old entitlement transfer or Era award. Exact baseline/identity initialization, mixed-ownership handling and concrete transition APIs remain open. No runtime/schema/test-checklist behavior changed.
+
 ## 2026-09-16 — Partial reclaim protects claimed cells without freezing all unowned work
 
 The user selected option 2: stop unowned Decay only in newly claimed portions; safe remaining unclaimed portions continue. Canonical §30.13 rejects a blanket whole-ruin pause caused by claiming one corner.
