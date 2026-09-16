@@ -2,6 +2,16 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-16 — MVP+1 continues Decay on released unowned ruins
+
+The user selected option 2: after land release, previously registered ruins remain subject to system Decay as unowned ruins. Canonical §30.9 records this explicit MVP+1 extension. Automatic retirement merely to stop further Decay was not selected; physical/history continuity remains.
+
+Rationale: ownership loss should not freeze the physical ruin indefinitely. The extension requires an unowned authority/eligibility model rather than reuse of the former Settlement's Owner, Activity or stale operations. It is limited to released registered ruins, not automatic discovery or general natural-world erosion.
+
+Safe bounded/naturally-loaded processing, player-edit precedence, protection of newly claimed regions and independent world/SQL reconciliation remain required. The choice does not continue old Repair, erase material entitlements, grant former permissions or award Era.
+
+Unowned timing/Activity response, player-edit/baseline handling, takeover/reclaim, old-context reconciliation and end-of-decay behavior remain open. No runtime/schema/test-checklist behavior changed and no implementation is authorized yet.
+
 ## 2026-09-16 — MVP+1 ends active membership and governance at termination
 
 The user selected option 1: end effective Owner/Governor/Citizen relationships, retain history, and invalidate old invitations/unexecuted governance proposals. Canonical details are in §30.8. A landless dormant-team model was not selected.

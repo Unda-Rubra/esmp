@@ -380,6 +380,8 @@ Phase 8 核心服务端门禁已通过，参见[发布与迁移指南](RELEASE.m
 
 聚落真正终止时，结束其有效 Owner／Governor／Citizen 成员和治理关系，旧邀请及未决治理提案失效，历史记录和已提交结果保留。不保留无土地的休眠团队，也不自动恢复旧权限。最后 Owner 的金库领取权、原供料者的材料领取权独立保留；领取不要求恢复成员身份，也不影响玩家在其他聚落的身份。
 
+释放后的注册废墟不会仅因失去土地归属就停止系统衰败，而是作为无主遗迹继续变化，保留建筑历史连续性。这只针对已释放的注册废墟，不扩大到野外自动发现或自然地形侵蚀；不能沿用原 Owner 权限，也不能覆盖玩家新改造或新认领区域。无主衰败的触发／速度、编辑保护及重新接管规则仍待定，尚未实现。
+
 完成已验证的里程碑后提交；不提交 `.run/`、`.tooling/`、数据库、日志或密钥，未获请求不推送远端。
 
 [冻结架构](ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md) · [冻结需求](ESMP%20MVP%20ARCHITECTURE%202026-09-12/MVP_REQUIREMENTS_FREEZE.md) · [执行路线图](ESMP%20MVP%20ARCHITECTURE%202026-09-12/IMPLEMENTATION_ROADMAP.md) · [代理规则](AGENTS.md) · [决策](.agent/DECISIONS.md) · [当前阶段问题](.agent/OPEN_QUESTIONS.md) · [交接](.agent/HANDOFF.md) · [历史验收](.agent/TEST_CHECKLIST.md)

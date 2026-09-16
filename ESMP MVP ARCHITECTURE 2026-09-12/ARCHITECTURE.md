@@ -1157,7 +1157,7 @@ Automatic release need not reserve a final Claim. If all remaining land satisfie
 - The terminal transition ends active ownership coherently; it must not leave an owned Settlement with zero Claims, delete history or physically demolish structures. Partial releases still preserve the topology of the retained Settlement; the valid terminal state has no retained owned land rather than a disconnected remnant.
 - This is an explicit future MVP+1 lifecycle operation, not permission for ordinary MVP unclaim to remove its last Claim. Existing runtime behavior is unchanged until implementation of an approved design.
 
-Treasury disposition follows §30.6, unfinished Repair settlement follows §30.7, and terminal membership/governance follows §30.8. Remaining Building/Decay lifecycle and coordination details still require approved rules; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
+Treasury disposition follows §30.6, unfinished Repair settlement follows §30.7, terminal membership/governance follows §30.8, and released registered ruins continue under §30.9. Exact lifecycle/coordination rules still need design; unresolved obligations cannot be silently discarded. Timing, the complete release algorithm and implementation remain unapproved.
 
 ## 30.6 Accepted MVP+1 boundary — historical Treasury awaiting collection (2026-09-15)
 
@@ -1182,7 +1182,7 @@ During eligible Settlement termination, safely reconcile unfinished Repair inven
 - Unused, reconciled materials remain reserved for manual collection by their original job payer after termination. Entitlement is based on supplying those materials, not on being the last Owner, a former member or a later claimant. Do not move them into the historical Treasury or convert them to currency.
 - Once jobs are safely cancelled and collection entitlements durably preserved, uncollected refundable materials alone do not require retaining land. Preserve a post-termination collection path independent of active Settlement roles, using existing inventory-capacity and idempotent transfer safeguards; do not auto-drop items or duplicate refunds.
 
-This selects terminal Repair settlement only. Membership/governance follows §30.8; Building/Decay lifecycle transitions, exact collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
+This selects terminal Repair settlement only. Membership/governance follows §30.8 and unowned ruin Decay follows §30.9; exact job/lifecycle transitions, collection/admission APIs and the remaining release algorithm still need design. No runtime, schema or ordinary MVP behavior is changed by this decision.
 
 ## 30.8 Accepted MVP+1 boundary — end active governance, retain history (2026-09-16)
 
@@ -1194,7 +1194,19 @@ When a Settlement terminates, end its effective Owner/Governor/Citizen membershi
 - Termination grants no former role permissions over unclaimed land or a later Settlement. Existing roles in other Settlements and personal player state are unaffected. No dormant-team revival or automatic restoration of former permissions is selected.
 - Coordinate terminal role/proposal invalidation with the authorized release and committed permission publication; stale commands cannot bypass the terminal state. Holder safeguards and unresolved inventory/world obligations remain prerequisites, not requests that can simply be invalidated to make release possible.
 
-This is a post-MVP terminal policy, not implemented behavior. Exact lifecycle storage, request-state mapping and collection interfaces, Building/Decay transitions, notice/recovery/timing and the rest of the release algorithm remain to be frozen.
+This is a post-MVP terminal policy, not implemented behavior. Unowned ruin continuation follows §30.9; exact lifecycle storage, request-state mapping and collection interfaces, notice/recovery/timing and the rest of the release algorithm remain to be frozen.
+
+## 30.9 Accepted MVP+1 boundary — continued Decay of unowned ruins (2026-09-16)
+
+After a registered whole ruin's land is validly released, it continues as an unowned ruin subject to system Decay rather than automatically retiring solely to stop all further Decay. Preserve Building identity/history continuity; exact lifecycle representation remains to be designed.
+
+- Scope is formerly registered ruins released under the preceding safeguards, including release from a Settlement that retains other land. This does not authorize automatic discovery, unregistered-structure decay or general erosion of unclaimed natural terrain.
+- Release itself does not instantly demolish the structure. Subsequent Decay may change the ruin through bounded safe work; no full-world scans, forced chunk loading, arbitrary asynchronous world mutation, ordinary collectible drops or automatic block-entity mutation are authorized.
+- Unowned work needs its own authority and eligibility rules. Former Owner/Governor permissions, old Settlement Activity or stale ownership-bound intents cannot simply stand in for that authority. No former land rights survive merely because the Building remains tracked.
+- Preserve expected-state, revision, permission-boundary and independent world/SQL reconciliation safeguards. Player edits and newly protected regions must not be overwritten by blindly replaying old decay plans. Pending old-context operations require safe reconciliation and transition, not unconditional continuation.
+- This selects continued Decay, not continued old Repair or automatic restoration. Existing Treasury/material entitlements and terminal Repair settlement remain intact; partial-release job handling and exact old/new-context transitions still need design.
+
+Before implementation, freeze unowned eligibility/rate and any Activity response, player-edit/baseline protection, cross-boundary effects, reclaim/Building takeover and eventual end-of-decay behavior. Continued Decay does not itself restore former permissions, repair damage or advance Era. Frozen MVP runtime/schema is unchanged.
 
 ---
 

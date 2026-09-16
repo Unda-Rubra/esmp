@@ -9,7 +9,7 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 ## MVP+1 — freeze design before implementation
 
 1. Define gradual peripheral/boundary-only release using Local Activity, without internal holes or broken Settlement contiguity. Specify thresholds/hysteresis and whether Civic Capacity is actually necessary.
-2. Define registered-Building/Decay lifecycle transitions and exact terminal coordination/storage/interface details. §§30.1–30.7 settle rights, whole regions, containers, termination and Treasury/Repair settlement; §30.8 ends active membership/governance and invalidates old invitations/unexecuted proposals while retaining history and independent collection entitlements. Define notice-stage admission/recovery, notice delivery/duration/revalidation, cross-boundary storage, other property/entities and explicit administrator dispute handling.
+2. Design the unowned ruin mode selected in §30.9: authority, eligibility/rate and any Activity response, player-edit/baseline protection, cross-boundary effects, takeover/reclaim, old-context job reconciliation and end-of-decay behavior. §§30.1–30.8 already settle rights, whole regions, property, terminal collection and governance. Freeze exact coordination/storage/APIs, notice-stage admission/recovery, notice delivery/duration/revalidation, other property cases and administrator dispute handling separately.
 3. Define historical-core preservation, reclaim/current-baseline semantics and the migration/acceptance matrix. No restored predecessor permissions, free repairs or Era rewards.
 4. Keep Server Trade, Facility, freight, seasons and other deferred systems out of this phase. No placeholder schema or code until the Dynamic Settlement Cycle design is approved separately.
 
@@ -21,4 +21,4 @@ Phases 0–8 core server gates are implemented/verified; `mvp-v1.0` marks the fr
 
 ## Later frozen work
 
-Architecture §§30.1–30.8 fix the accepted rights, region, property, termination, collection and terminal governance boundaries for MVP+1. Remaining lifecycle and release rules are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
+Architecture §§30.1–30.9 fix the accepted rights, region, property, termination, collection/governance and continued unowned-ruin Decay direction for MVP+1. Unowned operating rules and the remaining release algorithm are unresolved; do not infer details from the pre-freeze architecture or treat unaccepted proposals as approved.
