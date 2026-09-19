@@ -32,6 +32,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
     private final ReleaseGuard releaseGuard;
     private final ClaimPricing pricing;
     private final ClaimPayment payment;
+    private final JooqBuildingRepository buildings;
 
     public JooqSettlementRepository(
             UnitOfWork database,
@@ -48,6 +49,14 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
         this.administrator = administrator;
         this.releaseGuard = Objects.requireNonNull(releaseGuard);
         this.payment = Objects.requireNonNull(payment);
+        this.buildings =
+                new JooqBuildingRepository(
+                        database,
+                        clock,
+                        new xdu.undarubra.esmp.civilization.building.BuildingService.Policy(
+                                xdu.undarubra.esmp.civilization.building.BuildingBounds
+                                        .HARD_MAX_VOLUME),
+                        administrator);
         this.pricing =
                 new ClaimPricing(
                         clock,
@@ -151,7 +160,10 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                 });
     }
 
-    public CompletableFuture<SettlementChange> purchase(UUID actor, UUID quoteId) {
+    public CompletableFuture<SettlementChange> purchase(
+            UUID actor,
+            UUID quoteId,
+            List<xdu.undarubra.esmp.civilization.building.BuildingService.Capture> captures) {
         return transact(
                 c -> {
                     ClaimQuote quote = loadQuote(c, actor, quoteId);
@@ -201,6 +213,8 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                 .set(SETTLEMENT_DETAILS.SECURITY_REVISION, 0L)
                                 .execute();
                         insertChunk(c, id, world, chunk);
+                        JooqLocalActivity.claimed(c, world, chunk);
+                        buildings.takeover(c, actor, id, world, chunk, captures);
                         pricing.complete(c, quote);
                         event(
                                 c,
@@ -213,10 +227,12 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     }
                     payment.debit(DatabaseAccess.transaction(c), quote);
                     insertChunk(c, id, world, chunk);
+                    JooqLocalActivity.claimed(c, world, chunk);
                     c.update(SETTLEMENTS)
                             .set(SETTLEMENTS.CHUNK_REVISION, SETTLEMENTS.CHUNK_REVISION.add(1L))
                             .where(SETTLEMENTS.SETTLEMENT_ID.eq(id))
                             .execute();
+                    buildings.takeover(c, actor, id, world, chunk, captures);
                     pricing.complete(c, quote);
                     event(
                             c,
@@ -259,6 +275,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
     private void requireClaimTarget(
             DSLContext c, UUID actor, SettlementView settlement, UUID world, ChunkPosition chunk)
             throws SQLException {
+        JooqBuildingRepository.claimBoundary(c, world, chunk);
         if (settlement == null) {
             requireMainWorld(c, world);
             requireUnclaimed(c, world, chunk);
@@ -310,31 +327,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                     require(
                             connected(remaining),
                             "Unclaiming this chunk would split the Settlement.");
-                    require(
-                            !c.fetchExists(
-                                    c.selectOne()
-                                            .from(BUILDINGS)
-                                            .where(
-                                                    BUILDINGS
-                                                            .SETTLEMENT_ID
-                                                            .eq(id)
-                                                            .and(BUILDINGS.STATUS.eq("ACTIVE"))
-                                                            .and(
-                                                                    BUILDINGS.MIN_X.le(
-                                                                            (long) chunk.x() * 16
-                                                                                    + 15))
-                                                            .and(
-                                                                    BUILDINGS.MAX_X.ge(
-                                                                            (long) chunk.x() * 16))
-                                                            .and(
-                                                                    BUILDINGS.MIN_Z.le(
-                                                                            (long) chunk.z() * 16
-                                                                                    + 15))
-                                                            .and(
-                                                                    BUILDINGS.MAX_Z.ge(
-                                                                            (long) chunk.z()
-                                                                                    * 16)))),
-                            "Retire affected Buildings before unclaiming");
+                    buildings.release(c, actor, id, Set.of(chunk));
                     c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
                             .where(
                                     SETTLEMENT_LOCAL_ACTIVITY
@@ -625,18 +618,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                                     "Remove Parcels through their consent workflow before"
                                             + " abandoning");
                             releaseGuard.check(DatabaseAccess.transaction(c), settlement.id());
-                            require(
-                                    !c.fetchExists(
-                                            c.selectOne()
-                                                    .from(BUILDINGS)
-                                                    .where(
-                                                            BUILDINGS
-                                                                    .SETTLEMENT_ID
-                                                                    .eq(settlement.id())
-                                                                    .and(
-                                                                            BUILDINGS.STATUS.eq(
-                                                                                    "ACTIVE")))),
-                                    "Retire Buildings before abandoning the Settlement");
+                            buildings.release(c, actor, settlement.id(), settlement.chunks());
                             c.deleteFrom(SETTLEMENT_LOCAL_ACTIVITY)
                                     .where(
                                             SETTLEMENT_LOCAL_ACTIVITY.SETTLEMENT_ID.eq(

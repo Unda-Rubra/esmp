@@ -2,6 +2,20 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-19 — Implement binary Building transitions without fragments
+
+Implemented WILD/CLAIMED using nullable current association, immutable historical association and monotonic ownership revision. Historical baseline revisions capture association; publication routing never grants historical permissions. Current lists and publication refresh have separate contracts so old Settlements do not retain actionable current Buildings.
+
+Explicit whole RUINED release via existing unclaim/confirmed abandonment reconciles pending operations and cancels remaining Repair, preserving original-payer refundable escrow. Paid claiming requires exact naturally captured current baselines; debit, Claim and takeover commit atomically. UUID/history persist, damage resets to inherited current state without changing blocks or Era. Single-chunk purchasing rejects multi-chunk wild footprints rather than introducing fragments or a new bulk-purchase subsystem.
+
+Wild real actions use independent world/chunk scores, actor cooldown/day caps, existing credit/decay policies and bounded four-neighbor support. No former roles/scores are reused. Wild edits advance intended baselines; Decay checks unclaimed boundaries and ownership revision with a system principal. New Claims clear obsolete wild buckets.
+
+Two new forward changelogs preserve existing schema/history. SQLite-native ADD/RENAME is a documented exception: Liquibase addColumn rebuilt tables and lost defaults/NOT NULL or rejected FK metadata, caught by migration regressions. Published changelogs remain unchanged.
+
+Verification: clean no-cache check/build passed 146 tests, zero failures/errors/skips. Focused regressions cover release/reclaim/current capture/replay/refunds, pending-transfer barriers, wild credit/restart/Decay, cross-boundary rejection and native Phase 7 upgrade. Isolated Paper proved release, wild edit/support recovery, later system-principal WEATHER, restart, paid 25 takeover/replay, preserved historical association, former-Owner rejection/new-Owner edit, and cross-boundary unclaim rejection. Hazardous dirt-neighbor fixture initially yielded no Decay; safe stone neighbor then passed without relaxing production safety.
+
+This ships the transition slice, not the scheduled release loop or all terminal policies. Ordinary Parcel, Treasury and last-Claim guards remain. No new questionnaire or mixed-ownership model.
+
 ## 2026-09-16 — Cut the cycle design back to a small MVP
 
 The user rejected the expanding edge-case questionnaire: a Building is WILD outside Settlements or CLAIMED inside one Settlement. Canonical §30 now replaces the fourteen accumulated subsections with this binary model and a short implementation scope.

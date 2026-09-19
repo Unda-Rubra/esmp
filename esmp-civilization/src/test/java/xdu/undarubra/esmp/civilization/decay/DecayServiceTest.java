@@ -98,7 +98,7 @@ class DecayServiceTest {
                                         world, 0, 0, 1, 100, LandValueProfile.Terrain.FLAT)))
                 .join();
         var q = settlements.quoteCreate(owner, world, new ChunkPosition(0, 0)).join();
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         settlement = q.settlementId();
         baseline =
                 new BuildingBaseline(
@@ -149,7 +149,8 @@ class DecayServiceTest {
                                         s.claims(),
                                         s.security(),
                                         ParcelAction.BUILD,
-                                        false)))
+                                        false,
+                                        null)))
                 .join();
     }
 

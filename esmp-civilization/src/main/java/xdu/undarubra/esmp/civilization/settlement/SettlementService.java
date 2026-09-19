@@ -1,5 +1,6 @@
 package xdu.undarubra.esmp.civilization.settlement;
 
+import xdu.undarubra.esmp.civilization.building.BuildingService.Capture;
 import xdu.undarubra.esmp.core.storage.UnitOfWork.Transaction;
 
 import java.sql.SQLException;
@@ -41,7 +42,8 @@ public final class SettlementService {
 
         CompletableFuture<ClaimQuote> quote(UUID actor, UUID quoteId);
 
-        CompletableFuture<SettlementChange> purchase(UUID actor, UUID quoteId);
+        CompletableFuture<SettlementChange> purchase(
+                UUID actor, UUID quoteId, List<Capture> buildings);
 
         CompletableFuture<SettlementChange> unclaim(UUID actor, UUID id, ChunkPosition chunk);
 
@@ -101,8 +103,9 @@ public final class SettlementService {
         return repository.quote(actor, quoteId);
     }
 
-    public CompletableFuture<SettlementChange> purchase(UUID actor, UUID quoteId) {
-        return repository.purchase(actor, quoteId);
+    public CompletableFuture<SettlementChange> purchase(
+            UUID actor, UUID quoteId, List<Capture> buildings) {
+        return repository.purchase(actor, quoteId, List.copyOf(buildings));
     }
 
     public CompletableFuture<SettlementChange> unclaim(UUID actor, UUID id, ChunkPosition chunk) {

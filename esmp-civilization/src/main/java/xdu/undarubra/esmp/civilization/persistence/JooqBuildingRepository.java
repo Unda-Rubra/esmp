@@ -57,17 +57,68 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
 
     @Override
     public CompletableFuture<List<View>> active(UUID settlement) {
+        return active(settlement, false);
+    }
+
+    @Override
+    public CompletableFuture<List<View>> publication(UUID settlement) {
+        return active(settlement, true);
+    }
+
+    private CompletableFuture<List<View>> active(UUID settlement, boolean historical) {
         return db.transact(
                 tx -> {
                     var c = DatabaseAccess.context(tx);
                     var condition = BUILDINGS.STATUS.eq("ACTIVE");
                     if (settlement != null)
-                        condition = condition.and(BUILDINGS.SETTLEMENT_ID.eq(settlement));
-                    return c.selectFrom(BUILDINGS)
-                            .where(condition)
-                            .orderBy(BUILDINGS.BUILDING_ID)
-                            .fetch(JooqBuildingRepository::view);
+                        condition =
+                                condition.and(
+                                        BUILDINGS
+                                                .SETTLEMENT_ID
+                                                .eq(settlement)
+                                                .or(
+                                                        historical
+                                                                ? BUILDINGS.HISTORY_SETTLEMENT_ID
+                                                                        .eq(settlement)
+                                                                : org.jooq.impl.DSL
+                                                                        .falseCondition()));
+                    var result =
+                            c.selectFrom(BUILDINGS)
+                                    .where(condition)
+                                    .orderBy(BUILDINGS.BUILDING_ID)
+                                    .fetch(JooqBuildingRepository::view);
+                    for (var view : result) validateOwnership(c, view);
+                    return result;
                 });
+    }
+
+    private static void validateOwnership(DSLContext c, View view) {
+        if (view.settlement() == null) {
+            require(
+                    unclaimed(c, view.world(), view.bounds()),
+                    "Wild Building crosses a Claim boundary");
+            return;
+        }
+        int count =
+                c.selectCount()
+                        .from(SETTLEMENT_CHUNKS)
+                        .join(SETTLEMENTS)
+                        .on(SETTLEMENTS.SETTLEMENT_ID.eq(SETTLEMENT_CHUNKS.SETTLEMENT_ID))
+                        .where(SETTLEMENTS.STATUS.eq("OWNED"))
+                        .and(SETTLEMENT_CHUNKS.SETTLEMENT_ID.eq(view.settlement()))
+                        .and(SETTLEMENT_CHUNKS.WORLD_INSTANCE_ID.eq(view.world()))
+                        .and(
+                                SETTLEMENT_CHUNKS.CHUNK_X.between(
+                                        (long) (view.bounds().minX() >> 4),
+                                        (long) (view.bounds().maxX() >> 4)))
+                        .and(
+                                SETTLEMENT_CHUNKS.CHUNK_Z.between(
+                                        (long) (view.bounds().minZ() >> 4),
+                                        (long) (view.bounds().maxZ() >> 4)))
+                        .fetchSingle(0, Integer.class);
+        require(
+                count == view.bounds().footprint().size(),
+                "Claimed Building crosses a Settlement boundary");
     }
 
     @Override
@@ -94,10 +145,12 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                     return new Detail(
                             new View(
                                     v.id(),
-                                    v.settlement(),
+                                    row.get(r.SETTLEMENT_ID),
+                                    v.historySettlement(),
                                     v.world(),
                                     v.name(),
                                     b.bounds(),
+                                    row.get(r.OWNERSHIP_REVISION),
                                     wanted,
                                     row.get(r.KIND).equals("RETIRED"),
                                     point),
@@ -166,6 +219,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                     c.insertInto(t)
                             .set(t.BUILDING_ID, id)
                             .set(t.SETTLEMENT_ID, settlement)
+                            .set(t.HISTORY_SETTLEMENT_ID, settlement)
                             .set(t.WORLD_INSTANCE_ID, world)
                             .set(t.NAME, name)
                             .set(t.NAME_KEY, name.toLowerCase(Locale.ROOT))
@@ -179,7 +233,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                             .set(t.STATUS, "ACTIVE")
                             .set(t.CREATED_TICK, clock.ticks())
                             .execute();
-                    record(tx, c, actor, id, 1, "REGISTERED", scan);
+                    record(tx, c, actor, id, 1, "REGISTERED", scan, settlement);
                     return change(c, settlement, "Registered Building " + name + " (" + id + ").");
                 });
     }
@@ -207,7 +261,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                     clearInvalidStation(c, v, scan);
                     long next = Math.addExact(expected, 1);
                     advance(c, id, next);
-                    record(tx, c, actor, id, next, "RESIZED", scan);
+                    record(tx, c, actor, id, next, "RESIZED", scan, v.publicationSettlement());
                     return change(c, v.settlement(), "Building bounds and baseline updated.");
                 });
     }
@@ -226,7 +280,15 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                             .set(BUILDINGS.REVISION, next)
                             .where(BUILDINGS.BUILDING_ID.eq(id))
                             .execute();
-                    record(tx, c, actor, id, next, "RETIRED", baseline(c, id, expected));
+                    record(
+                            tx,
+                            c,
+                            actor,
+                            id,
+                            next,
+                            "RETIRED",
+                            baseline(c, id, expected),
+                            v.publicationSettlement());
                     return change(
                             c,
                             v.settlement(),
@@ -259,7 +321,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                             .execute();
                     long next = Math.addExact(expected, 1);
                     advance(c, id, next);
-                    record(tx, c, actor, id, next, "STATION", base);
+                    record(tx, c, actor, id, next, "STATION", base, v.publicationSettlement());
                     return change(
                             c,
                             v.settlement(),
@@ -290,13 +352,17 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                         require(
                                 receipt.get(BUILDING_OPERATIONS.FINGERPRINT).equals(fingerprint),
                                 "Building edit identity has different content");
-                        return change(c, v.settlement(), "Building edit already recorded.");
+                        return change(
+                                c, v.publicationSettlement(), "Building edit already recorded.");
                     }
                     require(!v.retired(), "Building is retired");
                     require(
                             action == ParcelAction.BUILD || action == ParcelAction.INTERACT,
                             "Unsupported Building edit action");
-                    var s = authorized(tx, actor, v.settlement(), stamp, false);
+                    var s =
+                            v.ownership() == Ownership.WILD
+                                    ? wild(c, v, stamp)
+                                    : authorized(tx, actor, v.settlement(), stamp, false);
                     var old = baseline(c, id, v.revision());
                     var actual = new HashMap<Position, BuildingCell>();
                     boolean resolvedDamage = false;
@@ -304,7 +370,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                         require(
                                 v.bounds().contains(entry.getKey()),
                                 "Building bounds changed before edit publication");
-                        allow(tx, actor, s, entry.getKey(), action);
+                        if (s != null) allow(tx, actor, s, entry.getKey(), action);
                         var position = entry.getKey();
                         resolvedDamage |=
                                 c.deleteFrom(DECAY_DAMAGE)
@@ -344,15 +410,24 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                         clearInvalidStation(c, v, nextBase);
                         long next = Math.addExact(v.revision(), 1);
                         advance(c, id, next);
-                        record(tx, c, actor, id, next, "EDITED", nextBase);
+                        record(
+                                tx,
+                                c,
+                                actor,
+                                id,
+                                next,
+                                "EDITED",
+                                nextBase,
+                                v.publicationSettlement());
                     } else clock.checkpoint(tx);
-                    return change(c, v.settlement(), "Building baseline updated.");
+                    return change(c, v.publicationSettlement(), "Building baseline updated.");
                 });
     }
 
     private SettlementView authorized(
             UnitOfWork.Transaction tx, UUID actor, UUID id, Stamp stamp, boolean governance)
             throws SQLException {
+        require(id != null, "Claim the whole wild Building before changing its governance");
         var c = DatabaseAccess.context(tx);
         var s = JooqSettlementRepository.load(c, id);
         require(s != null, "Settlement is no longer owned");
@@ -396,19 +471,23 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
             require(
                     s.chunks().contains(chunk),
                     "Every Building chunk must belong to this Settlement");
-        for (var row :
-                c.selectFrom(BUILDINGS)
-                        .where(
-                                BUILDINGS
-                                        .SETTLEMENT_ID
-                                        .eq(s.id())
-                                        .and(BUILDINGS.STATUS.eq("ACTIVE")))
-                        .fetch()) {
-            var other = view(row);
-            require(
-                    other.id().equals(except) || !scan.bounds().intersects(other.bounds()),
-                    "Building selections cannot overlap");
-        }
+        require(
+                !c.fetchExists(
+                        c.selectOne()
+                                .from(BUILDINGS)
+                                .where(BUILDINGS.WORLD_INSTANCE_ID.eq(s.worldInstanceId()))
+                                .and(BUILDINGS.STATUS.eq("ACTIVE"))
+                                .and(
+                                        except == null
+                                                ? org.jooq.impl.DSL.noCondition()
+                                                : BUILDINGS.BUILDING_ID.ne(except))
+                                .and(BUILDINGS.MIN_X.le((long) scan.bounds().maxX()))
+                                .and(BUILDINGS.MAX_X.ge((long) scan.bounds().minX()))
+                                .and(BUILDINGS.MIN_Y.le((long) scan.bounds().maxY()))
+                                .and(BUILDINGS.MAX_Y.ge((long) scan.bounds().minY()))
+                                .and(BUILDINGS.MIN_Z.le((long) scan.bounds().maxZ()))
+                                .and(BUILDINGS.MAX_Z.ge((long) scan.bounds().minZ()))),
+                "Building selections cannot overlap");
         validatePermission(tx, actor, s, scan.bounds());
     }
 
@@ -477,6 +556,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
         return new View(
                 r.get(b.BUILDING_ID),
                 r.get(b.SETTLEMENT_ID),
+                r.get(b.HISTORY_SETTLEMENT_ID),
                 r.get(b.WORLD_INSTANCE_ID),
                 r.get(b.NAME),
                 new BuildingBounds(
@@ -486,6 +566,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                         Math.toIntExact(r.get(b.MAX_X)),
                         Math.toIntExact(r.get(b.MAX_Y)),
                         Math.toIntExact(r.get(b.MAX_Z))),
+                r.get(b.OWNERSHIP_REVISION),
                 r.get(b.REVISION),
                 r.get(b.STATUS).equals("RETIRED"),
                 station);
@@ -530,7 +611,7 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
         var baseline = baseline(c, id, current.revision());
         long next = Math.addExact(current.revision(), 1L);
         advance(c, id, next);
-        record(tx, c, actor, id, next, "REPAIRED", baseline);
+        record(tx, c, actor, id, next, "REPAIRED", baseline, current.publicationSettlement());
     }
 
     private void record(
@@ -540,7 +621,8 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
             UUID id,
             long revision,
             String kind,
-            BuildingBaseline baseline)
+            BuildingBaseline baseline,
+            UUID eventSettlement)
             throws SQLException {
         if (!kind.equals("REPAIRED"))
             require(
@@ -559,6 +641,8 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
         c.insertInto(BUILDING_REVISIONS)
                 .set(BUILDING_REVISIONS.BUILDING_ID, id)
                 .set(BUILDING_REVISIONS.REVISION, revision)
+                .set(BUILDING_REVISIONS.SETTLEMENT_ID, v.settlement())
+                .set(BUILDING_REVISIONS.OWNERSHIP_REVISION, v.ownershipRevision())
                 .set(BUILDING_REVISIONS.ACTOR_UUID, actor)
                 .set(BUILDING_REVISIONS.GAME_TICK, tick)
                 .set(BUILDING_REVISIONS.KIND, kind)
@@ -568,10 +652,17 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 .set(BUILDING_REVISIONS.BASELINE, baseline.encode())
                 .execute();
         JooqDecayRepository.rebase(c, id, baseline, tick);
+        if (kind.equals("WILD") || kind.equals("CLAIMED"))
+            c.update(DECAY_STATE)
+                    .set(DECAY_STATE.POLICY_CONTEXT, "")
+                    .set(DECAY_STATE.NEXT_OPERATION_TICK, tick)
+                    .set(DECAY_STATE.ACTIVITY_REVISION, DECAY_STATE.ACTIVITY_REVISION.add(1L))
+                    .where(DECAY_STATE.BUILDING_ID.eq(id))
+                    .execute();
         if (!kind.equals("REPAIRED")) JooqRepairRepository.rebase(c, id, tick);
         c.insertInto(SETTLEMENT_EVENTS)
                 .set(SETTLEMENT_EVENTS.EVENT_ID, UUID.randomUUID())
-                .set(SETTLEMENT_EVENTS.SETTLEMENT_ID, v.settlement())
+                .set(SETTLEMENT_EVENTS.SETTLEMENT_ID, eventSettlement)
                 .set(SETTLEMENT_EVENTS.ACTOR_UUID, actor)
                 .set(SETTLEMENT_EVENTS.TYPE, "BUILDING_" + kind)
                 .set(
@@ -589,6 +680,162 @@ public final class JooqBuildingRepository implements BuildingService.Repository 
                 .set(SETTLEMENT_EVENTS.DELIVERED, 0L)
                 .execute();
         clock.checkpoint(tx);
+    }
+
+    static List<View> touching(DSLContext c, UUID world, ChunkPosition chunk) {
+        return c.selectFrom(BUILDINGS)
+                .where(BUILDINGS.WORLD_INSTANCE_ID.eq(world).and(BUILDINGS.STATUS.eq("ACTIVE")))
+                .and(BUILDINGS.MIN_X.le((long) chunk.x() * 16 + 15))
+                .and(BUILDINGS.MAX_X.ge((long) chunk.x() * 16))
+                .and(BUILDINGS.MIN_Z.le((long) chunk.z() * 16 + 15))
+                .and(BUILDINGS.MAX_Z.ge((long) chunk.z() * 16))
+                .orderBy(BUILDINGS.BUILDING_ID)
+                .fetch(JooqBuildingRepository::view);
+    }
+
+    static void claimBoundary(DSLContext c, UUID world, ChunkPosition chunk) {
+        for (var v : touching(c, world, chunk)) {
+            require(v.ownership() == Ownership.WILD, "Building ownership does not match the Claim");
+            require(
+                    v.bounds().footprint().keySet().equals(Set.of(chunk)),
+                    "This Claim would cross a tracked Building boundary");
+        }
+    }
+
+    static boolean unclaimed(DSLContext c, UUID world, BuildingBounds bounds) {
+        return !c.fetchExists(
+                c.selectOne()
+                        .from(SETTLEMENT_CHUNKS)
+                        .where(SETTLEMENT_CHUNKS.WORLD_INSTANCE_ID.eq(world))
+                        .and(
+                                SETTLEMENT_CHUNKS.CHUNK_X.between(
+                                        (long) (bounds.minX() >> 4), (long) (bounds.maxX() >> 4)))
+                        .and(
+                                SETTLEMENT_CHUNKS.CHUNK_Z.between(
+                                        (long) (bounds.minZ() >> 4), (long) (bounds.maxZ() >> 4))));
+    }
+
+    private static SettlementView wild(DSLContext c, View v, Stamp stamp) {
+        require(
+                stamp.world().equals(v.world())
+                        && stamp.ownership() == v.ownershipRevision()
+                        && stamp.claims() == 0
+                        && stamp.security() == 0
+                        && unclaimed(c, v.world(), v.bounds()),
+                "Wild Building ownership changed before edit publication");
+        return null;
+    }
+
+    void release(DSLContext c, UUID actor, UUID settlement, Set<ChunkPosition> chunks)
+            throws SQLException {
+        var affected = new LinkedHashMap<UUID, View>();
+        var s = JooqSettlementRepository.load(c, settlement);
+        for (var chunk : chunks)
+            for (var v : touching(c, s.worldInstanceId(), chunk)) affected.put(v.id(), v);
+        for (var v : affected.values()) {
+            require(
+                    settlement.equals(v.settlement())
+                            && chunks.containsAll(v.bounds().footprint().keySet()),
+                    "Release would cross a tracked Building boundary");
+            require(
+                    !c.fetchExists(
+                            c.selectOne()
+                                    .from(DECAY_OPERATIONS)
+                                    .where(
+                                            DECAY_OPERATIONS
+                                                    .BUILDING_ID
+                                                    .eq(v.id())
+                                                    .and(DECAY_OPERATIONS.STATE.eq("PREPARED")))),
+                    "Reconcile pending Decay before releasing this Building");
+            require(
+                    JooqDecayRepository.ruined(c, v),
+                    "Only a whole RUINED Building can become wild");
+            JooqRepairRepository.release(c, v.id(), clock.ticks());
+            c.update(BUILDINGS)
+                    .setNull(BUILDINGS.SETTLEMENT_ID)
+                    .set(BUILDINGS.REVISION, Math.addExact(v.revision(), 1))
+                    .set(BUILDINGS.OWNERSHIP_REVISION, BUILDINGS.OWNERSHIP_REVISION.add(1L))
+                    .where(BUILDINGS.BUILDING_ID.eq(v.id()))
+                    .execute();
+            record(
+                    DatabaseAccess.transaction(c),
+                    c,
+                    actor,
+                    v.id(),
+                    v.revision() + 1,
+                    "WILD",
+                    baseline(c, v.id(), v.revision()),
+                    settlement);
+        }
+    }
+
+    void takeover(
+            DSLContext c,
+            UUID actor,
+            UUID settlement,
+            UUID world,
+            ChunkPosition chunk,
+            List<Capture> captures)
+            throws SQLException {
+        var affected = touching(c, world, chunk);
+        var scans = new HashMap<UUID, Capture>();
+        long volume = 0;
+        for (var capture : captures) {
+            require(scans.put(capture.id(), capture) == null, "Duplicate Building capture");
+            volume += capture.baseline().bounds().volume();
+        }
+        require(
+                volume <= BuildingBounds.HARD_MAX_VOLUME && scans.size() == affected.size(),
+                "Capture every affected wild Building within the operation volume limit");
+        var s = JooqSettlementRepository.load(c, settlement);
+        for (var v : affected) {
+            var capture = scans.get(v.id());
+            require(
+                    v.ownership() == Ownership.WILD
+                            && capture != null
+                            && capture.revision() == v.revision()
+                            && capture.baseline().bounds().equals(v.bounds())
+                            && s.chunks().containsAll(v.bounds().footprint().keySet()),
+                    "Wild Building changed; capture its current state again");
+            validatePermission(DatabaseAccess.transaction(c), actor, s, v.bounds());
+            require(
+                    !c.fetchExists(
+                            c.selectOne()
+                                    .from(DECAY_OPERATIONS)
+                                    .where(
+                                            DECAY_OPERATIONS
+                                                    .BUILDING_ID
+                                                    .eq(v.id())
+                                                    .and(DECAY_OPERATIONS.STATE.eq("PREPARED")))),
+                    "Reconcile pending wild Decay before claiming this Building");
+            JooqRepairRepository.release(c, v.id(), clock.ticks());
+            require(
+                    !c.fetchExists(
+                            c.selectOne()
+                                    .from(BUILDINGS)
+                                    .where(BUILDINGS.SETTLEMENT_ID.eq(settlement))
+                                    .and(BUILDINGS.STATUS.eq("ACTIVE"))
+                                    .and(BUILDINGS.NAME_KEY.eq(v.name().toLowerCase(Locale.ROOT)))
+                                    .and(BUILDINGS.BUILDING_ID.ne(v.id()))),
+                    "An active Building already has that name");
+            c.update(BUILDINGS)
+                    .set(BUILDINGS.SETTLEMENT_ID, settlement)
+                    .set(BUILDINGS.REVISION, Math.addExact(v.revision(), 1))
+                    .set(BUILDINGS.OWNERSHIP_REVISION, BUILDINGS.OWNERSHIP_REVISION.add(1L))
+                    .where(BUILDINGS.BUILDING_ID.eq(v.id()))
+                    .execute();
+            clearInvalidStation(c, v, capture.baseline());
+            c.deleteFrom(DECAY_DAMAGE).where(DECAY_DAMAGE.BUILDING_ID.eq(v.id())).execute();
+            record(
+                    DatabaseAccess.transaction(c),
+                    c,
+                    actor,
+                    v.id(),
+                    v.revision() + 1,
+                    "CLAIMED",
+                    capture.baseline(),
+                    settlement);
+        }
     }
 
     private static SettlementChange change(DSLContext c, UUID id, String message)

@@ -19,7 +19,8 @@ public record ActivityContribution(
         long chunkRevision,
         long securityRevision,
         ParcelAction action,
-        boolean safePublic) {
+        boolean safePublic,
+        UUID wildBuilding) {
     public enum Category {
         BUILD,
         INTERACTION

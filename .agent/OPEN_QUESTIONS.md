@@ -1,25 +1,17 @@
 # ESMP Current Scope and Execution Notes
 
-## Authority
-
-The frozen MVP remains implemented at `mvp-v1.0`. The next increment is the simplified Dynamic Settlement Cycle in [architecture §30](../ESMP%20MVP%20ARCHITECTURE%202026-09-12/ARCHITECTURE.md). That section supersedes the accumulated edge-case questionnaire and earlier partial-building decisions.
+Canonical scope: architecture §30. Binary WILD/CLAIMED classification, explicit whole release/paid takeover, wild observations/Activity/Decay and compatibility migrations are implemented. Current behavior and evidence are in HANDOFF and README.
 
 ## Next work
 
-Implement WILD / CLAIMED classification and whole-Building transitions using the existing services, repositories and publication gate. WILD is wholly outside Settlements; CLAIMED is wholly inside one Settlement. Cross-boundary tracked Buildings are unsupported: reject invalid registration/boundary changes instead of adding a mixed state, fragments or split/merge logic.
+Connect the bounded Activity → notice/grace → peripheral release loop to existing whole-transition and publication APIs. Preserve retained-land topology, assigned Holder consent, safe pending-work reconciliation and accounting. No fragments, mixed ownership, split/merge, Civic Capacity or new simulation. Use configurable defaults and focused tests rather than reopening the questionnaire.
 
-Then connect the small Activity → notice/grace → safe peripheral release loop. Keep the selected Holder, container, historical Treasury and Repair-refund rules in §30. Do not reopen them as a sequence of design votes.
+## Still unimplemented
 
-## Implementation choices, not new architecture gates
+Scheduled release, automatic whole unassigned-Parcel ending, historical Treasury collection and terminal governance invalidation. Existing ordinary last-Claim, nonempty Treasury and Parcel constraints remain until those workflows ship. Current one-chunk purchase safely rejects a multi-chunk wild Building; no partial takeover is supported.
 
-- Start from existing configurable Activity/Decay policies and bounded work budgets; tune through focused tests and actual server evidence.
-- Reuse current permission, history, baseline, job and reconciliation patterns. Keep storage/API details local to the implementation.
-- Reject unsupported cases safely. Do not add Civic Capacity, maintenance simulation, extra region models, arbitrary Building discovery or deferred systems.
+## Migration constraints
 
-## Retained migration constraints
+Keep released changelogs immutable and preserve the legacy bridge. Two cycle forward migrations retain old Building histories and initialize wild Activity at zero. Documented SQLite-native ADD/RENAME avoids Liquibase table-rebuild metadata loss; do not generalize that exception into gameplay SQL. Upgrade paired world/player/database backups, not isolated stores.
 
-- `db.changelog-baseline.xml` contains only immutable Phase 0 includes; verify the old shape before baseline synchronization, then apply the forward master.
-- Retain the tested legacy bridge for supported development-data upgrades. Do not rewrite released changelogs or expand documented SQLite-specific exceptions into gameplay SQL.
-- Historical Activity is not reconstructed from old scores. Existing certification grandfathering and financial histories remain intact.
-
-Native-client acceptance and deployment-specific performance checks remain in `TEST_CHECKLIST.md`; they are not new feature-design questions.
+Native-client acceptance remains in TEST_CHECKLIST. No edge-case design interview is needed before the next bounded implementation.

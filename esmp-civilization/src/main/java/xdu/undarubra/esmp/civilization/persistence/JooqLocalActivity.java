@@ -92,6 +92,163 @@ final class JooqLocalActivity {
         return weighted / area;
     }
 
+    double wildSupport(DSLContext c, UUID world, Map<ChunkPosition, Integer> footprint, long tick)
+            throws SQLException {
+        var needed = new HashSet<>(footprint.keySet());
+        for (var chunk : footprint.keySet()) {
+            if (chunk.x() > Integer.MIN_VALUE)
+                needed.add(new ChunkPosition(chunk.x() - 1, chunk.z()));
+            if (chunk.x() < Integer.MAX_VALUE)
+                needed.add(new ChunkPosition(chunk.x() + 1, chunk.z()));
+            if (chunk.z() > Integer.MIN_VALUE)
+                needed.add(new ChunkPosition(chunk.x(), chunk.z() - 1));
+            if (chunk.z() < Integer.MAX_VALUE)
+                needed.add(new ChunkPosition(chunk.x(), chunk.z() + 1));
+        }
+        var a = WILD_ACTIVITY;
+        var raw = new HashMap<ChunkPosition, Double>();
+        long minX = needed.stream().mapToLong(ChunkPosition::x).min().orElseThrow(),
+                maxX = needed.stream().mapToLong(ChunkPosition::x).max().orElseThrow(),
+                minZ = needed.stream().mapToLong(ChunkPosition::z).min().orElseThrow(),
+                maxZ = needed.stream().mapToLong(ChunkPosition::z).max().orElseThrow();
+        for (var row :
+                c.selectFrom(a)
+                        .where(a.WORLD_INSTANCE_ID.eq(world))
+                        .and(a.CHUNK_X.between(minX, maxX))
+                        .and(a.CHUNK_Z.between(minZ, maxZ))
+                        .andNotExists(
+                                c.selectOne()
+                                        .from(SETTLEMENT_CHUNKS)
+                                        .where(
+                                                SETTLEMENT_CHUNKS.WORLD_INSTANCE_ID.eq(
+                                                        a.WORLD_INSTANCE_ID))
+                                        .and(SETTLEMENT_CHUNKS.CHUNK_X.eq(a.CHUNK_X))
+                                        .and(SETTLEMENT_CHUNKS.CHUNK_Z.eq(a.CHUNK_Z)))
+                        .fetch()) {
+            var chunk =
+                    new ChunkPosition(
+                            Math.toIntExact(row.get(a.CHUNK_X)),
+                            Math.toIntExact(row.get(a.CHUNK_Z)));
+            if (needed.contains(chunk)) raw.put(chunk, projectWild(row, tick));
+        }
+        double weighted = 0;
+        long area = 0;
+        for (var entry : footprint.entrySet()) {
+            weighted +=
+                    LocalActivityProjection.support(raw, entry.getKey(), local, activity.maxScore())
+                            * entry.getValue();
+            area += entry.getValue();
+        }
+        return weighted / area;
+    }
+
+    private double projectWild(Record row, long tick) throws SQLException {
+        double score = row.get(WILD_ACTIVITY.SCORE);
+        long anchor = row.get(WILD_ACTIVITY.ANCHOR_TICK);
+        if (!Double.isFinite(score)
+                || score < 0
+                || score > activity.maxScore()
+                || anchor < 0
+                || tick < anchor) throw new SQLException("Invalid wild Activity state");
+        return ActivityProjection.decay(score, anchor, tick, activity.halfLifeDays());
+    }
+
+    static void claimed(DSLContext c, UUID world, ChunkPosition chunk) {
+        c.deleteFrom(WILD_ACTIVITY)
+                .where(WILD_ACTIVITY.WORLD_INSTANCE_ID.eq(world))
+                .and(WILD_ACTIVITY.CHUNK_X.eq((long) chunk.x()))
+                .and(WILD_ACTIVITY.CHUNK_Z.eq((long) chunk.z()))
+                .execute();
+        c.deleteFrom(WILD_ACTIVITY_ACTORS)
+                .where(WILD_ACTIVITY_ACTORS.WORLD_INSTANCE_ID.eq(world))
+                .and(WILD_ACTIVITY_ACTORS.CHUNK_X.eq((long) chunk.x()))
+                .and(WILD_ACTIVITY_ACTORS.CHUNK_Z.eq((long) chunk.z()))
+                .execute();
+    }
+
+    boolean creditWild(DSLContext c, ActivityContribution observation, long now)
+            throws SQLException {
+        if (observation.action()
+                == xdu.undarubra.esmp.civilization.settlement.ParcelAction.AUTOMATION) return false;
+        var b = JooqBuildingRepository.current(c, observation.wildBuilding());
+        var p =
+                new xdu.undarubra.esmp.civilization.building.BuildingBounds.Position(
+                        observation.blockX(), observation.blockY(), observation.blockZ());
+        if (b.retired()
+                || b.settlement() != null
+                || !b.world().equals(observation.worldInstanceId())
+                || !b.historySettlement().equals(observation.settlementId())
+                || b.ownershipRevision() != observation.ownershipRevision()
+                || observation.chunkRevision() != 0
+                || observation.securityRevision() != 0
+                || !b.bounds().contains(p)
+                || !JooqBuildingRepository.unclaimed(c, b.world(), b.bounds())) return false;
+        long x = observation.blockX() >> 4, z = observation.blockZ() >> 4;
+        long day = now / xdu.undarubra.esmp.core.time.GameClock.TICKS_PER_DAY;
+        var a = WILD_ACTIVITY;
+        var u = WILD_ACTIVITY_ACTORS;
+        var key = a.WORLD_INSTANCE_ID.eq(b.world()).and(a.CHUNK_X.eq(x)).and(a.CHUNK_Z.eq(z));
+        var actorKey =
+                u.WORLD_INSTANCE_ID
+                        .eq(b.world())
+                        .and(u.CHUNK_X.eq(x))
+                        .and(u.CHUNK_Z.eq(z))
+                        .and(u.ACTOR_UUID.eq(observation.actor()));
+        var row = c.selectFrom(a).where(key).fetchOne();
+        var actor = c.selectFrom(u).where(actorKey).fetchOne();
+        Long build = actor == null ? null : actor.get(u.BUILD_TICK);
+        Long interaction = actor == null ? null : actor.get(u.INTERACTION_TICK);
+        boolean building = observation.category() == ActivityContribution.Category.BUILD;
+        Long last = building ? build : interaction;
+        if (last != null && now - last < activity.actionCooldownTicks()) return false;
+        double actorCredit = actor != null && actor.get(u.DAY) == day ? actor.get(u.CREDITED) : 0;
+        double daily = row != null && row.get(a.DAY) == day ? row.get(a.CREDITED) : 0;
+        double score = row == null ? 0 : projectWild(row, now);
+        double amount =
+                Math.min(
+                        building ? activity.buildCredit() : activity.interactionCredit(),
+                        Math.min(
+                                activity.playerDailyCap() - actorCredit,
+                                Math.min(
+                                        activity.settlementDailyCap() - daily,
+                                        activity.maxScore() - score)));
+        if (amount <= 0) return false;
+        if (building) build = now;
+        else interaction = now;
+        c.insertInto(a)
+                .set(a.WORLD_INSTANCE_ID, b.world())
+                .set(a.CHUNK_X, x)
+                .set(a.CHUNK_Z, z)
+                .set(a.SCORE, score + amount)
+                .set(a.ANCHOR_TICK, now)
+                .set(a.DAY, day)
+                .set(a.CREDITED, daily + amount)
+                .onConflict(a.WORLD_INSTANCE_ID, a.CHUNK_X, a.CHUNK_Z)
+                .doUpdate()
+                .set(a.SCORE, score + amount)
+                .set(a.ANCHOR_TICK, now)
+                .set(a.DAY, day)
+                .set(a.CREDITED, daily + amount)
+                .execute();
+        c.insertInto(u)
+                .set(u.WORLD_INSTANCE_ID, b.world())
+                .set(u.CHUNK_X, x)
+                .set(u.CHUNK_Z, z)
+                .set(u.ACTOR_UUID, observation.actor())
+                .set(u.DAY, day)
+                .set(u.CREDITED, actorCredit + amount)
+                .set(u.BUILD_TICK, build)
+                .set(u.INTERACTION_TICK, interaction)
+                .onConflict(u.WORLD_INSTANCE_ID, u.CHUNK_X, u.CHUNK_Z, u.ACTOR_UUID)
+                .doUpdate()
+                .set(u.DAY, day)
+                .set(u.CREDITED, actorCredit + amount)
+                .set(u.BUILD_TICK, build)
+                .set(u.INTERACTION_TICK, interaction)
+                .execute();
+        return true;
+    }
+
     private UUID world(DSLContext c, UUID settlement) {
         UUID world =
                 c.select(SETTLEMENTS.WORLD_INSTANCE_ID)

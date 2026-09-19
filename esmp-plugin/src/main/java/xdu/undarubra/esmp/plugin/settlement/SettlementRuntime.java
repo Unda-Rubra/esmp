@@ -350,8 +350,13 @@ public final class SettlementRuntime implements AutoCloseable {
             return false;
         }
         SettlementView settlement = index.at(world, x, z);
-        return settlement == null
-                || (!settlement.id().equals(frozenSettlement) && !repair.reserved(settlement.id()));
+        if (settlement == null) {
+            var building = buildings.at(location);
+            return building == null
+                    || (!building.publicationSettlement().equals(frozenSettlement)
+                            && !repair.reserved(building.publicationSettlement()));
+        }
+        return !settlement.id().equals(frozenSettlement) && !repair.reserved(settlement.id());
     }
 
     public boolean allows(UUID actor, Location location, ParcelAction action, boolean safePublic) {
@@ -530,7 +535,8 @@ public final class SettlementRuntime implements AutoCloseable {
                                             .thenCompose(
                                                     value ->
                                                             buildings
-                                                                    .active(change.settlementId())
+                                                                    .publication(
+                                                                            change.settlementId())
                                                                     .thenApply(
                                                                             views ->
                                                                                     new Publication(

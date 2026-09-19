@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="cycle-wild-activity" author="esmp" dbms="sqlite">
+        <createTable tableName="wild_activity">
+            <column name="world_instance_id" type="TEXT"><constraints nullable="false" primaryKey="true" references="world_instances(world_instance_id)" foreignKeyName="fk_wild_activity_world"/></column>
+            <column name="chunk_x" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="chunk_z" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="score" type="REAL"><constraints nullable="false"/></column>
+            <column name="anchor_tick" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="day" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="credited" type="REAL"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="wild_activity_actors">
+            <column name="world_instance_id" type="TEXT"><constraints nullable="false" primaryKey="true" references="world_instances(world_instance_id)" foreignKeyName="fk_wild_actor_world"/></column>
+            <column name="chunk_x" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="chunk_z" type="INTEGER"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="actor_uuid" type="TEXT"><constraints nullable="false" primaryKey="true"/></column>
+            <column name="day" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="credited" type="REAL"><constraints nullable="false"/></column>
+            <column name="build_tick" type="INTEGER"/>
+            <column name="interaction_tick" type="INTEGER"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

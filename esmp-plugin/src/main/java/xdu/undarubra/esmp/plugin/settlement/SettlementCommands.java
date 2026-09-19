@@ -162,12 +162,13 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                                                     + q.chunk().z()
                                                     + ") before purchasing, or request a new"
                                                     + " quote.");
+                                var captures = runtime.buildings().capturePurchase(current, q);
                                 runtime.mutate(
                                         current,
                                         q.founding() ? null : q.settlementId(),
                                         new SettlementRuntime.Reservation(
                                                 q.worldInstance(), q.chunk()),
-                                        () -> runtime.service().purchase(actor, q.id()));
+                                        () -> runtime.service().purchase(actor, q.id(), captures));
                             });
                 }
                 case "ban", "unban" -> {

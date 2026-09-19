@@ -158,9 +158,10 @@ public final class DecayRuntime implements Listener, AutoCloseable {
                                                 if (v != null
                                                         && !recovering(v)
                                                         && !runtime.buildings()
-                                                                .hasPending(v.settlement())
+                                                                .hasPending(
+                                                                        v.publicationSettlement())
                                                         && !runtime.repair()
-                                                                .reserved(v.settlement())
+                                                                .reserved(v.publicationSettlement())
                                                         && runtime.buildingCommitAvailable()) {
                                                     automatic(v);
                                                     return null;
@@ -185,7 +186,7 @@ public final class DecayRuntime implements Listener, AutoCloseable {
     private void automatic(BuildingService.View view) {
         try {
             runtime.mutateDecay(
-                            view.settlement(),
+                            view.publicationSettlement(),
                             () ->
                                     service.work(view.id())
                                             .thenCompose(
@@ -458,15 +459,27 @@ public final class DecayRuntime implements Listener, AutoCloseable {
         }
         if (!permit.valid() || !runtime.clock().advancing())
             return new Applied(false, Outcome.CANCELLED, actual);
-        var settlement = runtime.index().byId(op.settlement());
-        var land = runtime.land(op.settlement());
-        if (settlement == null
-                || land == null
-                || !settlement.owner().equals(op.owner())
-                || settlement.ownershipRevision() != op.ownershipRevision()
-                || settlement.chunkRevision() != op.claimRevision()
-                || land.securityRevision() != op.securityRevision())
-            return new Applied(false, Outcome.CANCELLED, actual);
+        if (view.settlement() == null) {
+            if (!op.owner().equals(DecayService.SYSTEM_ACTOR)
+                    || op.ownershipRevision() != view.ownershipRevision()
+                    || op.claimRevision() != 0
+                    || op.securityRevision() != 0)
+                return new Applied(false, Outcome.CANCELLED, actual);
+            for (var key : view.bounds().footprint().keySet())
+                if (runtime.index().at(view.world(), key.x(), key.z()) != null)
+                    return new Applied(false, Outcome.CANCELLED, actual);
+        } else {
+            var settlement = runtime.index().byId(view.settlement());
+            var land = runtime.land(view.settlement());
+            if (settlement == null
+                    || land == null
+                    || !view.settlement().equals(op.settlement())
+                    || !settlement.owner().equals(op.owner())
+                    || settlement.ownershipRevision() != op.ownershipRevision()
+                    || settlement.chunkRevision() != op.claimRevision()
+                    || land.securityRevision() != op.securityRevision())
+                return new Applied(false, Outcome.CANCELLED, actual);
+        }
         if (runtime.buildings().hasPending(op.settlement()))
             return new Applied(true, null, Map.of());
         for (var change : op.changes()) {

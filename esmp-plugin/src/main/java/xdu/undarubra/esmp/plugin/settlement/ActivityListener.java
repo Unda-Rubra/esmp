@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 
 /** Bounded coalescing of meaningful successful actions; no movement/idle/automation credit. */
 public final class ActivityListener implements Listener, AutoCloseable {
-    private record Key(UUID settlement, UUID actor, Category category) {}
+    private record Key(UUID settlement, UUID actor, Category category, UUID wildBuilding) {}
 
     private final JavaPlugin plugin;
     private final SettlementRuntime runtime;
@@ -69,29 +69,31 @@ public final class ActivityListener implements Listener, AutoCloseable {
                 || !runtime.available(location)) {
             return;
         }
+        if (!runtime.allows(player.getUniqueId(), location, action, safePublic)) return;
         var settlement = runtime.at(location);
-        if (settlement == null
-                || !runtime.allows(player.getUniqueId(), location, action, safePublic)) {
-            return;
-        }
-        Key key = new Key(settlement.id(), player.getUniqueId(), category);
-        if (pending.size() >= 4096 && !pending.containsKey(key)) {
-            return;
-        }
+        var building = settlement == null ? runtime.buildings().at(location) : null;
+        if (settlement == null && (building == null || building.settlement() != null)) return;
+        UUID route = settlement == null ? building.publicationSettlement() : settlement.id();
+        UUID wild = settlement == null ? building.id() : null;
+        Key key = new Key(route, player.getUniqueId(), category, wild);
+        if (pending.size() >= 4096 && !pending.containsKey(key)) return;
         pending.putIfAbsent(
                 key,
                 new ActivityContribution(
-                        settlement.id(),
-                        settlement.worldInstanceId(),
+                        route,
+                        settlement == null ? building.world() : settlement.worldInstanceId(),
                         player.getUniqueId(),
                         location.getBlockX(),
                         location.getBlockY(),
                         location.getBlockZ(),
-                        settlement.ownershipRevision(),
-                        settlement.chunkRevision(),
-                        runtime.land(settlement.id()).securityRevision(),
+                        settlement == null
+                                ? building.ownershipRevision()
+                                : settlement.ownershipRevision(),
+                        settlement == null ? 0 : settlement.chunkRevision(),
+                        settlement == null ? 0 : runtime.land(settlement.id()).securityRevision(),
                         action,
-                        safePublic));
+                        safePublic,
+                        wild));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

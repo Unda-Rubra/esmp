@@ -192,6 +192,12 @@ public final class JooqActivityRepository implements ActivityRepository {
 
     private void credit(Transaction transaction, DSLContext c, ActivityContribution a, long now)
             throws SQLException {
+        if (a.wildBuilding() != null) {
+            if (local.creditWild(c, a, now))
+                decay.wildContribution(
+                        transaction, a.worldInstanceId(), a.blockX() >> 4, a.blockZ() >> 4, now);
+            return;
+        }
         var s = SETTLEMENTS.as("s");
         var d = SETTLEMENT_DETAILS.as("d");
         var ch = SETTLEMENT_CHUNKS.as("ch");

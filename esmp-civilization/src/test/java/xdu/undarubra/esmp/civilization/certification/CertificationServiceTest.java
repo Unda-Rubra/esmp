@@ -110,7 +110,7 @@ class CertificationServiceTest {
                                         world, x, 0, 1, 100, LandValueProfile.Terrain.FLAT)))
                 .join();
         var q = settlements.quoteCreate(owner, world, new ChunkPosition(x, 0)).join();
-        return settlements.purchase(owner, q.id()).join().settlementId();
+        return settlements.purchase(owner, q.id(), java.util.List.of()).join().settlementId();
     }
 
     SettlementView current() {
@@ -138,7 +138,8 @@ class CertificationServiceTest {
                 s.chunkRevision(),
                 parcels.land(id).join().securityRevision(),
                 ParcelAction.BUILD,
-                true);
+                true,
+                null);
     }
 
     void credit(int count) {

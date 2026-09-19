@@ -100,7 +100,7 @@ class ActivityServiceTest {
     SettlementChange create(UUID actor, UUID worldInstance, int x, int z) {
         captureProfile(worldInstance, x, z);
         var quote = settlements.quoteCreate(actor, worldInstance, new ChunkPosition(x, z)).join();
-        return settlements.purchase(actor, quote.id()).join();
+        return settlements.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     SettlementChange claim(UUID actor, UUID settlement, UUID worldInstance, int x, int z) {
@@ -109,7 +109,7 @@ class ActivityServiceTest {
                 settlements
                         .quoteClaim(actor, settlement, worldInstance, new ChunkPosition(x, z))
                         .join();
-        return settlements.purchase(actor, quote.id()).join();
+        return settlements.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     void advance(long ticks) {
@@ -131,7 +131,8 @@ class ActivityServiceTest {
                 category == ActivityContribution.Category.BUILD
                         ? ParcelAction.BUILD
                         : ParcelAction.INTERACT,
-                true);
+                true,
+                null);
     }
 
     @Test
@@ -309,7 +310,8 @@ class ActivityServiceTest {
                 view.chunkRevision(),
                 0,
                 ParcelAction.BUILD,
-                false);
+                false,
+                null);
     }
 
     ActivityService localPolicy(double weight, double threshold) {

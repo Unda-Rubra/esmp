@@ -104,7 +104,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                 event(
                         c,
                         UUID.randomUUID(),
-                        JooqBuildingRepository.current(c, id).settlement(),
+                        JooqBuildingRepository.current(c, id).publicationSettlement(),
                         "BUILDING_CONDITION",
                         "building=" + id + ";condition=INTACT;cause=player-design",
                         tick);
@@ -126,6 +126,9 @@ public final class JooqDecayRepository implements DecayService.Repository {
                                     .from(BUILDINGS)
                                     .where(BUILDINGS.STATUS.eq("ACTIVE"))
                                     .fetch(BUILDINGS.BUILDING_ID)) seed(c, id, clock.ticks());
+                    c.update(DECAY_STATE)
+                            .set(DECAY_STATE.RUINED_FRACTION, policy.ruinedFraction())
+                            .execute();
                     return null;
                 });
     }
@@ -191,7 +194,10 @@ public final class JooqDecayRepository implements DecayService.Repository {
         double support =
                 v.retired()
                         ? 0
-                        : local.support(c, v.settlement(), v.world(), v.bounds().footprint(), now);
+                        : v.settlement() == null
+                                ? local.wildSupport(c, v.world(), v.bounds().footprint(), now)
+                                : local.support(
+                                        c, v.settlement(), v.world(), v.bounds().footprint(), now);
         Long since = row.get(t.INACTIVE_SINCE_TICK);
         long previousTick = row.get(t.OBSERVED_TICK);
         double previousSupport = row.get(t.OBSERVED_SUPPORT);
@@ -280,6 +286,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     .set(t.OBSERVED_SUPPORT, support)
                     .set(t.NEXT_CHECK_TICK, next)
                     .set(t.POLICY_CONTEXT, context)
+                    .set(t.RUINED_FRACTION, policy.ruinedFraction())
                     .set(t.CONDITION, condition.name())
                     .where(t.BUILDING_ID.eq(id))
                     .execute();
@@ -288,7 +295,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                 event(
                         c,
                         UUID.randomUUID(),
-                        v.settlement(),
+                        v.publicationSettlement(),
                         "BUILDING_CONDITION",
                         "building="
                                 + id
@@ -302,7 +309,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
         }
         return new State(
                 id,
-                v.settlement(),
+                v.publicationSettlement(),
                 v.world(),
                 support,
                 since,
@@ -312,6 +319,60 @@ public final class JooqDecayRepository implements DecayService.Repository {
                 damaged,
                 lost,
                 eligible);
+    }
+
+    static boolean ruined(DSLContext c, BuildingService.View v) {
+        Double fraction =
+                c.select(DECAY_STATE.RUINED_FRACTION)
+                        .from(DECAY_STATE)
+                        .where(DECAY_STATE.BUILDING_ID.eq(v.id()))
+                        .fetchOne(DECAY_STATE.RUINED_FRACTION);
+        if (fraction == null || v.retired()) return false;
+        int lost =
+                c.fetchCount(
+                        DECAY_DAMAGE,
+                        DECAY_DAMAGE.BUILDING_ID.eq(v.id()).and(DECAY_DAMAGE.LOST.eq(1L)));
+        if (lost == 0) return false;
+        var baseline = JooqBuildingRepository.baseline(c, v.id(), v.revision());
+        long occupied = 0;
+        for (int i = 0; i < baseline.cells().size(); i++)
+            if (!baseline.cells().get(i).air()
+                    && v.permitsAutomaticMutation(
+                            baseline.bounds().position(i), baseline.cells().get(i))) occupied++;
+        return occupied > 0 && lost >= Math.ceil(occupied * fraction);
+    }
+
+    void wildContribution(UnitOfWork.Transaction tx, UUID world, int x, int z, long tick)
+            throws SQLException {
+        var c = DatabaseAccess.context(tx);
+        for (var row :
+                c.selectFrom(BUILDINGS)
+                        .where(
+                                BUILDINGS
+                                        .WORLD_INSTANCE_ID
+                                        .eq(world)
+                                        .and(BUILDINGS.STATUS.eq("ACTIVE")))
+                        .and(BUILDINGS.SETTLEMENT_ID.isNull())
+                        .and(BUILDINGS.MIN_X.le(((long) x + 2) * 16 - 1))
+                        .and(BUILDINGS.MAX_X.ge(((long) x - 1) * 16))
+                        .and(BUILDINGS.MIN_Z.le(((long) z + 2) * 16 - 1))
+                        .and(BUILDINGS.MAX_Z.ge(((long) z - 1) * 16))
+                        .fetch()) {
+            int minX = Math.toIntExact(row.get(BUILDINGS.MIN_X)) >> 4,
+                    maxX = Math.toIntExact(row.get(BUILDINGS.MAX_X)) >> 4,
+                    minZ = Math.toIntExact(row.get(BUILDINGS.MIN_Z)) >> 4,
+                    maxZ = Math.toIntExact(row.get(BUILDINGS.MAX_Z)) >> 4;
+            long dx = x < minX ? (long) minX - x : x > maxX ? (long) x - maxX : 0,
+                    dz = z < minZ ? (long) minZ - z : z > maxZ ? (long) z - maxZ : 0;
+            if (dx + dz > 1) continue;
+            UUID id = row.get(BUILDINGS.BUILDING_ID);
+            seed(c, id, tick);
+            c.update(DECAY_STATE)
+                    .set(DECAY_STATE.ACTIVITY_REVISION, DECAY_STATE.ACTIVITY_REVISION.add(1L))
+                    .where(DECAY_STATE.BUILDING_ID.eq(id))
+                    .execute();
+            assess(tx, id, true, tick, false);
+        }
     }
 
     /** Called in the same transaction immediately after an admitted local credit. */
@@ -371,9 +432,13 @@ public final class JooqDecayRepository implements DecayService.Repository {
                         return new Work(state, null, null);
                     var v = JooqBuildingRepository.current(c, id);
                     var base = JooqBuildingRepository.baseline(c, id, v.revision());
-                    var s = JooqSettlementRepository.load(c, v.settlement());
-                    if (s == null) return new Work(state, null, null);
-                    long security = security(c, s.id()), cursor = row.get(DECAY_STATE.CURSOR);
+                    var s =
+                            v.settlement() == null
+                                    ? null
+                                    : JooqSettlementRepository.load(c, v.settlement());
+                    if (v.settlement() != null && s == null) return new Work(state, null, null);
+                    long security = s == null ? 0 : security(c, s.id()),
+                            cursor = row.get(DECAY_STATE.CURSOR);
                     Kind kind = Kind.values()[Math.floorMod(cursor, 3)];
                     return new Work(
                             state,
@@ -382,10 +447,12 @@ public final class JooqDecayRepository implements DecayService.Repository {
                                     base,
                                     new BuildingService.Stamp(
                                             v.world(),
-                                            s.ownershipRevision(),
-                                            s.chunkRevision(),
+                                            s == null
+                                                    ? v.ownershipRevision()
+                                                    : s.ownershipRevision(),
+                                            s == null ? 0 : s.chunkRevision(),
                                             security),
-                                    s.owner(),
+                                    s == null ? DecayService.SYSTEM_ACTOR : s.owner(),
                                     state.activityRevision(),
                                     cursor,
                                     kind,
@@ -452,7 +519,7 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     c.insertInto(o)
                             .set(o.OPERATION_ID, operation)
                             .set(o.BUILDING_ID, id)
-                            .set(o.SETTLEMENT_ID, v.settlement())
+                            .set(o.SETTLEMENT_ID, v.publicationSettlement())
                             .set(o.WORLD_INSTANCE_ID, v.world())
                             .set(o.BASELINE_REVISION, v.revision())
                             .set(o.OWNER_UUID, offer.owner())
@@ -558,6 +625,13 @@ public final class JooqDecayRepository implements DecayService.Repository {
             List<Change> changes)
             throws SQLException {
         var c = DatabaseAccess.context(tx);
+        if (v.settlement() == null)
+            return owner.equals(DecayService.SYSTEM_ACTOR)
+                    && stamp.world().equals(v.world())
+                    && stamp.ownership() == v.ownershipRevision()
+                    && stamp.claims() == 0
+                    && stamp.security() == 0
+                    && JooqBuildingRepository.unclaimed(c, v.world(), v.bounds());
         var s = JooqSettlementRepository.load(c, v.settlement());
         if (s == null
                 || !s.owner().equals(owner)
@@ -813,7 +887,9 @@ public final class JooqDecayRepository implements DecayService.Repository {
                     update.where(DECAY_STATE.BUILDING_ID.eq(id)).execute();
                     clock.checkpoint(tx);
                     return change(
-                            c, v.settlement(), "Decay waits for an eligible loaded candidate.");
+                            c,
+                            v.publicationSettlement(),
+                            "Decay waits for an eligible loaded candidate.");
                 });
     }
 

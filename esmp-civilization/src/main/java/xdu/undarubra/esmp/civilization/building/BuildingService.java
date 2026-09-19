@@ -25,15 +25,39 @@ public final class BuildingService {
         }
     }
 
+    public enum Ownership {
+        WILD,
+        CLAIMED
+    }
+
+    public record Capture(UUID id, long revision, BuildingBaseline baseline) {
+        public Capture {
+            Objects.requireNonNull(id);
+            Objects.requireNonNull(baseline);
+            if (revision < 1) throw new IllegalArgumentException("Building revision required");
+        }
+    }
+
     public record View(
             UUID id,
             UUID settlement,
+            UUID historySettlement,
             UUID world,
             String name,
             BuildingBounds bounds,
+            long ownershipRevision,
             long revision,
             boolean retired,
             Position station) {
+        public Ownership ownership() {
+            return settlement == null ? Ownership.WILD : Ownership.CLAIMED;
+        }
+
+        /** Publication/history routing only; the historical Settlement grants no wild rights. */
+        public UUID publicationSettlement() {
+            return settlement == null ? historySettlement : settlement;
+        }
+
         public boolean permitsAutomaticMutation(Position position, BuildingCell cell) {
             return !retired
                     && bounds.contains(position)
@@ -51,6 +75,8 @@ public final class BuildingService {
         CompletableFuture<Boolean> recorded(UUID operation, UUID actor, UUID building);
 
         CompletableFuture<List<View>> active(UUID settlement);
+
+        CompletableFuture<List<View>> publication(UUID settlement);
 
         CompletableFuture<Detail> inspect(UUID id, long revision);
 
@@ -94,6 +120,11 @@ public final class BuildingService {
 
     public CompletableFuture<List<View>> active(UUID settlement) {
         return repository.active(settlement);
+    }
+
+    /** Active current/history associations needed to refresh a committed spatial snapshot. */
+    public CompletableFuture<List<View>> publication(UUID settlement) {
+        return repository.publication(Objects.requireNonNull(settlement));
     }
 
     public CompletableFuture<Detail> inspect(UUID id, long revision) {

@@ -89,7 +89,7 @@ public final class JooqRepairRepository implements RepairService.Repository {
                 event(
                         c,
                         cycle,
-                        JooqBuildingRepository.current(c, building).settlement(),
+                        JooqBuildingRepository.current(c, building).publicationSettlement(),
                         DecayService.SYSTEM_ACTOR,
                         "BUILDING_RUINED",
                         "building=" + building + ";cycle=" + cycle,
@@ -111,6 +111,42 @@ public final class JooqRepairRepository implements RepairService.Repository {
                                         .BUILDING_ID
                                         .eq(building)
                                         .and(REPAIR_JOBS.STATE.in("FUNDED", "CANCELLING"))));
+    }
+
+    static void release(DSLContext c, UUID building, long tick) {
+        require(
+                !c.fetchExists(
+                        c.selectOne()
+                                .from(REPAIR_OPERATIONS)
+                                .where(REPAIR_OPERATIONS.BUILDING_ID.eq(building))
+                                .and(REPAIR_OPERATIONS.STATE.eq("PREPARED"))),
+                "Reconcile pending Repair before releasing this Building");
+        var jobs = c.selectFrom(REPAIR_JOBS).where(REPAIR_JOBS.BUILDING_ID.eq(building)).fetch();
+        for (var job : jobs) {
+            UUID id = job.get(REPAIR_JOBS.JOB_ID);
+            require(
+                    !c.fetchExists(
+                            c.selectOne()
+                                    .from(REPAIR_TRANSFERS)
+                                    .where(REPAIR_TRANSFERS.JOB_ID.eq(id))
+                                    .and(REPAIR_TRANSFERS.STATE.eq("PREPARED"))),
+                    "Reconcile pending material transfer before releasing this Building");
+            if (!Set.of("COMPLETED", "CANCELLED").contains(job.get(REPAIR_JOBS.STATE))) {
+                c.update(REPAIR_JOBS)
+                        .set(REPAIR_JOBS.STATE, "CANCELLING")
+                        .set(
+                                REPAIR_JOBS.DETAIL,
+                                "Building released; unused materials remain refundable")
+                        .where(REPAIR_JOBS.JOB_ID.eq(id))
+                        .execute();
+                for (var cell :
+                        c.selectFrom(REPAIR_CELLS)
+                                .where(REPAIR_CELLS.JOB_ID.eq(id))
+                                .and(REPAIR_CELLS.STATE.eq("PENDING"))
+                                .fetch()) retireCell(c, id, position(cell), "SUPERSEDED");
+                terminal(c, id, tick, false, null);
+            }
+        }
     }
 
     static void rebase(DSLContext c, UUID building, long tick) {
@@ -1263,6 +1299,9 @@ public final class JooqRepairRepository implements RepairService.Repository {
     private SettlementView authority(UnitOfWork.Transaction tx, UUID actor, BuildingService.View v)
             throws SQLException {
         var c = DatabaseAccess.context(tx);
+        require(
+                v.ownership() == BuildingService.Ownership.CLAIMED,
+                "Claim the whole wild Building before preparing Repair");
         var s = JooqSettlementRepository.load(c, v.settlement());
         require(
                 s != null && !v.retired() && v.world().equals(s.worldInstanceId()),

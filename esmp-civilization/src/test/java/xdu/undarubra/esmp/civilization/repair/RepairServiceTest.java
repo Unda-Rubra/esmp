@@ -101,7 +101,7 @@ class RepairServiceTest {
                                         world, 0, 0, 1, 100, LandValueProfile.Terrain.FLAT)))
                 .join();
         var q = settlements.quoteCreate(owner, world, new ChunkPosition(0, 0)).join();
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         settlement = q.settlementId();
         baseline =
                 new BuildingBaseline(
@@ -489,6 +489,7 @@ class RepairServiceTest {
                         java.sql.DriverManager.getConnection(
                                 "jdbc:sqlite:" + directory.resolve("repair.db"));
                 var statement = connection.createStatement()) {
+            removeCycleSchema(statement);
             for (String table :
                     List.of(
                             "repair_era_awards",
@@ -624,5 +625,264 @@ class RepairServiceTest {
         }
         assertEquals(expectedBuildings, observedBuildings);
         assertEquals(expectedJobs, observedJobs);
+    }
+
+    private static void removeCycleSchema(java.sql.Statement s) throws Exception {
+        for (var sql :
+                List.of(
+                        "DROP TABLE wild_activity_actors",
+                        "DROP TABLE wild_activity",
+                        "DROP INDEX building_settlement",
+                        "DROP INDEX building_history_settlement",
+                        "DROP INDEX building_world_bounds",
+                        "ALTER TABLE buildings DROP COLUMN settlement_id",
+                        "ALTER TABLE buildings RENAME COLUMN history_settlement_id TO"
+                                + " settlement_id",
+                        "ALTER TABLE buildings DROP COLUMN ownership_revision",
+                        "CREATE INDEX building_settlement ON buildings(settlement_id,status)",
+                        "ALTER TABLE building_revisions DROP COLUMN settlement_id",
+                        "ALTER TABLE building_revisions DROP COLUMN ownership_revision",
+                        "ALTER TABLE decay_state DROP COLUMN ruined_fraction",
+                        "DELETE FROM DATABASECHANGELOG WHERE ID LIKE 'cycle-%'"))
+            s.executeUpdate(sql);
+    }
+
+    private UUID abandonment() {
+        return settlements
+                .offer(owner, settlement, owner, SettlementOffer.Type.ABANDON)
+                .join()
+                .offer()
+                .id();
+    }
+
+    @Test
+    void wholeRuinBecomesWildAndPaidReclaimUsesCurrentCaptureWithoutLosingRefund() {
+        damage(DecayService.Kind.CAVE_IN);
+        UUID job = prepare();
+        repair.confirm(supply(job, 2).id()).join();
+        long claimedRevision = buildings.inspect(building, 0).join().building().revision();
+        settlements.accept(owner, abandonment(), true).join();
+        var wild = buildings.inspect(building, 0).join().building();
+        assertEquals(BuildingService.Ownership.WILD, wild.ownership());
+        assertNull(wild.settlement());
+        assertTrue(buildings.active(settlement).join().isEmpty());
+        assertEquals(settlement, wild.historySettlement());
+        assertEquals(
+                BuildingService.Ownership.CLAIMED,
+                buildings.inspect(building, claimedRevision).join().building().ownership());
+        assertEquals("CANCELLED", repair.job(job).join().state());
+        assertEquals(2, repair.job(job).join().stock().getFirst().escrow());
+        reject(() -> repair.prepare(UUID.randomUUID(), owner, building).join());
+        UUID incoming = UUID.randomUUID();
+        var point = new Position(1, 2, 1);
+        var oldWildStamp = new BuildingService.Stamp(world, wild.ownershipRevision(), 0, 0);
+        buildings
+                .edit(
+                        UUID.randomUUID(),
+                        incoming,
+                        building,
+                        oldWildStamp,
+                        ParcelAction.BUILD,
+                        Map.of(point, GOLD))
+                .join();
+        physical.put(point, GOLD);
+        wild = buildings.inspect(building, 0).join().building();
+        var cells = new ArrayList<BuildingCell>();
+        for (int i = 0; i < baseline.cells().size(); i++)
+            cells.add(physical.get(baseline.bounds().position(i)));
+        var inherited = new BuildingBaseline(baseline.bounds(), cells);
+        var quote = settlements.quoteCreate(incoming, world, new ChunkPosition(0, 0)).join();
+        reject(() -> settlements.purchase(incoming, quote.id(), List.of()).join());
+        assertFalse(settlements.quote(incoming, quote.id()).join().purchased());
+        var capture = new BuildingService.Capture(building, wild.revision(), inherited);
+        settlements.purchase(incoming, quote.id(), List.of(capture)).join();
+        var claimed = buildings.inspect(building, 0).join();
+        assertEquals(BuildingService.Ownership.CLAIMED, claimed.building().ownership());
+        assertEquals(quote.settlementId(), claimed.building().settlement());
+        assertTrue(buildings.active(settlement).join().isEmpty());
+        assertEquals(building, buildings.active(quote.settlementId()).join().getFirst().id());
+        assertEquals(settlement, claimed.building().historySettlement());
+        assertEquals(inherited, claimed.baseline());
+        assertEquals(0, repair.inspect(building).join().era());
+        assertEquals(DecayService.Condition.INTACT, decay.status(building).join().condition());
+        long revision = claimed.building().revision();
+        settlements.purchase(incoming, quote.id(), List.of()).join();
+        assertEquals(revision, buildings.inspect(building, 0).join().building().revision());
+        reject(
+                () ->
+                        buildings
+                                .edit(
+                                        UUID.randomUUID(),
+                                        incoming,
+                                        building,
+                                        oldWildStamp,
+                                        ParcelAction.BUILD,
+                                        Map.of(point, AIR))
+                                .join());
+        var refundSlots = List.of(new Slot(0, Item.empty(), new Item("minecraft:stone_bricks", 2)));
+        reject(
+                () ->
+                        repair.transfer(
+                                        UUID.randomUUID(),
+                                        incoming,
+                                        job,
+                                        Direction.REFUND,
+                                        refundSlots)
+                                .join());
+        var refund =
+                repair.transfer(UUID.randomUUID(), owner, job, Direction.REFUND, refundSlots)
+                        .join();
+        repair.confirm(refund.id()).join();
+        repair.confirm(refund.id()).join();
+        assertEquals(2, repair.job(job).join().stock().getFirst().refunded());
+        db.close();
+        open();
+        assertEquals(
+                quote.settlementId(),
+                buildings.inspect(building, 0).join().building().settlement());
+        assertEquals(inherited, buildings.inspect(building, 0).join().baseline());
+    }
+
+    @Test
+    void pendingInventoryIntentBlocksReleaseUntilSafelyAborted() {
+        damage(DecayService.Kind.CAVE_IN);
+        UUID job = prepare();
+        var transfer = supply(job, 2);
+        UUID release = abandonment();
+        reject(() -> settlements.accept(owner, release, true).join());
+        assertEquals(
+                BuildingService.Ownership.CLAIMED,
+                buildings.inspect(building, 0).join().building().ownership());
+        repair.abort(transfer.id()).join();
+        settlements.accept(owner, release, true).join();
+        assertEquals(
+                BuildingService.Ownership.WILD,
+                buildings.inspect(building, 0).join().building().ownership());
+        assertEquals(0, repair.job(job).join().stock().getFirst().escrow());
+    }
+
+    @Test
+    void wildActionsRecoverLocallyWithoutFormerMembershipOrDuplicateCredit() {
+        damage(DecayService.Kind.CAVE_IN);
+        settlements.accept(owner, abandonment(), true).join();
+        var view = buildings.inspect(building, 0).join().building();
+        var activity =
+                ObservationServices.activity(
+                        db,
+                        clock,
+                        ActivityPolicy.defaults(),
+                        new LocalActivityPolicy(0, 20),
+                        decayPolicy,
+                        ignored -> false);
+        activity.initialize().join();
+        int damageBefore = decay.status(building).join().damagedCells();
+        var observation =
+                new xdu.undarubra.esmp.civilization.activity.ActivityContribution(
+                        settlement,
+                        world,
+                        UUID.randomUUID(),
+                        1,
+                        2,
+                        1,
+                        view.ownershipRevision(),
+                        0,
+                        0,
+                        ParcelAction.BUILD,
+                        false,
+                        building);
+        activity.contribute(List.of(observation, observation)).join();
+        assertEquals(1.0, decay.status(building).join().support(), 1e-9);
+        assertFalse(decay.status(building).join().eligible());
+        assertEquals(damageBefore, decay.status(building).join().damagedCells());
+        var automated =
+                new xdu.undarubra.esmp.civilization.activity.ActivityContribution(
+                        settlement,
+                        world,
+                        UUID.randomUUID(),
+                        1,
+                        2,
+                        1,
+                        view.ownershipRevision(),
+                        0,
+                        0,
+                        ParcelAction.AUTOMATION,
+                        false,
+                        building);
+        activity.contribute(List.of(automated)).join();
+        assertEquals(1.0, decay.status(building).join().support(), 1e-9);
+        db.close();
+        open();
+        assertEquals(
+                BuildingService.Ownership.WILD,
+                buildings.inspect(building, 0).join().building().ownership());
+        assertEquals(1.0, decay.status(building).join().support(), 1e-9);
+        advance(20 * 24000);
+        damage(DecayService.Kind.DROP);
+        assertTrue(decay.status(building).join().damagedCells() > damageBefore);
+    }
+
+    @Test
+    void multiChunkBuildingCannotBePartiallyReleasedOrClaimed() {
+        buildings.retire(owner, building, 2).join();
+        var land = ObservationServices.land(db, LandValuePolicy.defaults());
+        land.initialize().join();
+        land.capture(
+                        List.of(
+                                new LandValueProfile(
+                                        world, 1, 0, 1, 100, LandValueProfile.Terrain.FLAT)))
+                .join();
+        var extension =
+                settlements.quoteClaim(owner, settlement, world, new ChunkPosition(1, 0)).join();
+        settlements.purchase(owner, extension.id(), List.of()).join();
+        var bounds = new BuildingBounds(1, 4, 1, 17, 5, 1);
+        var cells = new ArrayList<>(Collections.nCopies(bounds.volume(), AIR));
+        cells.set(bounds.index(new Position(1, 5, 1)), STONE);
+        cells.set(bounds.index(new Position(17, 5, 1)), STONE);
+        cells.set(bounds.index(new Position(2, 5, 1)), CRAFT);
+        baseline = new BuildingBaseline(bounds, cells);
+        building = UUID.randomUUID();
+        buildings
+                .register(owner, building, settlement, world, "WideRoof", baseline, stamp())
+                .join();
+        buildings.station(owner, building, 1, new Position(2, 5, 1)).join();
+        physical = new HashMap<>();
+        for (int i = 0; i < cells.size(); i++) physical.put(bounds.position(i), cells.get(i));
+        damage(DecayService.Kind.DROP);
+        assertEquals(DecayService.Condition.RUINED, decay.status(building).join().condition());
+        reject(() -> settlements.unclaim(owner, settlement, new ChunkPosition(0, 0)).join());
+        settlements.accept(owner, abandonment(), true).join();
+        assertEquals(
+                BuildingService.Ownership.WILD,
+                buildings.inspect(building, 0).join().building().ownership());
+        reject(
+                () ->
+                        settlements
+                                .quoteCreate(UUID.randomUUID(), world, new ChunkPosition(0, 0))
+                                .join());
+        reject(
+                () ->
+                        settlements
+                                .quoteCreate(UUID.randomUUID(), world, new ChunkPosition(1, 0))
+                                .join());
+    }
+
+    @Test
+    void phaseSevenMigrationPreservesBuildingAndHistoricalOwnership() throws Exception {
+        var original = buildings.inspect(building, 0).join();
+        db.close();
+        try (var c =
+                        java.sql.DriverManager.getConnection(
+                                "jdbc:sqlite:" + directory.resolve("repair.db"));
+                var s = c.createStatement()) {
+            removeCycleSchema(s);
+        }
+        open();
+        var upgraded = buildings.inspect(building, 0).join();
+        assertEquals(original.baseline(), upgraded.baseline());
+        assertEquals(settlement, upgraded.building().settlement());
+        assertEquals(settlement, upgraded.building().historySettlement());
+        assertEquals(BuildingService.Ownership.CLAIMED, upgraded.building().ownership());
+        assertEquals(settlement, buildings.inspect(building, 1).join().building().settlement());
+        assertTrue(repair.jobs(building).join().isEmpty());
     }
 }

@@ -130,7 +130,7 @@ class AcquisitionTest {
         grant(LedgerAccount.wallet(owner), 1000);
         capture(0);
         var q = settlements.quoteCreate(owner, world, new ChunkPosition(0, 0)).join();
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         settlement = q.settlementId();
         var offer =
                 settlements
@@ -299,7 +299,7 @@ class AcquisitionTest {
         grant(LedgerAccount.treasury(settlement), 50);
         var claim =
                 settlements.quoteClaim(owner, settlement, world, new ChunkPosition(1, 0)).join();
-        settlements.purchase(owner, claim.id()).join();
+        settlements.purchase(owner, claim.id(), java.util.List.of()).join();
         rejected(() -> acquisitions.review(admin, q.id(), true, "changed").join());
         assertEquals(owner, current().owner());
         assertEquals(100, balance(buyer));

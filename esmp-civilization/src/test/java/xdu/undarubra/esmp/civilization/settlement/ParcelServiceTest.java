@@ -138,7 +138,7 @@ class ParcelServiceTest {
     SettlementChange create(UUID actor, UUID worldInstance, ChunkPosition chunk) {
         profile(worldInstance, chunk);
         var quote = settlements.quoteCreate(actor, worldInstance, chunk).join();
-        var change = settlements.purchase(actor, quote.id()).join();
+        var change = settlements.purchase(actor, quote.id(), java.util.List.of()).join();
         creationReceipts.put(change.settlementId(), quote.id());
         return change;
     }
@@ -146,7 +146,7 @@ class ParcelServiceTest {
     SettlementChange claim(UUID actor, UUID settlement, UUID worldInstance, ChunkPosition chunk) {
         profile(worldInstance, chunk);
         var quote = settlements.quoteClaim(actor, settlement, worldInstance, chunk).join();
-        return settlements.purchase(actor, quote.id()).join();
+        return settlements.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     @AfterEach
@@ -304,7 +304,8 @@ class ParcelServiceTest {
                                         1,
                                         revision,
                                         ParcelAction.BUILD,
-                                        false)))
+                                        false,
+                                        null)))
                 .join();
         assertEquals(.02, activity.status(id).join().creditedToday(), 1e-9);
         settlements.ban(owner, id, holder, true).join();
@@ -324,7 +325,8 @@ class ParcelServiceTest {
                                         1,
                                         bannedRevision,
                                         ParcelAction.BUILD,
-                                        false)))
+                                        false,
+                                        null)))
                 .join();
         assertEquals(.02, activity.status(id).join().creditedToday(), 1e-9);
         rejected(() -> settlements.ban(owner, id, admin, true).join());
@@ -420,6 +422,8 @@ class ParcelServiceTest {
                                     .execute("DROP TABLE settlement_local_activity");
                             for (String table :
                                     java.util.List.of(
+                                            "wild_activity_actors",
+                                            "wild_activity",
                                             "repair_era_awards",
                                             "repair_operations",
                                             "repair_transfers",
@@ -501,7 +505,7 @@ class ParcelServiceTest {
         assertEquals(pending.id(), settlements.inspectOffer(pending.id()).join().id());
         assertEquals(receipt, settlements.quote(owner, receiptId).join());
         var history = settlements.history(id).join();
-        var replay = settlements.purchase(owner, receiptId).join();
+        var replay = settlements.purchase(owner, receiptId, java.util.List.of()).join();
         assertEquals(id, replay.settlementId());
         assertEquals(restored.chunks(), replay.current().chunks());
         assertEquals(Role.GOVERNOR, replay.current().role(holder));

@@ -193,6 +193,7 @@ class SchemaMigrationTest {
         // Reconstruct the exact previous forward schema, retaining its Liquibase history.
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
+            removeCycleSchema(s);
             s.executeUpdate("DROP TABLE settlement_acquisitions");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase3-acquisition'");
             s.executeUpdate("DROP TABLE settlement_local_activity");
@@ -268,6 +269,7 @@ class SchemaMigrationTest {
         }
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
+            removeCycleSchema(s);
             s.executeUpdate("DROP TABLE settlement_local_activity");
             s.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID='phase4-local-activity'");
             for (String table :
@@ -327,6 +329,7 @@ class SchemaMigrationTest {
         }
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
+            removeCycleSchema(s);
             for (String table :
                     List.of(
                             "repair_era_awards",
@@ -390,6 +393,7 @@ class SchemaMigrationTest {
         byte[] bytes = baseline.encode();
         try (var c = DriverManager.getConnection("jdbc:sqlite:" + file);
                 var s = c.createStatement()) {
+            removeCycleSchema(s);
             for (String table :
                     List.of(
                             "repair_era_awards",
@@ -457,6 +461,26 @@ class SchemaMigrationTest {
                 assertEquals(0, r.getInt(1));
             }
         }
+    }
+
+    private static void removeCycleSchema(java.sql.Statement s) throws Exception {
+        for (var sql :
+                List.of(
+                        "DROP TABLE wild_activity_actors",
+                        "DROP TABLE wild_activity",
+                        "DROP INDEX building_settlement",
+                        "DROP INDEX building_history_settlement",
+                        "DROP INDEX building_world_bounds",
+                        "ALTER TABLE buildings DROP COLUMN settlement_id",
+                        "ALTER TABLE buildings RENAME COLUMN history_settlement_id TO"
+                                + " settlement_id",
+                        "ALTER TABLE buildings DROP COLUMN ownership_revision",
+                        "CREATE INDEX building_settlement ON buildings(settlement_id,status)",
+                        "ALTER TABLE building_revisions DROP COLUMN settlement_id",
+                        "ALTER TABLE building_revisions DROP COLUMN ownership_revision",
+                        "ALTER TABLE decay_state DROP COLUMN ruined_fraction",
+                        "DELETE FROM DATABASECHANGELOG WHERE ID LIKE 'cycle-%'"))
+            s.executeUpdate(sql);
     }
 
     private static void assertPhaseTwoSchema(java.sql.Connection c) throws Exception {

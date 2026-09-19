@@ -80,7 +80,7 @@ class BuildingServiceTest {
         open();
         capture(0);
         var q = settlements.quoteCreate(owner, world, new ChunkPosition(0, 0)).join();
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         settlement = q.settlementId();
     }
 
@@ -307,7 +307,7 @@ class BuildingServiceTest {
                                 .join());
         capture(1);
         var q = settlements.quoteClaim(owner, settlement, world, new ChunkPosition(1, 0)).join();
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         UUID op = UUID.randomUUID();
         var p = new Position(2, 1, 2);
         reject(() -> buildings.edit(op, owner, id, old, ParcelAction.BUILD, Map.of(p, AIR)).join());
@@ -351,7 +351,7 @@ class BuildingServiceTest {
         capture(1);
         var claim =
                 settlements.quoteClaim(owner, settlement, world, new ChunkPosition(1, 0)).join();
-        settlements.purchase(owner, claim.id()).join();
+        settlements.purchase(owner, claim.id(), java.util.List.of()).join();
         var enlarged =
                 new BuildingBaseline(
                         new BuildingBounds(1, 1, 1, 17, 5, 5), Collections.nCopies(425, STONE));

@@ -2,39 +2,32 @@
 
 ## State
 
-- Core MVP Phases 0–8 are verified at `mvp-v1.0`. Native-client/user acceptance remains separate: 80 checklist items are still pending.
-- The user rejected the growing design questionnaire. Architecture §30 is now the short implementation scope: WILD wholly outside Settlements, CLAIMED wholly inside one Settlement. Cross-boundary Buildings are unsupported.
-- This work changes documentation only. Automatic release and the new WILD/CLAIMED runtime have not been implemented. Existing config 14, schema, APIs and JAR are unchanged.
+Binary WILD/CLAIMED Building transitions are implemented after core `mvp-v1.0`. WILD is wholly unclaimed; CLAIMED wholly inside one Settlement. No fragments/mixed ownership. Config 14 and frozen dependency pins remain. Automatic notice/grace land release is not implemented. Native-client acceptance remains separate.
 
 ## Completed
 
-- Replaced fourteen post-MVP subsections with four compact sections: binary classification, minimal loop, retained rights/accounting and implementation discipline.
-- Removed partial-building Decay, mixed ownership, ownership masks, split/merge and takeover-negotiation requirements. Invalid boundary operations reject rather than creating another subsystem.
-- Retained whole RUINED release/automatic whole takeover, wild Decay with meaningful local support, evolving baselines, Holder consent, in-place containers, complete termination/history, manual historical Treasury collection and reconciled original-payer Repair refunds.
-- Removed the implementation-blocking questionnaire. Reuse existing patterns/configurable defaults and validate with focused tests; no Civic Capacity or extra simulation in this increment.
+- Nullable current Settlement plus immutable historical association, revisioned ownership, historical baseline association and current/publication query separation.
+- Whole RUINED explicit unclaim/confirmed abandon releases after pending-work reconciliation. Remaining Repair cancels with original-payer refundable escrow retained. Existing Parcel, Treasury-clear and ordinary last-Claim guards remain.
+- Paid Claim requires bounded naturally loaded exact Building captures; payment/Claim/association/current-state baseline commit atomically. Stable replay does not capture/pay again. UUID/history remain, no free physical repair or Era. Multi-chunk wild footprints reject single-chunk takeover.
+- Wild legal edits use new ownership stamps; independent world/chunk Activity with existing cooldown/caps/lazy decay/four-neighbor support suppresses future Decay. Wild Decay uses system principal/current unclaimed boundaries, existing material hazards and journals. Former roles never authorize it.
+- Two forward migrations; existing Buildings become CLAIMED without history loss. SQLite-native ALTER avoids tested Liquibase rebuild loss of defaults/FK metadata. No released changelog rewritten.
 
 ## Changed files
 
-- `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` §30 — replaces the overgrown post-MVP design; frozen MVP and appendices stay intact.
-- `.agent/DECISIONS.md` — consolidates the superseded interview into one dated rationale; older implementation evidence is retained and detailed decision chronology remains in Git history.
-- `.agent/OPEN_QUESTIONS.md` — short execution notes instead of a branching questionnaire.
-- `README.md`, `AGENTS.md` — concise human/agent scope, no mixed-boundary feature requests.
-- This handoff — current snapshot, not repeated transcripts of every design vote.
+Civilization Building/Settlement APIs, Building/Claim/Repair/Decay/Activity persistence, local support and history catalog; Paper Building/Settlement/Activity/Decay adapters; generated-table configuration; two cycle changelogs and master; affected purchase/observation callers and migration fixtures. README, architecture §30 implementation status, AGENTS, decisions/checklist/notes updated.
 
 ## Verification
 
-- Documentation-only change; no build or Paper run is claimed for this pruning.
-- Scope comparison passed: the post-MVP section shrank from 188 to 41 lines; frozen MVP text and appendices are unchanged. The decision preamble shrank from 122 to 14 lines; Phase 8 and older rationale/evidence are unchanged.
-- Active summary links resolve, superseded branches no longer appear as active requirements, and the changed-file check confirms only six Markdown files changed.
-- Prior core MVP evidence: 141 passing tests, Paper gameplay/migration/paired recovery and standalone deployment; details remain in `RELEASE.md`, `TEST_CHECKLIST.md` and the retained Phase 8 decision entry.
-- Last verified unchanged JAR SHA-256: `1e87d89fab3c75ea098a34510debce0216cf917859b77991bd715d6f7941ef2f`.
+- `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed: 146 tests, zero failures/errors/skips. Includes empty/legacy/native Phase 7 migration, transition/refund/replay/ownership-stamp barriers, wild Activity/restart/Decay and multi-chunk boundary rejection.
+- Real isolated Paper `.run/cycle-buildings`, migrated from prior Phase 8 data: explicit unclaim changed Roof CLAIMED→WILD while another Claim/assigned Parcel remained. Public maintenance placed a block, advanced baseline, credited 1.0 support and suppressed further Decay. After game-time advancement and safe-neighbor setup, SYSTEM_ACTOR WEATHER changed stone bricks to cracked stone bricks. Restart retained wild association and physical state.
+- Real founding purchase 25 captured the current cracked block, associated the same Building UUID with new S#2, retained historical S#1, reset damage against inherited state without Era change and cleared wild buckets. Receipt replay kept balances identical. Former Owner retirement rejected; outsider break rejected; new Owner break revised current baseline to air while revision 9 retained cracked brick.
+- Live two-chunk Wide registration succeeded; unclaim rejected with `Release would cross a tracked Building boundary` and Claims unchanged. First fixture attempt lacked five Treasury units (price 105), so was not counted; funded retry passed. Initial wild WEATHER waited on hazardous dirt neighbor; changing fixture neighbor to stone passed without changing production safety.
+- Logs/snapshots retained ignored under `.run/cycle-buildings` and `.run/cycle-wild-snapshot`. No user development data was changed. Test server stopped normally; client supervisor termination was intentional. Temporary driver is removed at cleanup. No native visual verification claimed.
 
 ## Next action
 
-Implement the smallest WILD/CLAIMED classification and whole-transition slice with a simple boundary guard and focused regressions. Then connect release. Do not resume the edge-case voting loop or introduce mixed-ownership processing.
+Implement the bounded notice/grace peripheral release loop on these whole-transition APIs, retaining topology/Holder/financial safeguards. Do not restart the design questionnaire or add mixed ownership.
 
 ## Risks or blockers
 
-- Unsupported crossing geometry is a rejection, not a new model to design. Balance tuning should use existing configurable defaults and evidence, not block implementation.
-- Keep current permission/publication, player-edit and inventory/world/SQL reconciliation safeguards; reducing scope does not justify data loss.
-- No code, schema, runtime data or acceptance checkboxes changed in this documentation task. No remote push or new feature release.
+Automatic Parcel removal, final Treasury collection and terminal governance changes are not shipped. Ordinary last-Claim/Treasury/Parcel checks still apply. Multi-chunk wild Buildings cannot be adopted by current single-chunk purchase; deliberate safe rejection, not fragment processing. Wild governance/Repair requires complete claiming. Original material refunds remain separate from new Building ownership. Use paired world/player/database backups before upgrading.

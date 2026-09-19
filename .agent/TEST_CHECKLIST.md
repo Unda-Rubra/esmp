@@ -297,3 +297,12 @@ Paired cold restoration returned all 132 saved world/player files byte-for-byte 
 - [ ] On a native 26.2 client, inspect all help roots, normal gameplay rejection messages, Management Book and Parcel Wand rendering on the final artifact. Record user acceptance separately from protocol-client results.
 - [ ] On disposable data with representative player/Parcel density and editing backlog, verify practical tick/queue latency under the server's intended load; preserve admission/backpressure safeguards.
 - [ ] Rehearse the cold paired restore and all-three-resource-world maintenance procedure in `RELEASE.md`, including offline player evacuation, rollback and matching world/database/player data.
+
+## Binary Building transition increment
+
+Implemented and agent-verified: WILD/CLAIMED association and history, whole RUINED explicit release, atomic current-snapshot paid takeover, independent wild Activity, continued safe wild Decay, original-payer refunds and no cross-boundary geometry. Full build: 146 tests, zero failures/errors/skips. Isolated Paper protocol/server predicates verified release → maintenance suppression → later WEATHER → restart → paid takeover/replay → new permissions; crossing unclaim rejected without losing Claims. These are not native-client visual acceptance.
+
+- [ ] Release a whole RUINED Building with explicit unclaim; inspect WILD listing/history and normal public edits. Pending work must settle first; no forced loading.
+- [ ] Maintain a wild Building, then allow support to decay: future Decay stops/resumes without healing or stale edit overwrite.
+- [ ] Buy its complete supported footprint: current physical design becomes the new baseline, payment is replay-safe, old Owner rights do not return and Era does not increase.
+- [ ] Reject crossing release/claim/registration. Confirm previous-MVP migration/restart preserves Building identity/history and cancelled Repair's original-payer material refund.

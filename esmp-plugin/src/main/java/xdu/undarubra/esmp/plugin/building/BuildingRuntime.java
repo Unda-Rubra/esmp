@@ -104,15 +104,16 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                                 views.put(view.id(), view);
                                 bySettlement
                                         .computeIfAbsent(
-                                                view.settlement(), ignored -> new HashSet<>())
+                                                view.publicationSettlement(),
+                                                ignored -> new HashSet<>())
                                         .add(view.id());
                                 index(view);
                             }
                         });
     }
 
-    public CompletableFuture<List<View>> active(UUID settlement) {
-        return service.active(settlement);
+    public CompletableFuture<List<View>> publication(UUID settlement) {
+        return service.publication(settlement);
     }
 
     public View view(UUID id) {
@@ -124,24 +125,37 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
     }
 
     public void publish(UUID settlement, List<View> list) {
-        var ids = new HashSet<UUID>();
-        for (var v : list) ids.add(v.id());
-        for (var id : bySettlement.getOrDefault(settlement, Set.of()))
-            if (!ids.contains(id)) {
+        var returned = new HashSet<UUID>();
+        for (var view : list) returned.add(view.id());
+        for (var id : new HashSet<>(bySettlement.getOrDefault(settlement, Set.of()))) {
+            if (!returned.contains(id)) {
                 var old = views.remove(id);
-                unindex(old);
-            }
-        for (var v : list) {
-            var old = views.put(v.id(), v);
-            if (old == null) {
-                index(v);
-            } else if (!old.bounds().equals(v.bounds()) || !old.world().equals(v.world())) {
-                unindex(old);
-                index(v);
+                if (old != null) {
+                    unindex(old);
+                    removeGroup(old);
+                }
             }
         }
-        if (ids.isEmpty()) bySettlement.remove(settlement);
-        else bySettlement.put(settlement, ids);
+        for (var view : list) {
+            var old = views.put(view.id(), view);
+            if (old != null) removeGroup(old);
+            bySettlement
+                    .computeIfAbsent(view.publicationSettlement(), ignored -> new HashSet<>())
+                    .add(view.id());
+            if (old == null) index(view);
+            else if (!old.bounds().equals(view.bounds()) || !old.world().equals(view.world())) {
+                unindex(old);
+                index(view);
+            }
+        }
+    }
+
+    private void removeGroup(View view) {
+        var ids = bySettlement.get(view.publicationSettlement());
+        if (ids != null) {
+            ids.remove(view.id());
+            if (ids.isEmpty()) bySettlement.remove(view.publicationSettlement());
+        }
     }
 
     private void index(View view) {
@@ -175,17 +189,21 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
     }
 
     private View at(Block block) {
+        return at(block.getLocation());
+    }
+
+    public View at(org.bukkit.Location location) {
         var ids =
                 spatial.get(
                         new Key(
-                                runtime.mainInstance(block.getWorld()),
-                                block.getX() >> 4,
-                                block.getZ() >> 4));
+                                runtime.mainInstance(location.getWorld()),
+                                location.getBlockX() >> 4,
+                                location.getBlockZ() >> 4));
         if (ids == null) return null;
-        Position p = position(block);
+        var p = new Position(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         for (var id : ids) {
-            var v = views.get(id);
-            if (v.bounds().contains(p)) return v;
+            var view = views.get(id);
+            if (view != null && view.bounds().contains(p)) return view;
         }
         return null;
     }
@@ -199,6 +217,12 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                 s.ownershipRevision(),
                 s.chunkRevision(),
                 land.securityRevision());
+    }
+
+    private Stamp stamp(View view) {
+        return view.settlement() == null
+                ? new Stamp(view.world(), view.ownershipRevision(), 0, 0)
+                : stamp(view.settlement());
     }
 
     private static Position position(Block b) {
@@ -251,9 +275,9 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                                     UUID.randomUUID(),
                                     player.getUniqueId(),
                                     v.id(),
-                                    v.settlement(),
+                                    v.publicationSettlement(),
                                     part.getKey(),
-                                    stamp(v.settlement()),
+                                    stamp(v),
                                     Map.copyOf(part.getValue()),
                                     null,
                                     Bukkit.getCurrentTick());
@@ -698,6 +722,52 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
         return new BuildingBaseline(bounds, cells);
     }
 
+    public List<Capture> capturePurchase(Player player, ClaimQuote quote) {
+        if (quote.purchased()) return List.of();
+        if (!runtime.buildingCommitAvailable())
+            throw new SettlementException("Another Building change is committing; retry shortly");
+        var ids =
+                spatial.getOrDefault(
+                        new Key(quote.worldInstance(), quote.chunk().x(), quote.chunk().z()),
+                        Set.of());
+        var captures = new ArrayList<Capture>();
+        int volume = 0;
+        var world = player.getWorld();
+        for (var id : ids) {
+            var view = views.get(id);
+            if (view == null) continue;
+            if (view.settlement() != null
+                    || !view.bounds().footprint().keySet().equals(Set.of(quote.chunk())))
+                throw new SettlementException("This Claim would cross a tracked Building boundary");
+            if (hasPending(view.publicationSettlement())
+                    || runtime.repair().reserved(view.publicationSettlement()))
+                throw new SettlementException(
+                        "Building observations or material recovery must finish first");
+            volume = Math.addExact(volume, view.bounds().volume());
+            if (volume > BuildingBounds.HARD_MAX_VOLUME)
+                throw new SettlementException("Affected Buildings exceed the capture volume limit");
+            if (!view.world().equals(runtime.mainInstance(world))
+                    || !world.isChunkLoaded(quote.chunk().x(), quote.chunk().z()))
+                throw new SettlementException(
+                        "Visit the Building's world and chunk before claiming");
+            var cells = new ArrayList<BuildingCell>(view.bounds().volume());
+            for (int i = 0; i < view.bounds().volume(); i++) {
+                var p = view.bounds().position(i);
+                var block = world.getBlockAt(p.x(), p.y(), p.z());
+                if (!runtime.allows(
+                        player.getUniqueId(), block.getLocation(), ParcelAction.BUILD, false))
+                    throw new SettlementException("Building capture includes protected space");
+                cells.add(cell(block));
+            }
+            captures.add(
+                    new Capture(
+                            view.id(),
+                            view.revision(),
+                            new BuildingBaseline(view.bounds(), cells)));
+        }
+        return List.copyOf(captures);
+    }
+
     private View activeView(String text) {
         var id = UUID.fromString(text);
         var v = views.get(id);
@@ -724,7 +794,7 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                     List.of(
                             "pos1|pos2 [x y z] | preview | clear",
                             "register <settlement> <name> | resize <buildingUUID>",
-                            "list [settlement] [page] | info <buildingUUID> [revision]",
+                            "list [settlement|wild] [page] | info <buildingUUID> [revision]",
                             "cell <buildingUUID> <x y z> [revision] | history <buildingUUID>",
                             "retire <buildingUUID> confirm | station <buildingUUID> <x y z>|clear"))
                 player.sendMessage(Component.text("/settlement building " + line));
@@ -789,8 +859,11 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
             case "resize" -> {
                 count(args, 2, "resize <buildingUUID>");
                 var v = activeView(args[1]);
+                if (v.settlement() == null)
+                    throw new SettlementException(
+                            "Claim the whole wild Building before resizing it");
                 var scan = scan(player, v.settlement(), selection(player));
-                var stamp = stamp(v.settlement());
+                var stamp = stamp(v);
                 runtime.mutate(
                         player,
                         v.settlement(),
@@ -805,7 +878,7 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                 var v = activeView(args[1]);
                 runtime.mutate(
                         player,
-                        v.settlement(),
+                        v.publicationSettlement(),
                         null,
                         () -> service.retire(actor, v.id(), v.revision()));
             }
@@ -833,19 +906,35 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                 Position chosen = point;
                 runtime.mutate(
                         player,
-                        v.settlement(),
+                        v.publicationSettlement(),
                         null,
                         () -> service.station(actor, v.id(), v.revision(), chosen));
             }
             case "list" -> {
-                if (args.length > 3) throw new SettlementException("Use list [settlement] [page]");
-                UUID id = settlement(player, args.length >= 2 ? args[1] : null);
+                if (args.length > 3)
+                    throw new SettlementException("Use list [settlement|wild] [page]");
+                boolean wild = args.length >= 2 && args[1].equalsIgnoreCase("wild");
+                UUID id = wild ? null : settlement(player, args.length >= 2 ? args[1] : null);
                 int page = args.length == 3 ? Integer.parseInt(args[2]) : 1;
                 if (page < 1) throw new SettlementException("Page must be positive.");
                 runtime.query(
                         player,
                         () -> service.active(id),
-                        list -> {
+                        all -> {
+                            var list =
+                                    all.stream()
+                                            .filter(
+                                                    v ->
+                                                            wild
+                                                                    ? v.settlement() == null
+                                                                            && v.world()
+                                                                                    .equals(
+                                                                                            runtime
+                                                                                                    .mainInstance(
+                                                                                                            player
+                                                                                                                    .getWorld()))
+                                                                    : id.equals(v.settlement()))
+                                            .toList();
                             int pages = Math.max(1, (list.size() + 31) / 32);
                             if (page > pages) throw new SettlementException("Last page: " + pages);
                             player.sendMessage(
@@ -863,6 +952,8 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                                                 v.name()
                                                         + " · "
                                                         + v.id()
+                                                        + " · "
+                                                        + v.ownership()
                                                         + " · revision "
                                                         + v.revision()));
                         });
@@ -946,6 +1037,13 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                                                 v.name()
                                                         + " · "
                                                         + v.id()
+                                                        + " · "
+                                                        + v.ownership()
+                                                        + (v.settlement() == null
+                                                                ? " · outside Settlements"
+                                                                : " · settlement " + v.settlement())
+                                                        + " · history "
+                                                        + v.historySettlement()
                                                         + " · revision "
                                                         + v.revision()
                                                         + " · "
@@ -1000,6 +1098,8 @@ public final class BuildingRuntime implements Listener, AutoCloseable {
                     .filter(s -> s.startsWith(prefix))
                     .limit(50)
                     .toList();
+        if (args.length == 2 && args[0].equalsIgnoreCase("list"))
+            return "wild".startsWith(prefix) ? List.of("wild") : List.of();
         if (args.length == 3 && args[0].equalsIgnoreCase("retire"))
             return "confirm".startsWith(prefix) ? List.of("confirm") : List.of();
         return List.of();

@@ -196,7 +196,7 @@ class PaidClaimTest {
 
     UUID create() {
         var q = founding(owner, 0);
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         return q.settlementId();
     }
 
@@ -205,18 +205,18 @@ class PaidClaimTest {
         var q = founding(owner, 0);
         assertEquals(25, q.amount());
         assertEquals(1000, balance(owner));
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         assertEquals(975, balance(owner));
         assertEquals(1, used(owner));
         deposit(q.settlementId(), 50);
         var e = expansion(owner, q.settlementId(), 1);
         assertEquals(50, e.amount());
-        settlements.purchase(owner, e.id()).join();
+        settlements.purchase(owner, e.id(), java.util.List.of()).join();
         assertEquals(925, balance(owner));
         db.close();
         open();
-        settlements.purchase(owner, q.id()).join();
-        settlements.purchase(owner, e.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
+        settlements.purchase(owner, e.id(), java.util.List.of()).join();
         assertEquals(925, balance(owner));
         assertEquals(2, used(owner));
         assertEquals(0, treasury(q.settlementId()));
@@ -226,17 +226,17 @@ class PaidClaimTest {
     void rollbackAndInsufficientFundsPreserveClaimAndSubsidyAndPermitRetry() {
         var q = founding(owner, 0);
         failAfterDebit = true;
-        rejected(() -> settlements.purchase(owner, q.id()).join());
+        rejected(() -> settlements.purchase(owner, q.id(), java.util.List.of()).join());
         assertEquals(1000, balance(owner));
         assertEquals(0, used(owner));
         assertFalse(settlements.quote(owner, q.id()).join().purchased());
         failAfterDebit = false;
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         var poor = founding(other, 5);
-        rejected(() -> settlements.purchase(other, poor.id()).join());
+        rejected(() -> settlements.purchase(other, poor.id(), java.util.List.of()).join());
         assertEquals(0, used(other));
         grant(other, 25);
-        settlements.purchase(other, poor.id()).join();
+        settlements.purchase(other, poor.id(), java.util.List.of()).join();
         assertEquals(0, balance(other));
         assertEquals(1, used(other));
     }
@@ -247,12 +247,12 @@ class PaidClaimTest {
         assertEquals(1000, balance(owner));
         var q = founding(owner, 0);
         clock.sample(source, 1200, true);
-        rejected(() -> settlements.purchase(owner, q.id()).join());
+        rejected(() -> settlements.purchase(owner, q.id(), java.util.List.of()).join());
         assertEquals(0, used(owner));
         UUID s = create();
         var expansion = expansion(owner, s, 1);
         active = false;
-        rejected(() -> settlements.purchase(owner, expansion.id()).join());
+        rejected(() -> settlements.purchase(owner, expansion.id(), java.util.List.of()).join());
         assertEquals(975, balance(owner));
     }
 
@@ -280,12 +280,12 @@ class PaidClaimTest {
         assertEquals(ClaimQuote.Payer.TREASURY, q.payer());
         assertEquals(owner, q.owner());
         assertEquals(50, q.amount());
-        rejected(() -> settlements.purchase(governor, q.id()).join());
+        rejected(() -> settlements.purchase(governor, q.id(), java.util.List.of()).join());
         assertEquals(1, used(owner));
         ledger.setAllowance(
                         new LedgerService.Actor(owner, false), s, governor, 50, UUID.randomUUID())
                 .join();
-        settlements.purchase(governor, q.id()).join();
+        settlements.purchase(governor, q.id(), java.util.List.of()).join();
         assertEquals(2, used(owner));
         assertEquals(0, used(governor));
         assertEquals(
@@ -298,7 +298,7 @@ class PaidClaimTest {
         UUID s = create();
         deposit(s, 50);
         var e = expansion(owner, s, 1);
-        settlements.purchase(owner, e.id()).join();
+        settlements.purchase(owner, e.id(), java.util.List.of()).join();
         settlements.unclaim(owner, s, new ChunkPosition(1, 0)).join();
         var again = expansion(owner, s, 1);
         assertEquals(65, again.amount());
@@ -316,7 +316,7 @@ class PaidClaimTest {
     void topologyOwnershipAndActorChangesCannotReuseQuote() {
         UUID s = create();
         var q = expansion(owner, s, 1);
-        rejected(() -> settlements.purchase(other, q.id()).join());
+        rejected(() -> settlements.purchase(other, q.id(), java.util.List.of()).join());
         var invite = settlements.offer(owner, s, other, SettlementOffer.Type.INVITE).join().offer();
         settlements.accept(other, invite.id(), false).join();
         UUID reviewer = UUID.randomUUID();
@@ -344,7 +344,7 @@ class PaidClaimTest {
         grant(other, transfer.fee());
         acquisitions.accept(other, transfer.id(), transfer.fee()).join();
         acquisitions.review(reviewer, transfer.id(), true, "approved").join();
-        rejected(() -> settlements.purchase(owner, q.id()).join());
+        rejected(() -> settlements.purchase(owner, q.id(), java.util.List.of()).join());
         assertEquals(975, balance(owner));
         var incoming = expansion(other, s, 1);
         assertEquals(100, incoming.amount());
@@ -357,12 +357,12 @@ class PaidClaimTest {
         var q = expansion(owner, s, 1);
         assertEquals(ClaimQuote.Payer.TREASURY, q.payer());
         assertEquals(s, q.payerId());
-        rejected(() -> settlements.purchase(owner, q.id()).join());
+        rejected(() -> settlements.purchase(owner, q.id(), java.util.List.of()).join());
         assertEquals(975, balance(owner));
         assertEquals(1, used(owner));
         assertFalse(settlements.quote(owner, q.id()).join().purchased());
         deposit(s, 50);
-        settlements.purchase(owner, q.id()).join();
+        settlements.purchase(owner, q.id(), java.util.List.of()).join();
         assertEquals(925, balance(owner));
         assertEquals(0, treasury(s));
         assertEquals(2, used(owner));
@@ -378,8 +378,8 @@ class PaidClaimTest {
                 .join();
         var q = expansion(governor, s, 1);
         var separate = founding(owner, 10);
-        settlements.purchase(owner, separate.id()).join();
-        rejected(() -> settlements.purchase(governor, q.id()).join());
+        settlements.purchase(owner, separate.id(), java.util.List.of()).join();
+        rejected(() -> settlements.purchase(governor, q.id(), java.util.List.of()).join());
         assertEquals(100, treasury(s));
         assertEquals(
                 100,
@@ -397,9 +397,9 @@ class PaidClaimTest {
                 .join();
         var stale = expansion(governor, s, 1);
         var otherEdge = expansion(owner, s, -1);
-        settlements.purchase(owner, otherEdge.id()).join();
+        settlements.purchase(owner, otherEdge.id(), java.util.List.of()).join();
         settlements.unclaim(owner, s, new ChunkPosition(-1, 0)).join();
-        rejected(() -> settlements.purchase(governor, stale.id()).join());
+        rejected(() -> settlements.purchase(governor, stale.id(), java.util.List.of()).join());
         assertEquals(50, treasury(s));
         assertEquals(2, used(owner));
         assertEquals(65, expansion(owner, s, 1).amount());
@@ -408,7 +408,7 @@ class PaidClaimTest {
     @Test
     void oldUnpurchasedWalletQuoteRejectsButPaidReceiptStillReplaysAfterRestart() {
         var first = founding(owner, 0);
-        settlements.purchase(owner, first.id()).join();
+        settlements.purchase(owner, first.id(), java.util.List.of()).join();
         deposit(first.settlementId(), 100);
         var pending = expansion(owner, first.settlementId(), 1);
         // Recreate the actual pre-Phase-1 unversioned context and Owner-wallet payer.
@@ -434,8 +434,8 @@ class PaidClaimTest {
                 .join();
         db.close();
         open();
-        settlements.purchase(owner, first.id()).join();
-        rejected(() -> settlements.purchase(owner, pending.id()).join());
+        settlements.purchase(owner, first.id(), java.util.List.of()).join();
+        rejected(() -> settlements.purchase(owner, pending.id(), java.util.List.of()).join());
         assertEquals(875, balance(owner));
         assertEquals(100, treasury(first.settlementId()));
         assertEquals(1, used(owner));

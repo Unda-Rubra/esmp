@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="cycle-building-ownership" author="esmp" dbms="sqlite">
+        <!-- SQLite-specific exception: Liquibase 5 addColumn rebuilds existing tables, dropping
+             defaults/NOT NULL and rejecting reconstructed FK metadata after rename. Regression
+             fixtures exercise native ADD/RENAME instead, preserving tables and child references. -->
+        <sql>ALTER TABLE buildings RENAME COLUMN settlement_id TO history_settlement_id</sql>
+        <sql>ALTER TABLE buildings ADD COLUMN settlement_id TEXT CONSTRAINT fk_building_current_settlement REFERENCES settlements(settlement_id)</sql>
+        <sql>ALTER TABLE buildings ADD COLUMN ownership_revision INTEGER NOT NULL DEFAULT 1</sql>
+        <update tableName="buildings"><column name="settlement_id" valueComputed="history_settlement_id"/></update>
+        <dropIndex tableName="buildings" indexName="building_settlement"/>
+        <createIndex tableName="buildings" indexName="building_settlement"><column name="settlement_id"/><column name="status"/></createIndex>
+        <createIndex tableName="buildings" indexName="building_history_settlement"><column name="history_settlement_id"/><column name="status"/></createIndex>
+        <createIndex tableName="buildings" indexName="building_world_bounds"><column name="world_instance_id"/><column name="status"/><column name="min_x"/><column name="max_x"/></createIndex>
+        <sql>ALTER TABLE building_revisions ADD COLUMN settlement_id TEXT CONSTRAINT fk_building_revision_settlement REFERENCES settlements(settlement_id)</sql>
+        <update tableName="building_revisions"><column name="settlement_id" valueComputed="(SELECT history_settlement_id FROM buildings WHERE buildings.building_id = building_revisions.building_id)"/></update>
+        <sql>ALTER TABLE building_revisions ADD COLUMN ownership_revision INTEGER NOT NULL DEFAULT 1</sql>
+        <sql>ALTER TABLE decay_state ADD COLUMN ruined_fraction REAL NOT NULL DEFAULT 0.5</sql>
+    </changeSet>
+</databaseChangeLog>

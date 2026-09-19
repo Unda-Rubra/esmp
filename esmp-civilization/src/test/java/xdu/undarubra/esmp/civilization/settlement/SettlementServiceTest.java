@@ -167,14 +167,14 @@ class SettlementServiceTest {
     private SettlementChange create(UUID actor, int x, int z) {
         captureProfile(x, z);
         ClaimQuote quote = service.quoteCreate(actor, world, new ChunkPosition(x, z)).join();
-        return service.purchase(actor, quote.id()).join();
+        return service.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     private SettlementChange claim(UUID actor, UUID settlement, int x, int z) {
         captureProfile(x, z);
         ClaimQuote quote =
                 service.quoteClaim(actor, settlement, world, new ChunkPosition(x, z)).join();
-        return service.purchase(actor, quote.id()).join();
+        return service.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     private void join(UUID id, UUID player) {
@@ -553,6 +553,8 @@ class SettlementServiceTest {
                 .execute("DROP TABLE settlement_local_activity");
         for (String table :
                 List.of(
+                        "wild_activity_actors",
+                        "wild_activity",
                         "repair_era_awards",
                         "repair_operations",
                         "repair_transfers",

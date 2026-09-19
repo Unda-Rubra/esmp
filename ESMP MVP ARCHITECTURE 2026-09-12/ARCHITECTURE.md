@@ -1117,7 +1117,7 @@ Reuse the existing Building, Activity, ledger, job and publication patterns. Sta
 
 Keep the load-bearing safeguards: bounded work, naturally loaded chunks only, Paper-thread world access, current permissions/revisions/expected-state checks, block-entity safety, durable reconciliation and idempotent accounting. Simplification is not permission to lose items or overwrite player work.
 
-Next implement the binary classification and whole-Building transition path with focused regressions, then connect the release loop. Unsupported boundary cases get a safe rejection, not another subsystem. This is the implementation scope; the new behavior is not yet shipped.
+The binary classification and explicit whole-Building transition slice is implemented: existing unclaim/confirmed abandonment can release whole RUINED Buildings after reconciliation; paid single-chunk claiming atomically captures and adopts eligible wild Buildings. Wild observations, local support and bounded Decay run through existing publication/reconciliation paths. Cross-boundary purchases/releases reject. Next connect the automatic notice/grace release loop; historical Treasury collection, automatic Parcel removal and terminal governance are not yet implemented. Existing ordinary last-Claim/Parcel/Treasury guards remain until that lifecycle ships.
 
 ---
 

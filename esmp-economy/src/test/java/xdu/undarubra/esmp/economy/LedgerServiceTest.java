@@ -112,7 +112,7 @@ class LedgerServiceTest {
                                         LandValueProfile.Terrain.values()[0])))
                 .join();
         var quote = settlements.quoteCreate(actor, worldInstance, new ChunkPosition(x, z)).join();
-        return settlements.purchase(actor, quote.id()).join();
+        return settlements.purchase(actor, quote.id(), java.util.List.of()).join();
     }
 
     LedgerService newLedger(CurrencyDefinition definition, LedgerPolicy policy) {
