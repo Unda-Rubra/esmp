@@ -29,7 +29,11 @@ public final class LedgerService {
     }
 
     public record TreasuryAuthority(
-            boolean owner, boolean governor, long ownershipRevision, UUID promotionId) {}
+            boolean owner,
+            boolean governor,
+            long ownershipRevision,
+            UUID promotionId,
+            boolean historical) {}
 
     @FunctionalInterface
     public interface TreasuryAuthorizer {

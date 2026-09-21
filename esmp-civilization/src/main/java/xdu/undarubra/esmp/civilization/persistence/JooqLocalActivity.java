@@ -49,6 +49,7 @@ final class JooqLocalActivity {
                 .set(a.SCORE_AT_ANCHOR, score)
                 .set(a.ANCHOR_GAME_TICK, tick)
                 .execute();
+        JooqCycleRepository.invalidateRecovered(c, observation.settlementId(), this, tick);
     }
 
     LocalActivityView view(DSLContext c, UUID settlement, long tick) throws SQLException {

@@ -371,12 +371,23 @@ public final class JooqLedgerRepository implements LedgerRepository {
                                 .where(ECONOMY_ALLOWANCE_EVENTS.OPERATION_ID.eq(request.id()))),
                 "That ID belongs to a budget change.");
         if (request.target() != null && request.target().kind() == LedgerAccount.Kind.TREASURY)
-            treasury.inspect(transaction, request.actor().player(), request.target().owner());
+            require(
+                    !treasury.inspect(
+                                    transaction, request.actor().player(), request.target().owner())
+                            .historical(),
+                    "Historical Treasury accepts collection only, not deposits or grants");
         TreasuryAuthority authority = null;
         if (request.source() != null)
             authority =
                     authorizeDebit(
                             transaction, request.actor(), request.source(), request.reason());
+        if (authority != null && authority.historical())
+            require(
+                    request.reason().equals("TREASURY_WITHDRAWAL")
+                            && request.movement() == Movement.TRANSFER
+                            && LedgerAccount.wallet(request.actor().player())
+                                    .equals(request.target()),
+                    "Collect historical Treasury into the entitled Owner's Wallet");
         Long sourceAfter = null, targetAfter = null, period = null;
         if (request.source() != null) {
             long available = balanceIn(c, request.source());
@@ -479,6 +490,7 @@ public final class JooqLedgerRepository implements LedgerRepository {
                     }
                     require(find(c, id) == null, "That ID belongs to a monetary transaction.");
                     var owner = treasury.inspect(transaction, actor.player(), settlement);
+                    require(!owner.historical(), "Historical Treasury has no governance budgets");
                     require(owner.owner(), "Only the Owner may set treasury budgets.");
                     var delegate = treasury.inspect(transaction, governor, settlement);
                     require(delegate.governor(), "Choose a current Governor.");

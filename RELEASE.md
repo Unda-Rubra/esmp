@@ -1,8 +1,14 @@
 # MVP 发布、升级与恢复指南
 
-冻结依据：[架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)。本页记录 Phase 8 的操作步骤与证据边界；玩家原生客户端验收仍单独保留在 [.agent/TEST_CHECKLIST.md](.agent/TEST_CHECKLIST.md)，不能把代理测试勾成用户签字。
+冻结依据：[架构包](ESMP%20MVP%20ARCHITECTURE%202026-09-12/README.md)。Phase 8 证据保留在下文；当前还包含后续基础土地循环，玩家原生客户端验收另列在 [.agent/TEST_CHECKLIST.md](.agent/TEST_CHECKLIST.md)。
 
-## 本次变更
+## 当前升级：基础土地循环
+
+配置升级到 15，备份 `config-before-cycle.yml`；新增 `cycle-release` 通知／终止受益人／Parcel 历史表。默认启用七游戏日通知宽限和有界外围回收。升级前先做完整冷备份；若尚未准备开放自动回收，在旧配置明确加入 `cycle.enabled: false`，完整重启后确认。新安装／升级不会把停服时间或既往不活跃直接算成已过期通知。
+
+土地结束不销毁金库：最后 Owner 用旧聚落 UUID 手动 withdraw；已对账的未用 Repair 材料仍由原供料者 refund。不可通过新 Claim 获得旧账本／材料。恢复必须匹配世界、玩家、数据库和新通知状态。
+
+## Phase 8 历史变更
 
 - 修复整栋建筑 Repair 准备缺少治理权限检查：Citizen 或仅有 BUILD/INTERACT 的使用者不能抢占任务，Owner/Governor 和明确管理员路径保留。
 - Decay/Repair 的有界待执行列表使用轮转游标，避免前八个不可用候选挡住后面的有效任务；受阻 Decay 恢复区块也轮转。游标是临时调度状态，不改变持久化操作身份。
@@ -29,7 +35,7 @@
 2. 正常控制台 `stop`，等 Java 进程退出、世界与 ESMP 关闭结束。`save-all flush` 本身不是跨存储原子备份，也不能替代停服。
 3. 复制整个服务器数据目录到带时间／提交标识的备份。必须包含整个 `world/`、所有已配置物理世界／维度、玩家数据、`plugins/ESMP/`（数据库、配置及升级备份）、世界加载器配置、身份／权限配置和当前插件 JAR。若 SQLite `-wal`/`-shm` 文件仍存在，一并保存；不要只拷贝 `.db` 主文件。外置世界路径和符号链接必须复制实际目标，不能只留一条会继续变化的链接。
 4. 先在隔离端口的副本替换 JAR、启动。等 `ESMP READY` 和 `protection=true`，核对世界实例、聚落／Claims、角色、Parcel、余额、历史、建筑和未完成修复。失败就停服保留日志，不删除校验信息、不手工 changelogSync、不跳过保护。
-5. 验证副本正常后，才按同一步骤升级正式目录。配置自动迁移到 14，最近备份为 `config-before-repair.yml`；既有 Activity 策略不能任意改数值绕过迁移。缺失自然土地估值的旧区块仍显示未知，不会偷偷按玩家改造后的地形补估。
+5. 验证副本正常后才升级正式目录。当前配置迁移到 15，最近备份为 `config-before-cycle.yml`；旧备份保留。既有 Activity 策略不能任意改数值绕过迁移。缺失自然土地估值的旧区块仍显示未知，不按改造后的地形补估。
 6. 升级后再完整 stop/start，确认持久化。禁止 `/reload`、插件管理器热卸载或同时启动两个进程使用同一数据目录。
 
 本次真实开发库副本从 config 5 升级到 14：既有世界身份、Claims、角色、Parcel、账本余额／流水与原历史保留；旧明确正式名按既定迁移成为 VERIFIED。原开发目录未升级。损坏副本缺失 `settlement_chunks` 时，服务器拒绝进入 READY 并关闭，而不是留下无保护世界。

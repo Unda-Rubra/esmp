@@ -19,6 +19,17 @@ import java.util.function.Predicate;
 public final class SettlementServices {
     private SettlementServices() {}
 
+    public static xdu.undarubra.esmp.civilization.cycle.CycleService cycle(
+            UnitOfWork db,
+            GameClock clock,
+            xdu.undarubra.esmp.civilization.activity.ActivityPolicy activity,
+            xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy local,
+            xdu.undarubra.esmp.civilization.cycle.CycleService.Policy policy) {
+        return new xdu.undarubra.esmp.civilization.cycle.CycleService(
+                new xdu.undarubra.esmp.civilization.persistence.JooqCycleRepository(
+                        db, clock, activity, local, policy));
+    }
+
     public static SettlementService settlement(
             UnitOfWork database,
             SettlementPolicy policy,

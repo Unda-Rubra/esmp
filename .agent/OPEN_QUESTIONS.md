@@ -1,17 +1,15 @@
-# ESMP Current Scope and Execution Notes
+# Current Scope and Acceptance Notes
 
-Canonical scope: architecture §30. Binary WILD/CLAIMED classification, explicit whole release/paid takeover, wild observations/Activity/Decay and compatibility migrations are implemented. Current behavior and evidence are in HANDOFF and README.
+The minimal architecture §30 basic cycle is implemented: binary whole Buildings, bounded persistent notice/grace release, Holder protection, whole unassigned Parcel history, terminal roles/proposals, manual historical Treasury and original-payer Repair refunds. No remaining design questionnaire blocks this coding increment.
 
-## Next work
+## Next acceptance
 
-Connect the bounded Activity → notice/grace → peripheral release loop to existing whole-transition and publication APIs. Preserve retained-land topology, assigned Holder consent, safe pending-work reconciliation and accounting. No fragments, mixed ownership, split/merge, Civic Capacity or new simulation. Use configurable defaults and focused tests rather than reopening the questionnaire.
+Use README and RELEASE on disposable paired data for native-client notices/status, publication/protection feedback, historical collection and real deployment-load tuning. Existing test/Paper evidence and limits are in HANDOFF and TEST_CHECKLIST. Do not mark native acceptance complete from protocol-client tests.
 
-## Still unimplemented
+## Deliberate boundaries
 
-Scheduled release, automatic whole unassigned-Parcel ending, historical Treasury collection and terminal governance invalidation. Existing ordinary last-Claim, nonempty Treasury and Parcel constraints remain until those workflows ship. Current one-chunk purchase safely rejects a multi-chunk wild Building; no partial takeover is supported.
+No cross-boundary Building fragments, split/merge, Civic Capacity or extra maintenance systems. Current single-chunk claiming rejects partial multi-chunk wild Building acquisition. Oversized cycle metadata/topology preserves protection rather than bypassing bounded-work limits. Admin lifecycle/dispute handling remains explicit and audited; Holder inactivity is not consent.
 
-## Migration constraints
+## Migration and operation
 
-Keep released changelogs immutable and preserve the legacy bridge. Two cycle forward migrations retain old Building histories and initialize wild Activity at zero. Documented SQLite-native ADD/RENAME avoids Liquibase table-rebuild metadata loss; do not generalize that exception into gameplay SQL. Upgrade paired world/player/database backups, not isolated stores.
-
-Native-client acceptance remains in TEST_CHECKLIST. No edge-case design interview is needed before the next bounded implementation.
+Config 15 creates config-before-cycle.yml. Preserve released changelogs and the tested legacy bridge; cycle-release only adds current implemented state. Disable cycle.enabled before first upgraded start if not ready for automatic notices; review preserved deadlines before re-enabling. Restore world/player/database together. No user development data was upgraded in the implementation session.

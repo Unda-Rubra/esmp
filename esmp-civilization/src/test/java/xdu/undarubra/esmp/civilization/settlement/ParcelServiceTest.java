@@ -422,6 +422,9 @@ class ParcelServiceTest {
                                     .execute("DROP TABLE settlement_local_activity");
                             for (String table :
                                     java.util.List.of(
+                                            "cycle_notices",
+                                            "cycle_terminal",
+                                            "cycle_parcel_history",
                                             "wild_activity_actors",
                                             "wild_activity",
                                             "repair_era_awards",

@@ -1,7 +1,11 @@
 # Map stable ESMP definitions to physical Paper world names.
 # Only already-loaded worlds are registered. ESMP does not create or load worlds yet.
 # Keep Resource names distinct from the permanent world's vanilla Nether and End.
-config-version: 14
+config-version: 15
+cycle:
+  enabled: true
+  grace-ticks: 168000
+  check-ticks: 1200
 worlds:
   MAIN: world
   RESOURCE_OVERWORLD: resource

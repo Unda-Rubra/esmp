@@ -103,6 +103,20 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                         .on(m.SETTLEMENT_ID.eq(s.SETTLEMENT_ID).and(m.PLAYER_UUID.eq(actor)))
                         .where(s.SETTLEMENT_ID.eq(id).and(s.STATUS.eq("OWNED")))
                         .fetchOne();
+        if (row == null) {
+            var terminal =
+                    c.selectFrom(CYCLE_TERMINAL)
+                            .where(CYCLE_TERMINAL.SETTLEMENT_ID.eq(id))
+                            .fetchOne();
+            require(terminal != null, "Settlement is no longer owned.");
+            return new TreasuryPermission(
+                    actor != null && actor.equals(terminal.get(CYCLE_TERMINAL.OWNER_UUID))
+                            ? Role.OWNER
+                            : Role.PUBLIC,
+                    0,
+                    null,
+                    true);
+        }
         require(row != null, "Settlement is no longer owned.");
         if (actor != null)
             require(
@@ -130,7 +144,7 @@ public final class JooqSettlementRepository implements SettlementService.Reposit
                             .limit(1)
                             .fetchOne(SETTLEMENT_OFFERS.OFFER_ID);
         }
-        return new TreasuryPermission(role, row.get(s.OWNERSHIP_REVISION), promotion);
+        return new TreasuryPermission(role, row.get(s.OWNERSHIP_REVISION), promotion, false);
     }
 
     public CompletableFuture<ClaimQuote> quoteCreate(UUID actor, UUID world, ChunkPosition chunk) {

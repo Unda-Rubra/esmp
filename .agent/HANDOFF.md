@@ -2,32 +2,39 @@
 
 ## State
 
-Binary WILD/CLAIMED Building transitions are implemented after core `mvp-v1.0`. WILD is wholly unclaimed; CLAIMED wholly inside one Settlement. No fragments/mixed ownership. Config 14 and frozen dependency pins remain. Automatic notice/grace land release is not implemented. Native-client acceptance remains separate.
+The simplified §30 basic Dynamic Settlement Cycle is implemented end to end, after core `mvp-v1.0` and binary WILD/CLAIMED transitions. Config 15. Native-client/user acceptance and deployment-load tuning remain separate. No Civic Capacity, mixed Buildings, fragments or new simulation.
 
 ## Completed
 
-- Nullable current Settlement plus immutable historical association, revisioned ownership, historical baseline association and current/publication query separation.
-- Whole RUINED explicit unclaim/confirmed abandon releases after pending-work reconciliation. Remaining Repair cancels with original-payer refundable escrow retained. Existing Parcel, Treasury-clear and ordinary last-Claim guards remain.
-- Paid Claim requires bounded naturally loaded exact Building captures; payment/Claim/association/current-state baseline commit atomically. Stable replay does not capture/pay again. UUID/history remain, no free physical repair or Era. Multi-chunk wild footprints reject single-chunk takeover.
-- Wild legal edits use new ownership stamps; independent world/chunk Activity with existing cooldown/caps/lazy decay/four-neighbor support suppresses future Decay. Wild Decay uses system principal/current unclaimed boundaries, existing material hazards and journals. Former roles never authorize it.
-- Two forward migrations; existing Buildings become CLAIMED without history loss. SQLite-native ALTER avoids tested Liquibase rebuild loss of defaults/FK metadata. No released changelog rewritten.
+- CycleService/JooqCycleRepository persists exact release group and deadline. One Settlement per check; up to 16 rotating candidate seeds with preferred existing notice. Whole Building/Parcel closure, RUINED and zero-Holder checks, retained connectivity and exterior-reachable removal prevent holes or split ownership.
+- Default grace 168000/check 1200 shared game ticks. Online Owner/member notices, login readback and `/settlement cycle [settlement|UUID]` expose coordinates/deadline. Support recovery invalidates notice transactionally; changed geometry/ownership/config restarts grace. Scheduler and SQL transaction recheck clock advancing; no downtime accrual/forced loads.
+- Release uses existing Building reconciliation/cancellation and publication gate after Activity drain. Unassigned Parcel cells/name/revision/policy are archived. Containers remain untouched. Safe terminal groups remove all Claims, active memberships and pending governance; history survives.
+- Historical Treasury beneficiary is the last Owner, not an active role or new claimant. Existing balance/history/withdraw commands accept the old UUID. Only idempotent TRANSFER to that beneficiary's Wallet is allowed; historical deposits, grants, payment to others and budgets reject. Unused Repair materials remain manually refundable to their original payer independently of roles.
+- New forward `cycle-release.xml`; generated table ownership updated. Config migration backs up `config-before-cycle.yml`. Existing ordinary unclaim/abandon guards remain; automatic lifecycle is separate.
 
 ## Changed files
 
-Civilization Building/Settlement APIs, Building/Claim/Repair/Decay/Activity persistence, local support and history catalog; Paper Building/Settlement/Activity/Decay adapters; generated-table configuration; two cycle changelogs and master; affected purchase/observation callers and migration fixtures. README, architecture §30 implementation status, AGENTS, decisions/checklist/notes updated.
+New cycle service/repository, Paper CycleRuntime and topology regression; existing local Activity recovery hook, Settlement Treasury entitlement port and factories, certification cancellation state/history catalog, ledger authorization and callers, Paper coordinator/config/commands, schema master/codegen filter and old-fixture teardown. Regression additions in RepairServiceTest and LedgerServiceTest. Architecture §30 implementation status, README/RELEASE, AGENTS and .agent status/evidence updated.
 
 ## Verification
 
-- `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain` passed: 146 tests, zero failures/errors/skips. Includes empty/legacy/native Phase 7 migration, transition/refund/replay/ownership-stamp barriers, wild Activity/restart/Decay and multi-chunk boundary rejection.
-- Real isolated Paper `.run/cycle-buildings`, migrated from prior Phase 8 data: explicit unclaim changed Roof CLAIMED→WILD while another Claim/assigned Parcel remained. Public maintenance placed a block, advanced baseline, credited 1.0 support and suppressed further Decay. After game-time advancement and safe-neighbor setup, SYSTEM_ACTOR WEATHER changed stone bricks to cracked stone bricks. Restart retained wild association and physical state.
-- Real founding purchase 25 captured the current cracked block, associated the same Building UUID with new S#2, retained historical S#1, reset damage against inherited state without Era change and cleared wild buckets. Receipt replay kept balances identical. Former Owner retirement rejected; outsider break rejected; new Owner break revised current baseline to air while revision 9 retained cracked brick.
-- Live two-chunk Wide registration succeeded; unclaim rejected with `Release would cross a tracked Building boundary` and Claims unchanged. First fixture attempt lacked five Treasury units (price 105), so was not counted; funded retry passed. Initial wild WEATHER waited on hazardous dirt neighbor; changing fixture neighbor to stone passed without changing production safety.
-- Logs/snapshots retained ignored under `.run/cycle-buildings` and `.run/cycle-wild-snapshot`. No user development data was changed. Test server stopped normally; client supervisor termination was intentional. Temporary driver is removed at cleanup. No native visual verification claimed.
+- Final `JAVA_HOME=.tooling/jdk-25.0.4.1+1/Contents/Home ./gradlew clean check build --no-build-cache --no-daemon --console=plain`: **150 tests, zero failures/errors/skips**. No Java/schema changes after this build.
+- Regression scenarios: topology holes/disconnection/peripheral/end; persistent grace/restart and overdue frozen rejection; activity recovery/new Holder; whole Parcel/ruin terminal release with original-payer refund; nonempty Treasury termination, denied former-member access, manual withdrawal/replay/restart and forbidden historical payments/deposits.
+- Real Paper `.run/basic-cycle`: new Settlement, 25 Treasury coins, unassigned Parcel, chest with three diamonds; notice survived stop/start and was delivered on Owner login. After time advance, final Claim and active members/Parcel ended, Parcel history archived, chest inventory unchanged. Last Owner withdrew 25; repeat transaction paid nothing again; former member was denied.
+- A second Settlement's real block break credited local support and cancelled notice. After adding a Claim and assigning a Holder to the original Parcel, low support released only the unassigned peripheral Claim; assigned Holder Claim remained through further elapsed time.
+- A third Settlement registered Roof and naturally decayed to RUINED. Partially supplied Repair reserved one material. Automatic grace release made the same Building WILD, cancelled Repair safely and preserved one refundable material. Unrelated player refund denied; original payer collected once; Era remained zero.
+- Final artifact restarted and created no notices during frozen game time. After resume, a new Settlement notified and terminated with actionable historical Treasury UUID/command; remaining Holder protection stayed enabled.
+- Previous binary-transition installation copied to `.run/basic-cycle-upgrade`, scheduling disabled: all pre-existing gameplay rows unchanged, only Liquibase metadata changed; three new tables empty, config 15/backup present, READY reached. Original development data untouched.
+- Ignored evidence: `.run/basic-cycle/acceptance.log`, checkpoint.json, server logs/world/DB; `.run/basic-cycle-upgrade` migration copy. Temporary driver removed during cleanup. No native visual acceptance claimed; protocol clients and server commands supplied runtime evidence. One final smoke query used a nonexistent test-only column and was corrected to the actual quote relation before the successful final run.
+- Final JAR SHA-256: `bfeb1968c05b8360a2ffefd9445c25fded7efc8e9771321e896895982376e032`. Both Paper fixtures stopped with exit 0; driver exit 143 was intentional supervisor shutdown. README/RELEASE/current-note links resolve; no temporary driver remains.
 
 ## Next action
 
-Implement the bounded notice/grace peripheral release loop on these whole-transition APIs, retaining topology/Holder/financial safeguards. Do not restart the design questionnaire or add mixed ownership.
+Run native-client/player acceptance and deployment-specific load/tuning on a disposable copy using README/RELEASE. Basic coding is complete; do not resume a design questionnaire or automatically start deferred systems.
 
 ## Risks or blockers
 
-Automatic Parcel removal, final Treasury collection and terminal governance changes are not shipped. Ordinary last-Claim/Treasury/Parcel checks still apply. Multi-chunk wild Buildings cannot be adopted by current single-chunk purchase; deliberate safe rejection, not fragment processing. Wild governance/Repair requires complete claiming. Original material refunds remain separate from new Building ownership. Use paired world/player/database backups before upgrading.
+- Cross-boundary Buildings remain rejected. Existing single-chunk purchase cannot partially adopt multi-chunk wild Buildings; no bulk-claim/fragment subsystem was added.
+- Bounded cycle guards retain protection for oversized metadata/topology (1024 Claims/Buildings, 32768 Parcel cells, 65536 exterior cells); operators must reduce unsupported scale, not bypass safety.
+- Disabling scheduling preserves notices while normal game time may continue; review pending deadlines before re-enabling. Use paired world/player/database cold backups.
+- Native-client UX and representative large-deployment capacity are still user acceptance, not missing basic cycle code. No remote push, new tag or production deployment performed.

@@ -16,4 +16,5 @@
     <include file="phase7-repair.xml" relativeToChangelogFile="true"/>
     <include file="cycle-building-ownership.xml" relativeToChangelogFile="true"/>
     <include file="cycle-wild-activity.xml" relativeToChangelogFile="true"/>
+    <include file="cycle-release.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

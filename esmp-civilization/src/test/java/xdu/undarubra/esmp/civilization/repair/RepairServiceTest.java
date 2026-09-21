@@ -630,6 +630,9 @@ class RepairServiceTest {
     private static void removeCycleSchema(java.sql.Statement s) throws Exception {
         for (var sql :
                 List.of(
+                        "DROP TABLE cycle_notices",
+                        "DROP TABLE cycle_terminal",
+                        "DROP TABLE cycle_parcel_history",
                         "DROP TABLE wild_activity_actors",
                         "DROP TABLE wild_activity",
                         "DROP INDEX building_settlement",
@@ -884,5 +887,115 @@ class RepairServiceTest {
         assertEquals(BuildingService.Ownership.CLAIMED, upgraded.building().ownership());
         assertEquals(settlement, buildings.inspect(building, 1).join().building().settlement());
         assertTrue(repair.jobs(building).join().isEmpty());
+    }
+
+    private xdu.undarubra.esmp.civilization.cycle.CycleService cycle() {
+        return SettlementServices.cycle(
+                db,
+                clock,
+                ActivityPolicy.defaults(),
+                new LocalActivityPolicy(0, .5),
+                new xdu.undarubra.esmp.civilization.cycle.CycleService.Policy(100, 1));
+    }
+
+    @Test
+    void cycleNoticeSurvivesRestartAndEndsWholeParcelAndRuinedBuildingWithRefund() {
+        damage(DecayService.Kind.CAVE_IN);
+        parcels.add(owner, settlement, "Whole", Set.of(new ParcelCell(0, 0, 0)), -64, 320).join();
+        UUID job = prepare();
+        repair.confirm(supply(job, 2).id()).join();
+        var c = cycle();
+        c.advance(settlement).join();
+        long due = c.status(settlement).join().dueTick();
+        assertEquals("NOTICE", c.notices(owner).join().getFirst().state());
+        db.close();
+        open();
+        c = cycle();
+        assertEquals(due, c.status(settlement).join().dueTick());
+        assertNull(c.advance(settlement).join());
+        advance(100);
+        clock.sample(source, raw, false);
+        assertNull(c.advance(settlement).join());
+        assertEquals("NOTICE", c.status(settlement).join().state());
+        clock.sample(source, raw, true);
+        c.advance(settlement).join();
+        assertEquals("ENDED", c.status(settlement).join().state());
+        assertNull(parcels.land(settlement).join());
+        assertEquals(
+                BuildingService.Ownership.WILD,
+                buildings.inspect(building, 0).join().building().ownership());
+        assertEquals("CANCELLED", repair.job(job).join().state());
+        var refund =
+                repair.transfer(
+                                UUID.randomUUID(),
+                                owner,
+                                job,
+                                Direction.REFUND,
+                                List.of(
+                                        new Slot(
+                                                0,
+                                                Item.empty(),
+                                                new Item("minecraft:stone_bricks", 2))))
+                        .join();
+        repair.confirm(refund.id()).join();
+        repair.confirm(refund.id()).join();
+        assertEquals(2, repair.job(job).join().stock().getFirst().refunded());
+        assertNull(c.advance(settlement).join());
+    }
+
+    @Test
+    void holderAddedDuringNoticePreventsReleaseAndRecoveryRestartsGrace() {
+        damage(DecayService.Kind.CAVE_IN);
+        var activity =
+                ObservationServices.activity(
+                        db,
+                        clock,
+                        ActivityPolicy.defaults(),
+                        new LocalActivityPolicy(0, .5),
+                        decayPolicy,
+                        p -> false);
+        activity.initialize().join();
+        var c = cycle();
+        c.advance(settlement).join();
+        var stamp = stamp();
+        activity.contribute(
+                        List.of(
+                                new xdu.undarubra.esmp.civilization.activity.ActivityContribution(
+                                        settlement,
+                                        world,
+                                        owner,
+                                        1,
+                                        2,
+                                        1,
+                                        stamp.ownership(),
+                                        stamp.claims(),
+                                        stamp.security(),
+                                        ParcelAction.BUILD,
+                                        false,
+                                        null)))
+                .join();
+        assertEquals("MONITORING", c.status(settlement).join().state());
+        advance(20 * 24000);
+        c.advance(settlement).join();
+        long due = c.status(settlement).join().dueTick();
+        assertTrue(due > clock.ticks());
+        parcels.add(owner, settlement, "Private", Set.of(new ParcelCell(0, 0, 0)), -64, 320).join();
+        UUID parcel = parcels.land(settlement).join().parcels().values().iterator().next().id();
+        UUID holder = UUID.randomUUID();
+        parcels.holders(owner, settlement, parcel, Set.of(holder)).join();
+        parcels.resolve(
+                        holder,
+                        settlement,
+                        parcels.requests(settlement).join().getFirst().id(),
+                        true)
+                .join();
+        advance(101);
+        c.advance(settlement).join();
+        assertEquals("MONITORING", c.status(settlement).join().state());
+        assertEquals(
+                Set.of(holder), parcels.land(settlement).join().parcels().get(parcel).holders());
+        assertEquals(
+                BuildingService.Ownership.CLAIMED,
+                buildings.inspect(building, 0).join().building().ownership());
     }
 }

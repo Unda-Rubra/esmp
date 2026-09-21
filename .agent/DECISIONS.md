@@ -2,6 +2,18 @@
 
 This is a dated rationale log, not a competing specification. The canonical authority is now `ESMP MVP ARCHITECTURE 2026-09-12/ARCHITECTURE.md` plus its requirements freeze and strict roadmap. All earlier entries describe pre-freeze decisions/implementation history where superseded, including Owner-wallet expansion and plans for automatic Building discovery. The deleted root architecture is not restored.
 
+## 2026-09-21 — Finish the basic cycle instead of reopening design
+
+Implemented CycleService/JooqCycleRepository and a Paper coordinator consumer. One Settlement per configurable check, at most sixteen candidate seeds per check, forms whole Building/Parcel groups. Bounded complement flood rejects internal holes and disconnected remnants. RUINED Buildings, zero-Holder Parcels, support and revisions revalidate at commit. Oversized metadata/topology retains protection rather than degrading to unsafe fragments.
+
+Default game-time grace is 168000 and check interval 1200. Durable notice includes exact chunk coordinates, online member notification and login readback; no downtime accrual. Admitted local recovery invalidates notice in the contribution transaction. A later decline starts full grace again. Freeze is checked both by scheduler and transaction, including overdue work. Geometry/ownership/config context changes restart notice conservatively.
+
+Forward cycle-release migration stores notices, terminal beneficiary and Parcel geometry/policy/name history. Terminal transition cancels pending invitations/acquisition/certification/Parcel governance and removes active memberships, not committed history. Whole Building release reuses pending-work barriers and original-payer refunds. Last Owner's historical Treasury entitlement is independent of active roles: only manual idempotent TRANSFER to that Wallet; no deposits/grants/budgets, forfeiture or new-claimant entitlement. Console/admin read behavior remains the existing ledger policy.
+
+Config 15 backs up config-before-cycle.yml; disabled scheduling preserves data. Existing ordinary last-Claim/abandon Treasury guards remain, while the system lifecycle can end ownership without forcing withdrawal. WILD/CLAIMED remains binary; no new economy faucet, Civic Capacity or fragments.
+
+Evidence: full clean check/build passes 150 tests. Regression coverage includes topology, grace/restart/overdue freeze, recovery/new Holder, terminal Parcel/Building/refund and historical Treasury authorization/replay/restart. Real Paper: durable notice/login, unassigned Parcel terminal release with three diamonds left in chest, last Owner withdrawal/replay and member rejection, actual block credit cancellation, one peripheral Claim release retaining assigned Holder Claim, natural RUINED Building automatic WILD transition and original-payer refund. Previous-installation copy upgraded with all existing gameplay rows unchanged, config backup and scheduling disabled. No user development data changed. Native visual acceptance is still separate.
+
 ## 2026-09-19 — Implement binary Building transitions without fragments
 
 Implemented WILD/CLAIMED using nullable current association, immutable historical association and monotonic ownership revision. Historical baseline revisions capture association; publication routing never grants historical permissions. Current lists and publication refresh have separate contracts so old Settlements do not retain actionable current Buildings.

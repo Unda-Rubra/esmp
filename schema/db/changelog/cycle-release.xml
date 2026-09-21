@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+ <changeSet id="cycle-release" author="esmp" dbms="sqlite">
+  <createTable tableName="cycle_notices">
+   <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_cycle_notice_settlement"/></column>
+   <column name="fingerprint" type="TEXT"><constraints nullable="false"/></column>
+   <column name="chunks" type="TEXT"><constraints nullable="false"/></column>
+   <column name="due_tick" type="INTEGER"><constraints nullable="false"/></column>
+  </createTable>
+  <createTable tableName="cycle_terminal">
+   <column name="settlement_id" type="TEXT"><constraints primaryKey="true" nullable="false" references="settlements(settlement_id)" foreignKeyName="fk_cycle_terminal_settlement"/></column>
+   <column name="owner_uuid" type="TEXT"><constraints nullable="false"/></column>
+   <column name="terminal_tick" type="INTEGER"><constraints nullable="false"/></column>
+  </createTable>
+  <createTable tableName="cycle_parcel_history">
+   <column name="parcel_id" type="TEXT"><constraints primaryKey="true" nullable="false"/></column>
+   <column name="settlement_id" type="TEXT"><constraints nullable="false"/></column>
+   <column name="name" type="TEXT"><constraints nullable="false"/></column>
+   <column name="revision" type="INTEGER"><constraints nullable="false"/></column>
+   <column name="cells" type="TEXT"><constraints nullable="false"/></column>
+   <column name="policy" type="TEXT"><constraints nullable="false"/></column>
+   <column name="ended_tick" type="INTEGER"><constraints nullable="false"/></column>
+  </createTable>
+ </changeSet>
+</databaseChangeLog>

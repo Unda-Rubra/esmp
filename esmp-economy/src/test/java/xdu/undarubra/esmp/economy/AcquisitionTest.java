@@ -95,7 +95,8 @@ class AcquisitionTest {
                                     p.role() == Role.OWNER,
                                     p.role() == Role.GOVERNOR,
                                     p.ownershipRevision(),
-                                    p.promotionId());
+                                    p.promotionId(),
+                                    p.historical());
                         });
         ledger.initialize().join();
         acquisitions = acquisitions(AcquisitionPolicy.defaults());

@@ -74,6 +74,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                     "building",
                     "decay",
                     "repair",
+                    "cycle",
                     "bypass",
                     "help");
     private final JavaPlugin plugin;
@@ -110,6 +111,39 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                 throw new SettlementException("Settlements are initializing or unavailable.");
             UUID actor = player.getUniqueId();
             switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "cycle" -> {
+                    if (args.length > 2)
+                        throw new SettlementException("Use cycle [settlement|UUID]");
+                    var found =
+                            args.length == 2
+                                    ? runtime.find(args[1])
+                                    : runtime.at(player.getLocation());
+                    UUID id =
+                            found != null
+                                    ? found.id()
+                                    : args.length == 2 ? UUID.fromString(args[1]) : null;
+                    if (id == null) throw new SettlementException("Choose a Settlement");
+                    runtime.query(
+                            player,
+                            () -> runtime.cycle().status(id),
+                            n ->
+                                    player.sendMessage(
+                                            Component.text(
+                                                    "Cycle "
+                                                            + n.state()
+                                                            + " · "
+                                                            + n.chunks()
+                                                            + " chunks ["
+                                                            + n.locations()
+                                                            + "] · due game tick "
+                                                            + n.dueTick()
+                                                            + (n.state().equals("ENDED")
+                                                                    ? " · /esmp treasury "
+                                                                            + id
+                                                                            + " withdraw <amount>"
+                                                                            + " [transaction-id]"
+                                                                    : ""))));
+                }
                 case "create" -> {
                     exact(args, 1, "create");
                     requestQuote(player, null);
@@ -1078,6 +1112,7 @@ public final class SettlementCommands implements CommandExecutor, TabCompleter {
                         "/settlement info [name] | activity [name] | list | members [name] |"
                                 + " history <name|uuid>",
                         "/settlement history-catalog (structured event types)",
+                        "/settlement cycle [settlement|UUID] (land release notice/status)",
                         "/settlement local-activity [settlement] [page] (admin; derived support"
                                 + " only)",
                         "/settlement invite|promote|kick|demote <name> <player|uuid>",

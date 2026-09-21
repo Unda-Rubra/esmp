@@ -184,7 +184,8 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
                                         permission.role() == Role.OWNER,
                                         permission.role() == Role.GOVERNOR,
                                         permission.ownershipRevision(),
-                                        permission.promotionId());
+                                        permission.promotionId(),
+                                        permission.historical());
                             });
             economyCommands =
                     new EconomyCommands(
@@ -284,7 +285,7 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
 
     private void migrateConfiguration() {
         Object version = getConfig().get("config-version", 1);
-        if (!(version instanceof Integer number) || number < 1 || number > 14) {
+        if (!(version instanceof Integer number) || number < 1 || number > 15) {
             throw new IllegalArgumentException("Unsupported ESMP config-version: " + version);
         }
         if (number == 1) {
@@ -483,6 +484,18 @@ public final class EsmpPlugin extends JavaPlugin implements Listener {
             getConfig().options().copyDefaults(true);
             readRepairPolicy();
             getConfig().set("config-version", 14);
+            saveConfig();
+        }
+        if (number < 15) {
+            try {
+                var backup = getDataFolder().toPath().resolve("config-before-cycle.yml");
+                if (!Files.exists(backup))
+                    Files.copy(getDataFolder().toPath().resolve("config.yml"), backup);
+            } catch (IOException failure) {
+                throw new IllegalStateException("Cannot back up cycle configuration", failure);
+            }
+            getConfig().options().copyDefaults(true);
+            getConfig().set("config-version", 15);
             saveConfig();
         }
     }

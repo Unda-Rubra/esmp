@@ -26,7 +26,8 @@ public final class SettlementService {
         boolean active(Transaction transaction, UUID settlement) throws SQLException;
     }
 
-    public record TreasuryPermission(Role role, long ownershipRevision, UUID promotionId) {}
+    public record TreasuryPermission(
+            Role role, long ownershipRevision, UUID promotionId, boolean historical) {}
 
     /** Domain port. Transaction-taking operations participate in the caller's transaction. */
     public interface Repository {

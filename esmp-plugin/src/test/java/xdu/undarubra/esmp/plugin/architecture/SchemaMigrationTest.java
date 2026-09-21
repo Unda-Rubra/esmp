@@ -466,6 +466,9 @@ class SchemaMigrationTest {
     private static void removeCycleSchema(java.sql.Statement s) throws Exception {
         for (var sql :
                 List.of(
+                        "DROP TABLE cycle_notices",
+                        "DROP TABLE cycle_terminal",
+                        "DROP TABLE cycle_parcel_history",
                         "DROP TABLE wild_activity_actors",
                         "DROP TABLE wild_activity",
                         "DROP INDEX building_settlement",

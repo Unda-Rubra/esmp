@@ -67,6 +67,7 @@ public final class SettlementRuntime implements AutoCloseable {
     private final ActivityService activity;
     private final ActivityListener activityListener;
     private final CertificationService certification;
+    private final xdu.undarubra.esmp.plugin.cycle.CycleRuntime cycle;
     private final BuildingRuntime buildings;
     private final DecayRuntime decay;
     private final RepairRuntime repair;
@@ -170,6 +171,18 @@ public final class SettlementRuntime implements AutoCloseable {
                                 administrators::contains),
                         fatal);
         activityListener = new ActivityListener(plugin, this, fatal);
+        var cyclePolicy =
+                new xdu.undarubra.esmp.civilization.cycle.CycleService.Policy(
+                        plugin.getConfig().getLong("cycle.grace-ticks", 168000),
+                        plugin.getConfig().getLong("cycle.check-ticks", 1200));
+        cycle =
+                new xdu.undarubra.esmp.plugin.cycle.CycleRuntime(
+                        plugin,
+                        this,
+                        xdu.undarubra.esmp.civilization.api.SettlementServices.cycle(
+                                database, clock, activityPolicy, localActivityPolicy, cyclePolicy),
+                        cyclePolicy.checkTicks(),
+                        fatal);
         visualization = new ClaimVisualization(plugin, this);
     }
 
@@ -207,6 +220,10 @@ public final class SettlementRuntime implements AutoCloseable {
         return decay;
     }
 
+    public xdu.undarubra.esmp.civilization.cycle.CycleService cycle() {
+        return cycle.service();
+    }
+
     public void activate(java.util.List<SettlementView> settlements) {
         index.load(settlements);
         ready = true;
@@ -216,6 +233,7 @@ public final class SettlementRuntime implements AutoCloseable {
         buildings.start();
         repair.start();
         decay.start();
+        cycle.start();
         visualization.start();
         outboxTask =
                 plugin.getServer()
@@ -531,18 +549,21 @@ public final class SettlementRuntime implements AutoCloseable {
                     .get()
                     .thenCompose(
                             change ->
-                                    parcels.land(change.settlementId())
-                                            .thenCompose(
-                                                    value ->
-                                                            buildings
-                                                                    .publication(
-                                                                            change.settlementId())
-                                                                    .thenApply(
-                                                                            views ->
-                                                                                    new Publication(
-                                                                                            change,
-                                                                                            value,
-                                                                                            views))))
+                                    change == null
+                                            ? CompletableFuture.<Publication>completedFuture(null)
+                                            : parcels.land(change.settlementId())
+                                                    .thenCompose(
+                                                            value ->
+                                                                    buildings
+                                                                            .publication(
+                                                                                    change
+                                                                                            .settlementId())
+                                                                            .thenApply(
+                                                                                    views ->
+                                                                                            new Publication(
+                                                                                                    change,
+                                                                                                    value,
+                                                                                                    views))))
                     .whenComplete(
                             (publication, failure) ->
                                     main(
@@ -551,7 +572,7 @@ public final class SettlementRuntime implements AutoCloseable {
                                                         publication == null
                                                                 ? null
                                                                 : publication.change();
-                                                if (failure == null) {
+                                                if (failure == null && publication != null) {
                                                     var updated =
                                                             new java.util.HashMap<>(
                                                                     land.settlements());
@@ -578,6 +599,10 @@ public final class SettlementRuntime implements AutoCloseable {
                                                 if (failure != null) {
                                                     completion.completeExceptionally(failure);
                                                     report(currentPlayer, failure);
+                                                    return;
+                                                }
+                                                if (change == null) {
+                                                    completion.complete(null);
                                                     return;
                                                 }
                                                 closeUnauthorizedInventories();
@@ -801,6 +826,7 @@ public final class SettlementRuntime implements AutoCloseable {
     @Override
     public void close() {
         if (tools != null) tools.close();
+        cycle.close();
         activityListener.close();
         buildings.close();
         decay.close();

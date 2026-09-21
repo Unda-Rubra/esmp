@@ -15,6 +15,7 @@ public record CertificationApplication(
     public enum State {
         PENDING,
         APPROVED,
-        DENIED
+        DENIED,
+        CANCELLED
     }
 }

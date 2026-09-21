@@ -127,7 +127,8 @@ class LedgerServiceTest {
                             p.role() == Role.OWNER,
                             p.role() == Role.GOVERNOR,
                             p.ownershipRevision(),
-                            p.promotionId());
+                            p.promotionId(),
+                            p.historical());
                 });
     }
 
@@ -882,5 +883,81 @@ class LedgerServiceTest {
                         uninitialized.setAllowance(
                                 actor(alice), settlement, governor, 1, UUID.randomUUID()));
         assertEquals(0, balance(wallet(alice)));
+    }
+
+    @Test
+    void cycleTerminationRetainsMoneyForLastOwnerManualReplaySafeCollection() {
+        var activity =
+                xdu.undarubra.esmp.civilization.api.ObservationServices.activity(
+                        db,
+                        clock,
+                        xdu.undarubra.esmp.civilization.activity.ActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.decay.DecayService.Policy.defaults(),
+                        p -> false);
+        activity.initialize().join();
+        var cycle =
+                xdu.undarubra.esmp.civilization.api.SettlementServices.cycle(
+                        db,
+                        clock,
+                        xdu.undarubra.esmp.civilization.activity.ActivityPolicy.defaults(),
+                        xdu.undarubra.esmp.civilization.activity.LocalActivityPolicy.defaults(),
+                        new xdu.undarubra.esmp.civilization.cycle.CycleService.Policy(10, 1));
+        join(bob);
+        var invitation =
+                settlements
+                        .offer(alice, settlement, governor, SettlementOffer.Type.INVITE)
+                        .join()
+                        .offer();
+        grant(treasury(), 100);
+        cycle.advance(settlement).join();
+        assertEquals("NOTICE", cycle.status(settlement).join().state());
+        assertEquals(100, balance(treasury()));
+        raw += 10;
+        clock.sample(source, raw, true);
+        cycle.advance(settlement).join();
+        assertEquals("ENDED", cycle.status(settlement).join().state());
+        assertTrue(settlements.initialize().join().isEmpty());
+        rejected(() -> settlements.accept(governor, invitation.id(), false).join());
+        assertEquals(100, ledger.balance(actor(alice), treasury()).join());
+        rejected(() -> ledger.balance(actor(bob), treasury()).join());
+        var request =
+                transfer(
+                        UUID.randomUUID(),
+                        alice,
+                        treasury(),
+                        wallet(alice),
+                        60,
+                        "TREASURY_WITHDRAWAL");
+        ledger.post(request).join();
+        ledger.post(request).join();
+        assertEquals(60, balance(wallet(alice)));
+        assertEquals(40, balance(treasury()));
+        rejected(
+                () ->
+                        ledger.post(
+                                        transfer(
+                                                UUID.randomUUID(),
+                                                alice,
+                                                treasury(),
+                                                wallet(bob),
+                                                10,
+                                                "TREASURY_PAYMENT"))
+                                .join());
+        rejected(() -> ledger.post(issue(UUID.randomUUID(), treasury(), 10)).join());
+        db.close();
+        openStore();
+        ledger.post(request).join();
+        ledger.post(
+                        transfer(
+                                UUID.randomUUID(),
+                                alice,
+                                treasury(),
+                                wallet(alice),
+                                40,
+                                "TREASURY_WITHDRAWAL"))
+                .join();
+        assertEquals(100, balance(wallet(alice)));
+        assertEquals(0, balance(treasury()));
     }
 }

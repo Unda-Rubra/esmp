@@ -306,3 +306,12 @@ Implemented and agent-verified: WILD/CLAIMED association and history, whole RUIN
 - [ ] Maintain a wild Building, then allow support to decay: future Decay stops/resumes without healing or stale edit overwrite.
 - [ ] Buy its complete supported footprint: current physical design becomes the new baseline, payment is replay-safe, old Owner rights do not return and Era does not increase.
 - [ ] Reject crossing release/claim/registration. Confirm previous-MVP migration/restart preserves Building identity/history and cancelled Repair's original-payer material refund.
+
+## Basic Dynamic Settlement Cycle — implemented
+
+Final clean build/check: **150 tests, zero failures/errors/skips**. Real Paper proved durable notice/login after restart, actual block-credit recovery cancellation, peripheral release retaining an assigned Holder, full unassigned Parcel archival/terminal membership removal, untouched chest diamonds, historical Treasury manual collection/replay/unauthorized denial, and automatic RUINED Building→WILD with original-payer partial-material refund and unchanged Era. Previous-version copy migration retained all gameplay rows; final artifact honors frozen game time and publishes new protection correctly. No native visual sign-off is implied.
+
+- [ ] Read `/settlement cycle` notice coordinates/deadline on a native client, restart during grace, restore meaningful support, and confirm notice cancellation without damage repair.
+- [ ] Let an eligible peripheral group expire while another Claim has assigned Holders; verify protected rights and retained topology. Check a whole unassigned Parcel's release and its retained history.
+- [ ] End a disposable low-support Settlement with Treasury funds and a partially supplied Repair. Collect money as last Owner and materials as original payer; retry receipts and reject another player's collection. Check containers remain unchanged and old governance cannot act.
+- [ ] Rehearse config 14→15 backup/disabled scheduling and paired restore; inspect pending deadlines before enabling the cycle. Profile representative claim/building/Parcel density within documented work limits.
